@@ -194,9 +194,6 @@ export const generatePygeoapiConfig = async (
     yaml += `      title: "${layer.name}"\n`;
     yaml += `      type: object\n`;
     yaml += `      properties:\n`;
-    yaml += `        "waystones_ping":\n`;
-    yaml += `          title: "Waystones Connection Check"\n`;
-    yaml += `          type: string\n`;
     allProperties.forEach(prop => {
       const typeInfo = mapFieldToSchemaType(prop);
       // Quote property names to avoid YAML parsing issues with reserved words or types
@@ -231,8 +228,7 @@ function getCQL2Extensions(): string {
   let s = `        extensions:\n`;
   s += `          filters:\n`;
   s += `            - cql2-text\n`;
-  s += `            - cql2-json\n`;
-  s += `            - cql-text\n\n`;
+  s += `            - cql2-json\n\n`;
   return s;
 }
 

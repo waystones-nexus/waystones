@@ -156,17 +156,6 @@ services:
   }
 
   compose += `    env_file: .env\n`;
-  if (isGpkg && useS3) {
-    // startup.sh in Dockerfile handles download + pygeoapi startup
-  } else {
-    compose += `    entrypoint:\n`;
-    compose += `      - /bin/bash\n`;
-    compose += `      - -c\n`;
-    compose += `      - |\n`;
-    compose += `        pygeoapi openapi generate \${PYGEOAPI_CONFIG} --output-file \${PYGEOAPI_OPENAPI}\n`;
-    compose += `        pygeoapi asyncapi generate \${PYGEOAPI_CONFIG} --output-file /pygeoapi/local.asyncapi.yml\n`;
-    compose += `        pygeoapi serve\n`;
-  }
   compose += `    restart: unless-stopped\n`;
 
   // WMS via QGIS Server (only if there are geometry layers)
@@ -218,7 +207,7 @@ services:
     }
 
     const pipInstall = useS3
-      ? `pip install -q psycopg2-binary awscli`
+      ? `apt-get update -q && apt-get install -y -q --no-install-recommends curl unzip && rm -rf /var/lib/apt/lists/* && curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o awscliv2.zip && unzip -q awscliv2.zip && ./aws/install -q && rm -rf awscliv2.zip aws && pip install -q psycopg2-binary`
       : `pip install -q psycopg2-binary`;
     compose += `
   # --- Automated Delta GeoPackage Exporter ---
@@ -283,20 +272,14 @@ if [ ! -f "/data/\${GPKG_FILENAME}" ] || [ "\${FORCE_S3_DOWNLOAD:-0}" = "1" ]; t
   echo "[startup] Downloading GeoPackage from S3..."
   mkdir -p /data
   # AWS_ENDPOINT_URL is picked up automatically by awscli v2 if set in env
-  aws s3 cp "s3://\${S3_BUCKET_NAME}/\${S3_OBJECT_KEY}" "/data/\${GPKG_FILENAME}"
+  aws s3 cp "s3://\${S3_BUCKET_NAME}/\${S3_OBJECT_KEY}" "/data/\${GPKG_FILENAME}" --no-progress
   echo "[startup] Download complete."
 else
   echo "[startup] Cached file found: /data/\${GPKG_FILENAME}"
 fi
 
-echo "[startup] Generating OpenAPI document..."
-pygeoapi openapi generate \${PYGEOAPI_CONFIG} --output-file \${PYGEOAPI_OPENAPI}
-
-echo "[startup] Generating AsyncAPI document..."
-pygeoapi asyncapi generate \${PYGEOAPI_CONFIG} --output-file /pygeoapi/local.asyncapi.yml || true
-
-echo "[startup] Starting pygeoapi..."
-exec pygeoapi serve
+echo "[startup] Handing over to pygeoapi entrypoint..."
+exec /entrypoint.sh
 `;
 };
 
@@ -312,8 +295,13 @@ export const generateDockerfile = (
 
   const copyData = isGpkg && !useS3 ? 'COPY data/ /data/' : '';
   const s3Setup = isGpkg && useS3 ? `
-# Install AWS CLI for S3-compatible storage download at startup
-RUN pip3 install --no-cache-dir awscli
+# Install AWS CLI v2 for S3-compatible storage download at startup
+RUN apt-get update && apt-get install -y --no-install-recommends curl unzip \\
+    && rm -rf /var/lib/apt/lists/* \\
+    && curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \\
+    && unzip awscliv2.zip \\
+    && ./aws/install \\
+    && rm -rf awscliv2.zip aws
 
 # Copy startup script
 COPY startup.sh /startup.sh
@@ -335,14 +323,13 @@ ${s3Setup}
 ENV PORT=80
 ENV PYGEOAPI_SERVER_URL=http://localhost:5000
 
-EXPOSE 80
+# Prepare directories and run as non-root
+RUN mkdir -p /data && \\
+    chown -R nobody:nogroup /pygeoapi /data && \\
+    chmod -R 755 /pygeoapi /data
+USER nobody
 
-# Create AsyncAPI document placeholder (required by pygeoapi startup check)
-RUN echo "asyncapi: 2.6.0" > /pygeoapi/local.asyncapi.yml && \
-    echo "info:" >> /pygeoapi/local.asyncapi.yml && \
-    echo "  title: pygeoapi" >> /pygeoapi/local.asyncapi.yml && \
-    echo "  version: 1.0.0" >> /pygeoapi/local.asyncapi.yml && \
-    echo "channels: {}" >> /pygeoapi/local.asyncapi.yml
+EXPOSE 80
 ${cmd}`;
 };
 
