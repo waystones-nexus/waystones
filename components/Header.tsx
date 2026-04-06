@@ -69,7 +69,7 @@ const Header: React.FC<{
 
       {/* Added 'text-left' here to fix the button's default center alignment */}
       <button onClick={onHome} className="flex items-center gap-2 md:gap-4 overflow-hidden min-w-0 hover:opacity-80 transition-opacity text-left">
-        <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-2xl flex items-center justify-center bg-indigo-950 shrink-0">
+        <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-2xl flex items-center justify-center bg-white shrink-0 overflow-hidden shadow-sm">
           <svg width="100%" height="100%" viewBox="0 0 200 200">
           <defs>
             <linearGradient id="stoneFace" x1="0" y1="0" x2="1" y2="0">
@@ -121,7 +121,7 @@ const Header: React.FC<{
           </defs>
 
           {/* Background */}
-          <rect width="200" height="200" rx="44" ry="44" fill="#ffffff" />
+          <rect width="200" height="200" fill="#ffffff" />
 
           {/* Hex stone shadow */}
           <polygon points="100,11 174,53 174,139 100,181 26,139 26,53" fill="#dde0ff" />
