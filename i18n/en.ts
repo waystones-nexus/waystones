@@ -637,7 +637,7 @@ export const en = {
     of: "of",
     sections: {
       quickPublish: "Quick Publish",
-      quickPublishDesc: "The fastest way to OGC API. Drop a GeoPackage, style your layers, and deploy to GitHub in seconds.",
+      quickPublishDesc: "The fastest way to OGC API. Drop a GeoPackage, style your layers, and deploy to GitHub in minutes.",
       ai: "AI Assistant",
       aiDesc: "Our built-in AI helps you with metadata, descriptions, and keywords. Look for the Sparkles symbol!",
       connect: "Connect Database",

@@ -637,7 +637,7 @@ export const no = {
     of: "av",
     sections: {
       quickPublish: "Hurtigpublisering",
-      quickPublishDesc: "Den raskeste veien til OGC API. Slipp en GeoPackage, style lagene dine, og deploy til GitHub på sekunder.",
+      quickPublishDesc: "Den raskeste veien til OGC API. Slipp en GeoPackage, style lagene dine, og deploy til GitHub på minutter.",
       ai: "AI-assistent",
       aiDesc: "Vår innebygde AI hjelper deg med metadata, beskrivelser og nøkkelord. Se etter Sparkles-symbolet!",
       connect: "Koble til database",
