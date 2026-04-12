@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useAmbient } from '../contexts/AmbientContext';
 import type { Translations } from '../i18n/index';
 import {
   ChevronLeft, ChevronDown, ChevronRight, Check, Database, Tag, Github, ArrowRight, Paintbrush, GripVertical, RotateCcw
@@ -32,6 +33,7 @@ const GEOM_ICONS: Record<string, string> = {
 const QuickPublish: React.FC<QuickPublishProps> = ({
   model, summary, validation, t, lang, onUpdateModel, onBack, onOpenEditor, dataBlob
 }) => {
+  const { triggerQuestWhisper } = useAmbient();
   const q = t.quickPublish || {};
 
   const [step, setStep] = useState(0);
@@ -115,6 +117,16 @@ const QuickPublish: React.FC<QuickPublishProps> = ({
     { icon: Tag, label: q.step2Title },
     { icon: Github, label: q.step3Title },
   ];
+
+  // Trigger whispers based on step
+  useEffect(() => {
+    switch (step) {
+      case 0: triggerQuestWhisper('inference_success'); break;
+      case 1: triggerQuestWhisper('styling_start'); break;
+      case 2: triggerQuestWhisper('metadata_step'); break;
+      case 3: triggerQuestWhisper('publish_ready'); break;
+    }
+  }, [step, triggerQuestWhisper]);
 
   return (
     <div className="flex-1 overflow-y-auto p-4 md:p-10 lg:p-14 min-w-0 custom-scrollbar scroll-smooth">

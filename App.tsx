@@ -3,6 +3,7 @@ import { Plus, ChevronLeft, ChevronRight, Layers, Upload, Globe, Github, Databas
 import { DataModel, ViewTab, Language, ImportValidationResult, ImportWarning } from './types';
 import { i18n, createEmptyModel } from './constants';
 import { AiProvider } from './contexts/AiContext';
+import { useAmbient } from './contexts/AmbientContext';
 import ModelEditor from './components/ModelEditor';
 import PreviewPanel from './components/PreviewPanel';
 import DataMapper from './components/DataMapper';
@@ -34,6 +35,7 @@ import {
 } from './utils/importUtils';
 
 const App: React.FC = () => {
+  const { triggerQuestWhisper, triggerWhisper } = useAmbient();
   const [lang, setLang] = useState<Language>('no');
   const t = i18n[lang] || i18n.no;
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -205,6 +207,9 @@ const App: React.FC = () => {
     setActiveTab('quick-publish');
     setShowDatabaseImport(false);
     setDirty(false);
+    
+    // Homunculus helps connect the deep sources
+    triggerWhisper('homunculus', "The deep currents are connected. Your database layers are now part of the clay.");
   };
 
   const handleDatabaseImportToEditor = (model: DataModel) => {
@@ -728,7 +733,7 @@ const App: React.FC = () => {
           </div>
         </>
       )}
-    </AiProvider>
+      </AiProvider>
   );
 };
 

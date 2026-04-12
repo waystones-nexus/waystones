@@ -1,4 +1,5 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { useAmbient } from '../contexts/AmbientContext';
 import type { Translations } from '../i18n/index';
 import { Upload, PenTool, Github, Plus, ArrowRight, Database, Loader2, Layers, Globe, Server, Cloud, Zap, GitBranch, Code2, Rocket, CloudUpload, Package } from 'lucide-react';
 import { DataModel } from '../types';
@@ -19,9 +20,17 @@ interface LandingScreenProps {
 const LandingScreen: React.FC<LandingScreenProps> = ({
   t, models, onDropGpkg, onNewModel, onImportFile, onImportUrl, onImportGithub, onImportDatabase, onSelectModel, isParsing
 }) => {
+  const { triggerQuestWhisper, stats } = useAmbient();
   const l = t.landing || {};
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Trigger intro quest on mount for new architects
+  useEffect(() => {
+    if (models.length === 0 || stats.unitsMet.length === 0) {
+      triggerQuestWhisper('landing_intro');
+    }
+  }, [triggerQuestWhisper, models.length, stats.unitsMet.length]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -93,7 +102,13 @@ const LandingScreen: React.FC<LandingScreenProps> = ({
 
             {/* Dropzone */}
             <div
-              onDragOver={e => { e.preventDefault(); setIsDragOver(true); }}
+              onDragOver={e => { 
+                e.preventDefault(); 
+                if (!isDragOver) {
+                  setIsDragOver(true); 
+                  triggerQuestWhisper('file_hover');
+                }
+              }}
               onDragLeave={() => setIsDragOver(false)}
               onDrop={handleDrop}
               onClick={() => !isParsing && fileInputRef.current?.click()}
