@@ -22,6 +22,7 @@ export const no = {
     connectSupabase: "Supabase",
     modelImportOr: "eller importer",
     modelImportFile: "Importer fil",
+    modelImportDatabase: "Importer fra database",
     modelImportUrl: "Hent fra API (URL)",
     modelImportGithub: "Hent fra GitHub",
     existingModels: "Eller fortsett med en eksisterende modell:",

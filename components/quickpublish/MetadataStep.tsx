@@ -19,11 +19,12 @@ interface MetadataStepProps {
   onNext: () => void;
   t: Translations;
   lang?: string;
+  idPrefix?: string;
 }
 
 type QpFeature = 'description' | 'theme' | 'keywords';
 
-const MetadataStep: React.FC<MetadataStepProps> = ({ model, summary, onUpdateModel, onBack, onNext, t, lang = 'en' }) => {
+const MetadataStep: React.FC<MetadataStepProps> = ({ model, summary, onUpdateModel, onBack, onNext, t, lang = 'en', idPrefix = 'qp' }) => {
   const q = t.quickPublish || {};
   const md = t.metadata || {};
   const aiContext = useAiContext();
@@ -210,61 +211,38 @@ const MetadataStep: React.FC<MetadataStepProps> = ({ model, summary, onUpdateMod
         <p className="text-sm text-slate-400 font-medium">{lang === 'no' ? 'Beskriv datasettet og lagene for å gjøre dem søkbare og forståelige.' : 'Describe your dataset and layers to make them discoverable and easy to understand.'}</p>
       </div>
 
-      {/* Dataset name */}
-      <div className="space-y-1.5">
-        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t.modelName}<span className="text-red-400 ml-0.5">*</span></label>
-        <input
-          value={nameInput}
-          onChange={e => {
-            setNameInput(e.target.value);
-            onUpdateModel({ ...modelRef.current, name: e.target.value });
-          }}
-          className={`w-full bg-white border-2 rounded-2xl px-5 py-3.5 text-sm font-bold outline-none focus:ring-4 transition-all ${touched && errors.name ? 'border-red-400 focus:border-red-400 focus:ring-red-500/10' : 'border-slate-200 focus:border-indigo-400 focus:ring-indigo-500/10'}`}
-        />
-        {touched && errors.name && <p className="text-xs text-red-500 font-medium">Required</p>}
-      </div>
-
-      {/* Description */}
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between">
-          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t.descriptionPlaceholder?.split('...')[0] || 'Description'}</label>
-          <AiTrigger
-            onClick={handleGenerateDesc}
-            isLoading={aiContext.isLoading}
-            isActive={aiContext.currentOperation === 'description'}
-            hasError={!!aiContext.error}
-            label={t.ai?.generateAbstract || 'Generate description'}
-            t={t}
+      <div id={`${idPrefix}-mandatory-meta-form`} className="space-y-6">
+        {/* Dataset name */}
+        <div id={`${idPrefix}-meta-name-field`} className="space-y-1.5">
+          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t.modelName}<span className="text-red-400 ml-0.5">*</span></label>
+          <input
+            value={nameInput}
+            onChange={e => {
+              setNameInput(e.target.value);
+              onUpdateModel({ ...modelRef.current, name: e.target.value });
+            }}
+            className={`w-full bg-white border-2 rounded-2xl px-5 py-3.5 text-sm font-bold outline-none focus:ring-4 transition-all ${touched && errors.name ? 'border-red-400 focus:border-red-400 focus:ring-red-500/10' : 'border-slate-200 focus:border-indigo-400 focus:ring-indigo-500/10'}`}
           />
+          {touched && errors.name && <p className="text-xs text-red-500 font-medium">Required</p>}
         </div>
-        <textarea
-          value={descInput}
-          onChange={e => {
-            setDescInput(e.target.value);
-            onUpdateModel({ ...modelRef.current, description: e.target.value });
-          }}
-          placeholder={t.descriptionPlaceholder}
-          rows={2}
-          className="w-full bg-white border-2 border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-medium outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 transition-all resize-none"
-        />
-      </div>
 
-      {/* Contact */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="space-y-1.5">
-          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{md.contactName}<span className="text-red-400 ml-0.5">*</span></label>
-          <input value={contactNameInput} onChange={e => { setContactNameInput(e.target.value); updateMeta({ contactName: e.target.value }); }} placeholder={md.contactNamePlaceholder} className={`w-full bg-white border-2 rounded-2xl px-4 py-3 text-sm font-medium outline-none focus:ring-4 transition-all ${touched && errors.contactName ? 'border-red-400 focus:border-red-400 focus:ring-red-500/10' : 'border-slate-200 focus:border-indigo-400 focus:ring-indigo-500/10'}`} />
-          {touched && errors.contactName && <p className="text-xs text-red-500 font-medium">Required</p>}
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{md.contactEmail}<span className="text-red-400 ml-0.5">*</span></label>
-          <input value={contactEmailInput} onChange={e => { setContactEmailInput(e.target.value); updateMeta({ contactEmail: e.target.value }); }} placeholder={md.contactEmailPlaceholder} className={`w-full bg-white border-2 rounded-2xl px-4 py-3 text-sm font-medium outline-none focus:ring-4 transition-all ${touched && errors.contactEmail ? 'border-red-400 focus:border-red-400 focus:ring-red-500/10' : 'border-slate-200 focus:border-indigo-400 focus:ring-indigo-500/10'}`} />
-          {touched && errors.contactEmail && <p className="text-xs text-red-500 font-medium">Required</p>}
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{md.contactOrganization}<span className="text-red-400 ml-0.5">*</span></label>
-          <input value={contactOrgInput} onChange={e => { setContactOrgInput(e.target.value); updateMeta({ contactOrganization: e.target.value }); }} placeholder={md.contactOrganizationPlaceholder} className={`w-full bg-white border-2 rounded-2xl px-4 py-3 text-sm font-medium outline-none focus:ring-4 transition-all ${touched && errors.contactOrganization ? 'border-red-400 focus:border-red-400 focus:ring-red-500/10' : 'border-slate-200 focus:border-indigo-400 focus:ring-indigo-500/10'}`} />
-          {touched && errors.contactOrganization && <p className="text-xs text-red-500 font-medium">Required</p>}
+        {/* Contact */}
+        <div id={`${idPrefix}-meta-contact-fields`} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{md.contactName}<span className="text-red-400 ml-0.5">*</span></label>
+            <input value={contactNameInput} onChange={e => { setContactNameInput(e.target.value); updateMeta({ contactName: e.target.value }); }} placeholder={md.contactNamePlaceholder} className={`w-full bg-white border-2 rounded-2xl px-4 py-3 text-sm font-medium outline-none focus:ring-4 transition-all ${touched && errors.contactName ? 'border-red-400 focus:border-red-400 focus:ring-red-500/10' : 'border-slate-200 focus:border-indigo-400 focus:ring-indigo-500/10'}`} />
+            {touched && errors.contactName && <p className="text-xs text-red-500 font-medium">Required</p>}
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{md.contactEmail}<span className="text-red-400 ml-0.5">*</span></label>
+            <input value={contactEmailInput} onChange={e => { setContactEmailInput(e.target.value); updateMeta({ contactEmail: e.target.value }); }} placeholder={md.contactEmailPlaceholder} className={`w-full bg-white border-2 rounded-2xl px-4 py-3 text-sm font-medium outline-none focus:ring-4 transition-all ${touched && errors.contactEmail ? 'border-red-400 focus:border-red-400 focus:ring-red-500/10' : 'border-slate-200 focus:border-indigo-400 focus:ring-indigo-500/10'}`} />
+            {touched && errors.contactEmail && <p className="text-xs text-red-500 font-medium">Required</p>}
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{md.contactOrganization}<span className="text-red-400 ml-0.5">*</span></label>
+            <input value={contactOrgInput} onChange={e => { setContactOrgInput(e.target.value); updateMeta({ contactOrganization: e.target.value }); }} placeholder={md.contactOrganizationPlaceholder} className={`w-full bg-white border-2 rounded-2xl px-4 py-3 text-sm font-medium outline-none focus:ring-4 transition-all ${touched && errors.contactOrganization ? 'border-red-400 focus:border-red-400 focus:ring-red-500/10' : 'border-slate-200 focus:border-indigo-400 focus:ring-indigo-500/10'}`} />
+            {touched && errors.contactOrganization && <p className="text-xs text-red-500 font-medium">Required</p>}
+          </div>
         </div>
       </div>
 
@@ -387,7 +365,7 @@ const MetadataStep: React.FC<MetadataStepProps> = ({ model, summary, onUpdateMod
       </div>
 
       {/* Layer Metadata (Optional) */}
-      <div className="pt-10 space-y-4">
+      <div id={`${idPrefix}-layer-meta-list`} className="pt-10 space-y-4">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-amber-600 border border-amber-100">
             <Layers size={16} />
@@ -500,10 +478,18 @@ const MetadataStep: React.FC<MetadataStepProps> = ({ model, summary, onUpdateMod
 
       {/* Navigation */}
       <div className="flex items-center justify-between pt-4">
-        <button onClick={onBack} className="px-6 py-3 rounded-2xl border-2 border-slate-200 text-slate-500 font-black text-xs uppercase tracking-widest hover:bg-slate-50 active:scale-95 transition-all">
+        <button 
+          type="button"
+          onClick={onBack} 
+          className="px-6 py-3 rounded-2xl border-2 border-slate-200 text-slate-500 font-black text-xs uppercase tracking-widest hover:bg-slate-50 active:scale-95 transition-all outline-none focus:ring-4 focus:ring-slate-500/10"
+        >
           {q.back}
         </button>
-        <button onClick={() => { setTouched(true); if (!hasErrors) onNext(); }} className="px-8 py-3.5 rounded-2xl bg-indigo-600 text-white font-black text-xs uppercase tracking-[0.15em] hover:bg-indigo-700 active:scale-95 transition-all shadow-lg flex items-center gap-2">
+        <button 
+          type="button"
+          onClick={() => { setTouched(true); if (!hasErrors) onNext(); }} 
+          className="px-8 py-3.5 rounded-2xl bg-indigo-600 text-white font-black text-xs uppercase tracking-[0.15em] hover:bg-indigo-700 active:scale-95 transition-all shadow-lg flex items-center gap-2 outline-none focus:ring-4 focus:ring-indigo-500/20"
+        >
           {q.next} <ArrowRight size={16} />
         </button>
       </div>

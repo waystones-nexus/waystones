@@ -22,6 +22,7 @@ export const en = {
     connectSupabase: "Supabase",
     modelImportOr: "or import",
     modelImportFile: "Import file",
+    modelImportDatabase: "Import from database",
     modelImportUrl: "Fetch from API (URL)",
     modelImportGithub: "Fetch from GitHub",
     existingModels: "Or continue with an existing model:",

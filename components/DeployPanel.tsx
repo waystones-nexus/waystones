@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { useAmbient } from '../contexts/AmbientContext';
 import type { Translations } from '../i18n/index';
 import {
   Database, ChevronRight, ChevronDown,
   Check, Layers, Tag, Github,
-  Link2, Table, Paintbrush, GripVertical, RotateCcw,
+  Link2, Table, Paintbrush, GripVertical, RotateCcw, ArrowRight
 } from 'lucide-react';
 import {
   DataModel, SourceConnection, SourceType, LayerStyle,
@@ -38,10 +39,41 @@ interface DeployPanelProps {
   summary?: InferredDataSummary;
 }
 
+interface NavButtonsProps {
+  onBack: () => void;
+  onNext: () => void;
+  showBackBg?: boolean;
+  t: Translations;
+}
+
+const NavButtons: React.FC<NavButtonsProps> = ({ onBack, onNext, showBackBg = false, t }) => {
+  const d = t.deploy;
+  const q = t.quickPublish || {};
+  return (
+    <div className="flex items-center justify-between pt-4">
+      <button
+        type="button"
+        onClick={onBack}
+        className={`px-6 py-3 rounded-2xl border-2 border-slate-200 text-slate-500 font-black text-xs uppercase tracking-widest active:scale-95 transition-all outline-none focus:ring-4 focus:ring-slate-500/10 ${showBackBg ? 'bg-white hover:bg-slate-50' : 'hover:bg-slate-50'}`}
+      >
+        {q.back || d.back || 'Back'}
+      </button>
+      <button
+        type="button"
+        onClick={onNext}
+        className="px-8 py-3.5 rounded-2xl bg-indigo-600 text-white font-black text-xs uppercase tracking-[0.15em] hover:bg-indigo-700 active:scale-95 transition-all shadow-lg flex items-center gap-2 outline-none focus:ring-4 focus:ring-indigo-500/20"
+      >
+        {q.next || d.next || 'Next'} <ArrowRight size={16} />
+      </button>
+    </div>
+  );
+};
+
 const DeployPanel: React.FC<DeployPanelProps> = ({ model, t, lang, onUpdateModel, onSourceChange, validation, summary }) => {
   const d = t.deploy;
   const q = t.quickPublish || {};
   const st = t.styling || {};
+  const { updateQuests, triggerQuestWhisper } = useAmbient();
 
   const [step, setStep] = useState(0);
   const [sourceType, setSourceType] = useState<SourceType | null>(null);
@@ -102,15 +134,33 @@ const DeployPanel: React.FC<DeployPanelProps> = ({ model, t, lang, onUpdateModel
     getItemId: (id) => id,
   });
 
-  // Reset collapse state when layer order changes
+  // Update collapsed state when layer order changes - first layer should be expanded
   useEffect(() => {
     setCollapsedPreviews(prev => {
       const next = new Set(prev);
       next.clear();
+      // Add all layers except the first one to collapsed state
       layerOrder.slice(1).forEach(id => next.add(id));
       return next;
     });
   }, [layerOrder]);
+
+  // Sync step to Quests
+  useEffect(() => {
+    updateQuests(model, validation, 'deploy', step);
+  }, [step, model, validation, updateQuests]);
+  
+  // Trigger whispers based on step
+  useEffect(() => {
+    switch (step) {
+      case 0: triggerQuestWhisper('DP_SOURCE'); break;
+      case 1: triggerQuestWhisper('DP_CONN_ALIGNMENT'); break;
+      case 2: triggerQuestWhisper('DP_MAPPING'); break;
+      case 3: triggerQuestWhisper('DP_SYMBOLS'); break;
+      case 4: triggerQuestWhisper('DP_METADATA'); break;
+      case 5: triggerQuestWhisper('DP_PUBLISH'); break;
+    }
+  }, [step, triggerQuestWhisper]);
 
   const togglePreviewCollapse = (layerId: string) => {
     setCollapsedPreviews(prev => {
@@ -203,24 +253,6 @@ const DeployPanel: React.FC<DeployPanelProps> = ({ model, t, lang, onUpdateModel
     { icon: Github,     label: d.steps?.[3]         || 'Publish' },
   ];
 
-  // Shared navigation buttons component
-  const NavButtons = ({ onBack, onNext, showBackBg = false }: { onBack: () => void; onNext: () => void; showBackBg?: boolean }) => (
-    <div className="flex items-center justify-between pt-4">
-      <button
-        onClick={onBack}
-        className={`px-6 py-3 rounded-2xl border-2 border-slate-200 text-slate-500 font-black text-xs uppercase tracking-widest active:scale-95 transition-all ${showBackBg ? 'bg-white hover:bg-slate-50' : 'hover:bg-slate-50'}`}
-      >
-        {q.back || d.back}
-      </button>
-      <button
-        onClick={onNext}
-        className="px-8 py-3.5 rounded-2xl bg-indigo-600 text-white font-black text-xs uppercase tracking-widest hover:bg-indigo-700 active:scale-95 transition-all shadow-lg flex items-center gap-2"
-      >
-        {q.next || d.next} <ChevronRight size={16} />
-      </button>
-    </div>
-  );
-
   return (
     <div className="space-y-8 pb-20">
 
@@ -258,48 +290,53 @@ const DeployPanel: React.FC<DeployPanelProps> = ({ model, t, lang, onUpdateModel
 
       {/* STEP 0: Source selection */}
       {step === 0 && (
-        <SourceTypePicker sourceType={sourceType} onSelect={(type) => { setSourceType(type); setStep(1); }} t={t} />
+        <div id="dp-source-picker">
+          <SourceTypePicker sourceType={sourceType} onSelect={(type) => { setSourceType(type); setStep(1); }} t={t} />
+        </div>
       )}
 
       {/* STEP 1: Connection details */}
       {step === 1 && sourceType && (
-        <ConnectionForm
-          sourceType={sourceType}
-          pgConfig={pgConfig} supaConfig={supaConfig} dbConfig={dbConfig} gpkgConfig={gpkgConfig}
-          onPgChange={setPgConfig} onSupaChange={setSupaConfig} onDbChange={setDbConfig} onGpkgChange={setGpkgConfig}
-          localDataFile={localDataFile}
-          onLocalDataFileChange={setLocalDataFile}
-          onIncludeDataChange={setIncludeData}
-          s3Config={s3Config}
-          onS3Change={setS3Config}
-          isConnectionValid={isConnectionValid()}
-          onBack={() => setStep(0)}
-          onNext={() => setStep(2)}
-          modelCrs={model.crs}
-          onBboxDetected={(bbox) => {
-            if (onUpdateModel) {
-              onUpdateModel({
-                ...model,
-                metadata: {
-                  ...(model.metadata || {
-                    contactName: '', contactEmail: '', contactOrganization: '',
-                    keywords: [], theme: '', license: 'CC-BY-4.0', accessRights: 'public',
-                    purpose: '', accrualPeriodicity: 'unknown',
-                    spatialExtent: { westBoundLongitude: '', eastBoundLongitude: '', southBoundLatitude: '', northBoundLatitude: '' },
-                    temporalExtentFrom: '', temporalExtentTo: '',
-                  }),
-                  spatialExtent: {
-                    westBoundLongitude: bbox.west.toString(),
-                    eastBoundLongitude: bbox.east.toString(),
-                    southBoundLatitude: bbox.south.toString(),
-                    northBoundLatitude: bbox.north.toString(),
+        <div id="dp-conn-form">
+          <ConnectionForm
+            sourceType={sourceType}
+            idPrefix="dp"
+            pgConfig={pgConfig} supaConfig={supaConfig} dbConfig={dbConfig} gpkgConfig={gpkgConfig}
+            onPgChange={setPgConfig} onSupaChange={setSupaConfig} onDbChange={setDbConfig} onGpkgChange={setGpkgConfig}
+            localDataFile={localDataFile}
+            onLocalDataFileChange={setLocalDataFile}
+            onIncludeDataChange={setIncludeData}
+            s3Config={s3Config}
+            onS3Change={setS3Config}
+            isConnectionValid={isConnectionValid()}
+            onBack={() => setStep(0)}
+            onNext={() => setStep(2)}
+            modelCrs={model.crs}
+            onBboxDetected={(bbox) => {
+              if (onUpdateModel) {
+                onUpdateModel({
+                  ...model,
+                  metadata: {
+                    ...(model.metadata || {
+                      contactName: '', contactEmail: '', contactOrganization: '',
+                      keywords: [], theme: '', license: 'CC-BY-4.0', accessRights: 'public',
+                      purpose: '', accrualPeriodicity: 'unknown',
+                      spatialExtent: { westBoundLongitude: '', eastBoundLongitude: '', southBoundLatitude: '', northBoundLatitude: '' },
+                      temporalExtentFrom: '', temporalExtentTo: '',
+                    }),
+                    spatialExtent: {
+                      westBoundLongitude: bbox.west.toString(),
+                      eastBoundLongitude: bbox.east.toString(),
+                      southBoundLatitude: bbox.south.toString(),
+                      northBoundLatitude: bbox.north.toString(),
+                    },
                   },
-                },
-              });
-            }
-          }}
-          t={t}
-        />
+                });
+              }
+            }}
+            t={t}
+          />
+        </div>
       )}
 
       {/* STEP 2: Layer mapping */}
@@ -315,7 +352,7 @@ const DeployPanel: React.FC<DeployPanelProps> = ({ model, t, lang, onUpdateModel
             </div>
           </div>
 
-          <div className="space-y-6 pb-20">
+          <div id="dp-mapping-list" className="space-y-6 pb-20">
             {model.layers.map(layer => (
               <LayerMappingCard
                 key={layer.id}
@@ -326,13 +363,14 @@ const DeployPanel: React.FC<DeployPanelProps> = ({ model, t, lang, onUpdateModel
                 onToggle={() => setExpandedLayer(expandedLayer === layer.id ? null : layer.id)}
                 onUpdateMapping={(updates) => updateMapping(layer.id, updates)}
                 onFieldChange={(propId, val) => handleFieldChange(layer.id, propId, val)}
+                idPrefix="dp"
                 t={t}
               />
             ))}
           </div>
 
-          <div className="sticky bottom-6 z-20 p-2 bg-white/80 backdrop-blur-md border border-slate-100 rounded-[28px] shadow-xl">
-            <NavButtons onBack={() => setStep(1)} onNext={() => setStep(3)} showBackBg={true} />
+          <div className="sticky bottom-10 z-[250] p-2 bg-white/80 backdrop-blur-md border border-slate-100 rounded-[28px] shadow-xl">
+            <NavButtons onBack={() => setStep(1)} onNext={() => setStep(3)} showBackBg={true} t={t} />
           </div>
         </section>
       )}
@@ -359,6 +397,7 @@ const DeployPanel: React.FC<DeployPanelProps> = ({ model, t, lang, onUpdateModel
           </div>
 
           <div
+            id="dp-style-editor"
             className="space-y-6"
             onDragOver={handleDragOver}
             onDrop={(e) => { e.preventDefault(); e.stopPropagation(); }}
@@ -387,7 +426,7 @@ const DeployPanel: React.FC<DeployPanelProps> = ({ model, t, lang, onUpdateModel
                       isCollapsed ? 'hover:bg-slate-50' : 'hover:bg-indigo-50'
                     }`}
                   >
-                    <div className="flex items-center gap-2">
+                     <div id="dp-style-layer-handle" className="flex items-center gap-2">
                       <GripVertical size={16} className="text-slate-400 cursor-move" />
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold transition-colors ${isCollapsed ? 'bg-slate-100 text-slate-500' : 'bg-indigo-100 text-indigo-600'}`}>
                         {GEOM_ICONS[layer.geometryType] || '◇'}
@@ -410,6 +449,7 @@ const DeployPanel: React.FC<DeployPanelProps> = ({ model, t, lang, onUpdateModel
                         t={t}
                         variant="light"
                         showPreview={true}
+                        idPrefix="dp"
                       />
                     </div>
                   </div>
@@ -424,7 +464,7 @@ const DeployPanel: React.FC<DeployPanelProps> = ({ model, t, lang, onUpdateModel
             })}
           </div>
 
-          <NavButtons onBack={() => setStep(2)} onNext={() => setStep(4)} />
+          <NavButtons onBack={() => setStep(2)} onNext={() => setStep(4)} t={t} />
         </div>
       )}
 
@@ -438,6 +478,7 @@ const DeployPanel: React.FC<DeployPanelProps> = ({ model, t, lang, onUpdateModel
           onNext={() => setStep(5)}
           t={t}
           lang={lang}
+          idPrefix="dp"
         />
       )}
 
@@ -470,6 +511,7 @@ const DeployPanel: React.FC<DeployPanelProps> = ({ model, t, lang, onUpdateModel
             lang={lang}
             t={t}
             onBack={() => setStep(4)}
+            idPrefix="dp"
           />
         </div>
       )}

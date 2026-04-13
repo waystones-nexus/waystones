@@ -16,6 +16,7 @@ import MobileNav from './components/MobileNav';
 import { ConfirmDeleteDialog, GithubImportDialog, UrlImportDialog } from './components/dialogs';
 import DatabaseImportDialog from './components/dialogs/DatabaseImportDialog';
 import GithubTab from './components/preview/GithubTab';
+import { AmbientHighlighter } from './components/shared/AmbientHighlighter';
 import { useHistory } from './hooks/useHistory';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { usePanelResize } from './hooks/usePanelResize';
@@ -33,11 +34,13 @@ import {
   isDataModel,
   InferredDataSummary,
 } from './utils/importUtils';
+import { validateModel } from './utils/validationUtils';
+import { ImportValidationResult as FullValidationResult } from './types';
 
 const App: React.FC = () => {
-  const { triggerQuestWhisper, triggerWhisper } = useAmbient();
-  const [lang, setLang] = useState<Language>('no');
-  const t = i18n[lang] || i18n.no;
+  const { triggerQuestWhisper, triggerWhisper, triggerActionWhisper, updateQuests, addLog } = useAmbient();
+  const [lang, setLang] = usePersistedState<Language>('lang', 'en');
+  const t = i18n[lang] || i18n.en;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [showGuide, setShowGuide] = useState(() => !localStorage.getItem('guide_seen'));
@@ -98,7 +101,34 @@ const App: React.FC = () => {
     }
   }, [activeTab, selectedModel]);
 
+  // Sync validation to Ambient Quests
+  useEffect(() => {
+    if (selectedModel) {
+      const issues = validateModel(selectedModel);
+      // Map Full model issues to the simple ImportValidationResult format the context expects
+      const validation: FullValidationResult = {
+        warnings: issues.map(i => ({ 
+          type: i.code === 'LAYER_NO_PK' ? 'no_primary_key' as const : 'non_integer_pk' as const, 
+          layerName: i.layerId || '', 
+          message: i.message,
+          suggestion: '',
+          severity: i.severity === 'error' ? 'error' : 'warning'
+        })),
+        errors: [],
+        isValid: issues.every(i => i.severity !== 'error'),
+        canProceed: issues.every(i => i.severity !== 'error')
+      };
+      
+      let contextId: any = activeTab;
+      const modelForQuests = activeTab === 'landing' ? null : selectedModel;
+      updateQuests(modelForQuests, validation, contextId);
+    } else {
+      updateQuests(null, null, 'landing');
+    }
+  }, [selectedModel, activeTab, updateQuests]);
+
   const handleNewModel = () => {
+    triggerActionWhisper('create_model');
     const m = createEmptyModel();
     setModels(prev => {
       const updated = [...prev, m];
@@ -109,6 +139,7 @@ const App: React.FC = () => {
     setDirty(false);
     setActiveTab('editor');
     setSidebarCollapsed(false);
+    addLog(`New data manifest '${m.name}' initialized.`, 'success');
   };
 
   const handleUpdateModel = useCallback((updated: DataModel) => {
@@ -147,6 +178,7 @@ const App: React.FC = () => {
   };
 
   const handleImportModel = (imported: DataModel, meta?: { repo: string; path: string; branch: string }) => {
+    triggerActionWhisper('import_complete');
     const modelWithMeta = meta ? { ...imported, githubMeta: meta } : imported;
 
     setModels(prev => {
@@ -232,6 +264,7 @@ const App: React.FC = () => {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    triggerActionWhisper('import_start');
     setIsImporting(true);
 
     try {
@@ -308,6 +341,7 @@ const App: React.FC = () => {
 
   // Quick publish: drop a GeoPackage → infer → quick-publish flow
   const handleGpkgDrop = async (file: File) => {
+    triggerActionWhisper('import_start');
     setIsParsingGpkg(true);
     // Clear any existing validation state to prevent stale data
     setQuickPublishValidation(null);
@@ -408,6 +442,7 @@ const App: React.FC = () => {
   return (
     <AiProvider>
       <div className="flex flex-col h-screen bg-slate-50 overflow-hidden text-slate-900 font-sans selection:bg-indigo-500/20">
+        <AmbientHighlighter />
         <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".geojson,.json,.gpkg,.sqlite,.sql,.gml,.kml,.kmz,.shp,.fgb,.parquet,.csv,.gpx,.tab,.mif,.dxf,.yaml,.yml" className="hidden" />
         {showGuide && <Guide onClose={() => { setShowGuide(false); localStorage.setItem('guide_seen', 'true'); }} t={t} />}
         {showGithubImport && <GithubImportDialog t={t} onClose={() => setShowGithubImport(false)} onImport={handleImportModel} />}

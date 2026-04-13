@@ -13,7 +13,7 @@ import { getGpkgFilename, getPgConnectionEnv } from './_helpers';
 export const generatePygeoapiConfig = async (
   model: DataModel,
   source?: SourceConnection,
-  lang: string = 'no'
+  lang: string = 'en'
 ): Promise<string> => {
   const gpkgFilename = getGpkgFilename(model, source);
   const pgEnv = source ? getPgConnectionEnv(source) : null;

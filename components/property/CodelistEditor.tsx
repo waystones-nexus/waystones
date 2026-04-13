@@ -42,7 +42,7 @@ interface CodelistEditorProps {
   lang?: string;
 }
 
-const CodelistEditor: React.FC<CodelistEditorProps> = ({ prop, baselineProp, onUpdate, isGhost, reviewMode, sharedEnums = [], t, lang = 'no' }) => {
+const CodelistEditor: React.FC<CodelistEditorProps> = ({ prop, baselineProp, onUpdate, isGhost, reviewMode, sharedEnums = [], t, lang = 'en' }) => {
   const [expandedDescs, setExpandedDescs] = useState<Record<string, boolean>>({});
 
   // Safe access to codelist-specific fields

@@ -17,7 +17,7 @@ export const AmbientWhisper: React.FC = () => {
         initial={{ opacity: 0, y: 20, scale: 0.9 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.3 } }}
-        className={`fixed bottom-6 left-6 z-[9999] flex items-center gap-4 max-w-[320px] select-none ${isRare ? 'pointer-events-auto cursor-pointer' : 'pointer-events-none'}`}
+        className={`fixed bottom-14 left-6 z-[9999] flex items-center gap-4 max-w-[320px] select-none ${isRare ? 'pointer-events-auto cursor-pointer' : 'pointer-events-none'}`}
         onClick={isRare ? clearWhisper : undefined}
       >
         <div className="relative shrink-0">

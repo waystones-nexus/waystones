@@ -26,7 +26,7 @@ import {
 export const generateDeployFiles = async (
   model: DataModel,
   source: SourceConnection,
-  lang: string = 'no',
+  lang: string = 'en',
   target: DeployTarget = 'docker-compose'
 ): Promise<Record<string, string>> => {
   const isGpkg = source.type === 'geopackage';
@@ -121,7 +121,7 @@ export const generateDeployFiles = async (
 export const exportDeployKit = async (
   model: DataModel,
   source: SourceConnection,
-  lang: string = 'no',
+  lang: string = 'en',
   target: DeployTarget = 'docker-compose',
   binaryFiles?: Record<string, Blob>
 ) => {

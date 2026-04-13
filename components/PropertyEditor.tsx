@@ -112,7 +112,7 @@ const PropDiffField: React.FC<{
 };
 
 const PropertyEditor: React.FC<PropertyEditorProps> = ({
-  prop, baselineProp, onUpdate, onDelete, onMove, isFirst, isLast, t, allLayers, allLayersFull = [], sharedTypes = [], sharedEnums = [], change, isGhost, reviewMode, depth = 0, layerName = '', lang = 'no', isSharedType = false
+  prop, baselineProp, onUpdate, onDelete, onMove, isFirst, isLast, t, allLayers, allLayersFull = [], sharedTypes = [], sharedEnums = [], change, isGhost, reviewMode, depth = 0, layerName = '', lang = 'en', isSharedType = false
 }) => {
   const [isOpen, setIsOpen] = useState(prop.name === "" || depth > 0);
   const config = getFieldConfig(prop.fieldType);

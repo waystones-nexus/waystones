@@ -14,10 +14,11 @@ interface LayerStyleEditorProps {
   variant?: 'dark' | 'light';
   /** Show the SVG preview panel */
   showPreview?: boolean;
+  idPrefix?: string;
 }
 
 const LayerStyleEditor: React.FC<LayerStyleEditorProps> = ({
-  layer, onUpdate, t, variant = 'light', showPreview = true
+  layer, onUpdate, t, variant = 'light', showPreview = true, idPrefix = 'qp'
 }) => {
   const st = t.styling || {};
   const style = layer.style;
@@ -76,7 +77,7 @@ const LayerStyleEditor: React.FC<LayerStyleEditorProps> = ({
             {/* Color palette */}
             <div>
               <label className={`text-[10px] font-black uppercase tracking-widest ${cls.label} block mb-3`}>{st.pickColor}</label>
-              <div className="flex flex-wrap gap-2.5">
+              <div id={`${idPrefix}-color-palette`} className="flex flex-wrap gap-2.5">
                 {PRESET_COLORS.map(c => (
                   <button
                     key={c}

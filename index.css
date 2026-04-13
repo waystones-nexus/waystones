@@ -1,0 +1,52 @@
+/* Ambient Ritual Animations */
+@keyframes ritual-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(var(--pulse-color), 0);
+    opacity: 0;
+  }
+  10% {
+    box-shadow: 0 0 0 0.5px rgba(var(--pulse-color), 0.8);
+    opacity: 1;
+  }
+  100% {
+    box-shadow: 0 0 0 4px rgba(var(--pulse-color), 0);
+    opacity: 0;
+  }
+}
+
+.ritual-highlight-pulse {
+  position: absolute;
+  inset: -1px;
+  pointer-events: none;
+  z-index: 9999;
+  border-radius: inherit;
+  animation: ritual-pulse 1.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* Character Pulse Colors */
+.pulse-peasant { --pulse-color: 79, 70, 229; }   /* Indigo 600 */
+.pulse-peon { --pulse-color: 16, 185, 129; }      /* Emerald 500 */
+.pulse-acolyte { --pulse-color: 147, 51, 234; }   /* Purple 600 */
+.pulse-wisp { --pulse-color: 14, 165, 233; }      /* Sky 500 */
+.pulse-shade { --pulse-color: 71, 85, 105; }      /* Slate 600 */
+.pulse-homunculus { --pulse-color: 245, 158, 11; } /* Amber 500 */
+.pulse-void-entity { --pulse-color: 100, 116, 139; }

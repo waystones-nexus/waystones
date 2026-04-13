@@ -4,6 +4,8 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import { AmbientProvider } from './contexts/AmbientContext';
 import { AmbientWhisper } from './components/shared/AmbientWhisper';
+import { QuestLog } from './components/shared/QuestLog';
+import { Dispatch } from './components/shared/Dispatch';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -16,6 +18,8 @@ root.render(
     <AmbientProvider>
       <App />
       <AmbientWhisper />
+      <QuestLog />
+      <Dispatch />
     </AmbientProvider>
   </React.StrictMode>
 );

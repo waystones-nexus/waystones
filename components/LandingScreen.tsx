@@ -102,6 +102,7 @@ const LandingScreen: React.FC<LandingScreenProps> = ({
 
             {/* Dropzone */}
             <div
+              id="landing-dropzone"
               onDragOver={e => { 
                 e.preventDefault(); 
                 if (!isDragOver) {

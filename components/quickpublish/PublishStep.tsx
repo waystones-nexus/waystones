@@ -21,6 +21,7 @@ interface PublishStepProps {
   onBack?: () => void;
   /** When provided (e.g. from DeployPanel), skip building a geopackage source and use this instead */
   sourceOverride?: SourceConnection;
+  idPrefix?: string;
 }
 
 interface OAuthState {
@@ -29,7 +30,7 @@ interface OAuthState {
   token?: any;
 }
 
-const PublishStep: React.FC<PublishStepProps> = ({ model, summary, selectedLayers, dataBlob, lang, t, onBack, sourceOverride }) => {
+const PublishStep: React.FC<PublishStepProps> = ({ model, summary, selectedLayers, dataBlob, lang, t, onBack, sourceOverride, idPrefix = 'qp' }) => {
   const q = t.quickPublish || {};
   const d = t.deploy || {};
   const o = d.oauth || {};
@@ -468,18 +469,28 @@ const PublishStep: React.FC<PublishStepProps> = ({ model, summary, selectedLayer
       {/* Actions */}
       <div className="flex items-center justify-between pt-4">
         {onBack && (
-          <button onClick={onBack} className="px-6 py-3 rounded-2xl border-2 border-slate-200 text-slate-500 font-black text-xs uppercase tracking-widest hover:bg-slate-50 active:scale-95 transition-all">
+          <button 
+            type="button"
+            onClick={onBack} 
+            className="px-6 py-3 rounded-2xl border-2 border-slate-200 text-slate-500 font-black text-xs uppercase tracking-widest hover:bg-slate-50 active:scale-95 transition-all outline-none focus:ring-4 focus:ring-slate-500/10"
+          >
             {q.back}
           </button>
         )}
         <div className="flex items-center gap-3">
-          <button onClick={handleDownloadZip} className="px-4 py-3 rounded-2xl border-2 border-slate-200 text-slate-400 font-black text-[10px] uppercase tracking-widest hover:text-slate-600 active:scale-95 transition-all flex items-center gap-2">
+          <button 
+            type="button"
+            onClick={handleDownloadZip} 
+            className="px-4 py-3 rounded-2xl border-2 border-slate-200 text-slate-400 font-black text-[10px] uppercase tracking-widest hover:text-slate-600 active:scale-95 transition-all flex items-center gap-2 outline-none focus:ring-4 focus:ring-slate-500/10"
+          >
             <Download size={14} /> {d.downloadZip}
           </button>
           <button
+            id={`${idPrefix}-publish-button`}
+            type="button"
             onClick={handlePublish}
             disabled={!ghRepo || !getEffectiveToken() || publishStatus === 'loading'}
-            className="px-8 py-3.5 rounded-2xl bg-indigo-600 text-white font-black text-xs uppercase tracking-[0.15em] hover:bg-indigo-500 active:scale-95 transition-all shadow-lg shadow-indigo-200 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+            className="px-8 py-3.5 rounded-2xl bg-indigo-600 text-white font-black text-xs uppercase tracking-[0.15em] hover:bg-indigo-500 active:scale-95 transition-all shadow-lg shadow-indigo-200 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 outline-none focus:ring-4 focus:ring-indigo-500/20"
           >
             {publishStatus === 'loading' ? (
               <React.Fragment><RefreshCw size={16} className="animate-spin" /> {d.publishing}</React.Fragment>

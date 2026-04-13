@@ -8,7 +8,7 @@ import { generateEnvFile } from './infra';
 // ============================================================
 // Generate README for the deploy kit
 // ============================================================
-export const generateReadme = (model: DataModel, source: SourceConnection, lang: string = 'no'): string => {
+export const generateReadme = (model: DataModel, source: SourceConnection, lang: string = 'en'): string => {
   const s = (i18n[lang as keyof typeof i18n] ?? i18n.no).readme;
   const isPg = source.type === 'postgis' || source.type === 'supabase';
   const isGpkg = source.type === 'geopackage';
@@ -409,7 +409,7 @@ export const generateReadmeForTarget = (
   model: DataModel,
   source: SourceConnection,
   target: DeployTarget,
-  lang: string = 'no'
+  lang: string = 'en'
 ): string => {
   const s = (i18n[lang as keyof typeof i18n] ?? i18n.no).readme;
   const slug = model.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');

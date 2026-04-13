@@ -33,7 +33,7 @@ const GEOM_ICONS: Record<string, string> = {
 const QuickPublish: React.FC<QuickPublishProps> = ({
   model, summary, validation, t, lang, onUpdateModel, onBack, onOpenEditor, dataBlob
 }) => {
-  const { triggerQuestWhisper } = useAmbient();
+  const { triggerQuestWhisper, updateQuests } = useAmbient();
   const q = t.quickPublish || {};
 
   const [step, setStep] = useState(0);
@@ -121,12 +121,17 @@ const QuickPublish: React.FC<QuickPublishProps> = ({
   // Trigger whispers based on step
   useEffect(() => {
     switch (step) {
-      case 0: triggerQuestWhisper('inference_success'); break;
-      case 1: triggerQuestWhisper('styling_start'); break;
-      case 2: triggerQuestWhisper('metadata_step'); break;
-      case 3: triggerQuestWhisper('publish_ready'); break;
+      case 0: triggerQuestWhisper('QP_REVIEW'); break;
+      case 1: triggerQuestWhisper('QP_SYMBOLS'); break;
+      case 2: triggerQuestWhisper('QP_METADATA'); break;
+      case 3: triggerQuestWhisper('QP_PUBLISH'); break;
     }
   }, [step, triggerQuestWhisper]);
+
+  // Sync step to Quests
+  useEffect(() => {
+    updateQuests(model, validation, 'quick-publish', step);
+  }, [step, model, validation, updateQuests]);
 
   return (
     <div className="flex-1 overflow-y-auto p-4 md:p-10 lg:p-14 min-w-0 custom-scrollbar scroll-smooth">
@@ -185,7 +190,7 @@ const QuickPublish: React.FC<QuickPublishProps> = ({
           )}
 
           {/* Layer selection section */}
-          <div className="bg-white rounded-2xl border-2 border-slate-200 p-6 space-y-4">
+          <div id="qp-layer-selection" className="bg-white rounded-2xl border-2 border-slate-200 p-6 space-y-4 shadow-sm hover:border-slate-300 transition-all">
             <div className="space-y-2">
               <h3 className="text-lg font-black text-slate-900">Select Layers to Include</h3>
               <p className="text-sm text-slate-400 font-medium">Choose which layers you want to include in your published model</p>
@@ -250,7 +255,11 @@ const QuickPublish: React.FC<QuickPublishProps> = ({
 
           <div className="flex items-center justify-between pt-4">
             <span className="text-xs text-slate-400 font-bold">{selectedLayers.size} {q.selectedLayers}</span>
-            <button onClick={() => setStep(1)} className="px-8 py-3.5 rounded-2xl bg-indigo-600 text-white font-black text-xs uppercase tracking-[0.15em] hover:bg-indigo-700 active:scale-95 transition-all shadow-lg flex items-center gap-2">
+            <button 
+              type="button"
+              onClick={() => setStep(1)} 
+              className="px-8 py-3.5 rounded-2xl bg-indigo-600 text-white font-black text-xs uppercase tracking-[0.15em] hover:bg-indigo-700 active:scale-95 transition-all shadow-lg flex items-center gap-2 outline-none focus:ring-4 focus:ring-indigo-500/20"
+            >
               {q.next} <ArrowRight size={16} />
             </button>
           </div>
@@ -280,7 +289,7 @@ const QuickPublish: React.FC<QuickPublishProps> = ({
             </div>
           </div>
 
-          <div className="space-y-6"
+          <div id="qp-style-editor" className="space-y-6"
              onDragOver={handleDragOver}
              onDrop={(e) => {
                e.preventDefault();
@@ -315,8 +324,8 @@ const QuickPublish: React.FC<QuickPublishProps> = ({
                       isCollapsed ? 'hover:bg-slate-50' : 'hover:bg-indigo-50'
                     }`}
                   >
-                    <div className="flex items-center gap-2">
-                      <GripVertical size={16} className="text-slate-400 cursor-move" />
+                    <div id="qp-style-layer-handle" className="flex items-center gap-2">
+                       <GripVertical size={16} className="text-slate-400 cursor-move" />
                       <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold transition-colors ${isCollapsed ? 'bg-slate-100 text-slate-500' : 'bg-indigo-100 text-indigo-600'}`}>
                         {GEOM_ICONS[layer.geometryType] || '◇'}
                       </div>
@@ -341,6 +350,7 @@ const QuickPublish: React.FC<QuickPublishProps> = ({
                         t={t}
                         variant="light"
                         showPreview={true}
+                        idPrefix="qp"
                       />
                     </div>
                   </div>
@@ -360,13 +370,21 @@ const QuickPublish: React.FC<QuickPublishProps> = ({
 
           {/* Navigation */}
           <div className="flex items-center justify-between pt-4">
-            <button onClick={() => setStep(0)} className="px-6 py-3 rounded-2xl border-2 border-slate-200 text-slate-500 font-black text-xs uppercase tracking-widest hover:bg-slate-50 active:scale-95 transition-all">
+            <button 
+              type="button"
+              onClick={() => setStep(0)} 
+              className="px-6 py-3 rounded-2xl border-2 border-slate-200 text-slate-500 font-black text-xs uppercase tracking-widest hover:bg-slate-50 active:scale-95 transition-all outline-none focus:ring-4 focus:ring-slate-500/10"
+            >
               {q.back}
             </button>
-            <button onClick={() => {
-              console.log('Next button clicked, going to step 2');
-              setStep(2);
-            }} className="px-8 py-3.5 rounded-2xl bg-indigo-600 text-white font-black text-xs uppercase tracking-[0.15em] hover:bg-indigo-700 active:scale-95 transition-all shadow-lg flex items-center gap-2">
+            <button 
+              type="button"
+              onClick={() => {
+                console.log('Next button clicked, going to step 2');
+                setStep(2);
+              }} 
+              className="px-8 py-3.5 rounded-2xl bg-indigo-600 text-white font-black text-xs uppercase tracking-[0.15em] hover:bg-indigo-700 active:scale-95 transition-all shadow-lg flex items-center gap-2 outline-none focus:ring-4 focus:ring-indigo-500/20"
+            >
               {q.next} <ArrowRight size={16} />
             </button>
           </div>
@@ -383,6 +401,7 @@ const QuickPublish: React.FC<QuickPublishProps> = ({
           onNext={() => setStep(3)}
           t={t}
           lang={lang}
+          idPrefix="qp"
         />
       )}
 
@@ -396,6 +415,7 @@ const QuickPublish: React.FC<QuickPublishProps> = ({
           lang={lang}
           t={t}
           onBack={() => setStep(2)}
+          idPrefix="qp"
         />
       )}
     </div>

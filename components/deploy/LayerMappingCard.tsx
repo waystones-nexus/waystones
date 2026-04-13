@@ -12,11 +12,12 @@ interface LayerMappingCardProps {
   onToggle: () => void;
   onUpdateMapping: (updates: Partial<LayerSourceMapping>) => void;
   onFieldChange: (propId: string, val: string) => void;
+  idPrefix?: string;
   t: Translations;
 }
 
 const LayerMappingCard: React.FC<LayerMappingCardProps> = ({
-  layer, mapping, isExpanded, sourceType, onToggle, onUpdateMapping, onFieldChange, t
+  layer, mapping, isExpanded, sourceType, onToggle, onUpdateMapping, onFieldChange, idPrefix = 'dp', t
 }) => {
   const d = t.deploy;
   const isMapped = !!mapping?.sourceTable;
@@ -57,6 +58,7 @@ const LayerMappingCard: React.FC<LayerMappingCardProps> = ({
           {/* Database Configurations */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
             <Field
+              id={`${idPrefix}-mapping-table-field`}
               label={d.sourceTable || 'Source Table'}
               value={mapping?.sourceTable || ''}
               onChange={v => onUpdateMapping({ sourceTable: v })}
@@ -64,6 +66,7 @@ const LayerMappingCard: React.FC<LayerMappingCardProps> = ({
             />
             <div className="space-y-2">
               <Field
+                id={`${idPrefix}-mapping-pk-field`}
                 label={d.primaryKeyColumn || 'Primary Key'}
                 value={mapping?.primaryKeyColumn || 'fid'}
                 onChange={v => onUpdateMapping({ primaryKeyColumn: v })}
@@ -118,6 +121,7 @@ const LayerMappingCard: React.FC<LayerMappingCardProps> = ({
                   <span className="text-xs font-bold text-slate-700 truncate">{prop.name}</span>
                   <ArrowRight size={16} className="text-slate-200" />
                   <input
+                    id={`${idPrefix}-field-${prop.id}`}
                     value={(mapping?.fieldMappings || {})[prop.id] || prop.name}
                     onChange={e => onFieldChange(prop.id, e.target.value)}
                     className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-xs font-mono outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 transition-all"

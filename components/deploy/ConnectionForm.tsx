@@ -17,9 +17,11 @@ const Field: React.FC<{
   placeholder?: string;
   hint?: string;
   type?: 'text' | 'password';
-}> = ({ label, value, onChange, placeholder, hint, type = 'text' }) => {
+  id?: string;
+}> = ({ label, value, onChange, placeholder, hint, type = 'text', id }) => {
   const [visible, setVisible] = useState(false);
-  const inputId = useId();
+  const internalId = useId();
+  const inputId = id || internalId;
   const isPassword = type === 'password';
 
   return (
@@ -81,6 +83,7 @@ interface ConnectionFormProps {
   onNext: () => void;
   modelCrs?: string;
   onBboxDetected?: (bbox: { west: number; south: number; east: number; north: number }) => void;
+  idPrefix?: string;
   t: Translations;
 }
 
@@ -92,8 +95,9 @@ const ConnectionForm: React.FC<ConnectionFormProps> = ({
   s3Config, onS3Change,
   isConnectionValid,
   onBack, onNext,
-  modelCrs,
   onBboxDetected,
+  modelCrs,
+  idPrefix = 'dp',
   t,
 }) => {
   const d = t.deploy;
@@ -112,14 +116,14 @@ const ConnectionForm: React.FC<ConnectionFormProps> = ({
           <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{d.sources[sourceType] || sourceType}</p>
         </div>
       </div>
-      <div className="p-8 bg-slate-50 rounded-[24px] border border-slate-100 space-y-6">
+      <div id={`${idPrefix}-conn-form`} className="p-8 bg-slate-50 rounded-[24px] border border-slate-100 space-y-6">
         {sourceType === 'postgis' && (
           <React.Fragment>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-              <div className="sm:col-span-2"><Field label={d.fields.host} value={pgConfig.host} onChange={v => onPgChange({ ...pgConfig, host: v })} placeholder="localhost" /></div>
+              <div className="sm:col-span-2"><Field id={`${idPrefix}-conn-host-field`} label={d.fields.host} value={pgConfig.host} onChange={v => onPgChange({ ...pgConfig, host: v })} placeholder="localhost" /></div>
               <Field label={d.fields.port} value={pgConfig.port} onChange={v => onPgChange({ ...pgConfig, port: v })} placeholder="5432" />
             </div>
-            <Field label={d.fields.database} value={pgConfig.dbname} onChange={v => onPgChange({ ...pgConfig, dbname: v })} placeholder="geodata" />
+            <Field id={`${idPrefix}-conn-db-field`} label={d.fields.database} value={pgConfig.dbname} onChange={v => onPgChange({ ...pgConfig, dbname: v })} placeholder="geodata" />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
               <Field label={d.fields?.user} value={pgConfig.user} onChange={v => onPgChange({ ...pgConfig, user: v })} placeholder="postgres" />
               <Field label={d.fields?.password} value={pgConfig.password} onChange={v => onPgChange({ ...pgConfig, password: v })} type="password" />
@@ -129,9 +133,9 @@ const ConnectionForm: React.FC<ConnectionFormProps> = ({
         )}
         {sourceType === 'supabase' && (
           <React.Fragment>
-            <Field label={d.fields.projectUrl} value={supaConfig.projectUrl} onChange={v => onSupaChange({ ...supaConfig, projectUrl: v })} placeholder="https://abcdef.supabase.co" hint={d.supabaseHint} />
+            <Field id={`${idPrefix}-conn-host-field`} label={d.fields.projectUrl} value={supaConfig.projectUrl} onChange={v => onSupaChange({ ...supaConfig, projectUrl: v })} placeholder="https://abcdef.supabase.co" hint={d.supabaseHint} />
             <Field label={d.fields.anonKey} value={supaConfig.anonKey} onChange={v => onSupaChange({ ...supaConfig, anonKey: v })} type="password" />
-            <Field label={d.fields.schema} value={supaConfig.schema} onChange={v => onSupaChange({ ...supaConfig, schema: v })} placeholder="public" />
+            <Field id={`${idPrefix}-conn-db-field`} label={d.fields.schema} value={supaConfig.schema} onChange={v => onSupaChange({ ...supaConfig, schema: v })} placeholder="public" />
           </React.Fragment>
         )}
         {sourceType === 'databricks' && (
@@ -293,8 +297,8 @@ const ConnectionForm: React.FC<ConnectionFormProps> = ({
       </div>
 
       <div className="flex items-center justify-between pt-4">
-        <button onClick={onBack} className="px-6 py-3 rounded-2xl border-2 border-slate-200 bg-white text-slate-500 font-black text-xs uppercase tracking-widest active:scale-95 transition-all hover:bg-slate-50">{d.back}</button>
-        <button onClick={onNext} disabled={!isConnectionValid} className="px-8 py-3.5 rounded-2xl bg-indigo-600 text-white font-black text-xs uppercase tracking-widest disabled:opacity-50 shadow-lg active:scale-95 transition-all hover:bg-indigo-700">{d.next}</button>
+        <button type="button" onClick={onBack} className="px-6 py-3 rounded-2xl border-2 border-slate-200 bg-white text-slate-500 font-black text-xs uppercase tracking-widest active:scale-95 transition-all hover:bg-slate-50">{d.back}</button>
+        <button type="button" onClick={onNext} disabled={!isConnectionValid} className="px-8 py-3.5 rounded-2xl bg-indigo-600 text-white font-black text-xs uppercase tracking-widest disabled:opacity-50 shadow-lg active:scale-95 transition-all hover:bg-indigo-700">{d.next}</button>
       </div>
     </section>
   );
