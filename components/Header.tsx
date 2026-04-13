@@ -67,7 +67,7 @@ const Header: React.FC<{
   return (
     <header className="fixed top-0 left-0 right-0 h-20 bg-white/80 backdrop-blur-md border-b border-slate-100 z-50 px-4 md:px-12 flex items-center justify-between">
       <button onClick={onHome} className="flex items-center gap-4 hover:opacity-80 transition-opacity text-left group cursor-pointer">
-        <div className="w-10 h-10 md:w-11 md:h-11 rounded-xl md:rounded-2xl flex items-center justify-center bg-white shrink-0 overflow-hidden shadow-sm border border-slate-100 group-hover:scale-105 transition-transform duration-300">
+        <div className="w-10 h-10 md:w-11 md:h-11 rounded-xl md:rounded-2xl flex items-center justify-center shrink-0 overflow-hidden group-hover:scale-105 transition-transform duration-300">
           <svg width="100%" height="100%" viewBox="0 0 200 200">
             {/* Same SVG content as before */}
             <defs>
@@ -118,7 +118,7 @@ const Header: React.FC<{
                 <ellipse cx="100" cy="96" rx="48" ry="58" />
               </clipPath>
             </defs>
-            <rect width="200" height="200" fill="#ffffff" />
+            {/* Transparent background */}
             <polygon points="100,11 174,53 174,139 100,181 26,139 26,53" fill="#dde0ff" />
             <polygon points="100,14 171,55 171,137 100,178 29,137 29,55" fill="url(#stoneFace)" />
             <g clipPath="url(#hexClip)" fill="none" strokeLinecap="round">
