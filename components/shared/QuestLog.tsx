@@ -293,7 +293,7 @@ export const QuestLog: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600">Ambient Alignments</h3>
-                  <p className="text-[15px] font-black text-slate-800 mt-0.5 tracking-tight">Active Processes</p>
+                  <p className="text-[15px] font-black text-slate-800 mt-0.5 tracking-tight">Active Quests</p>
                 </div>
               </div>
               
@@ -301,7 +301,7 @@ export const QuestLog: React.FC = () => {
                 <div className="text-[18px] font-black text-slate-900 tabular-nums leading-none">
                   {progressPercent}<span className="text-[11px] text-slate-400 ml-0.5">%</span>
                 </div>
-                <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1.5">Convergence</div>
+                <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1.5">Aligned</div>
               </div>
             </div>
 
