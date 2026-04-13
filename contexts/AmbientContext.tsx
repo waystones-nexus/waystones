@@ -121,13 +121,13 @@ export const AmbientProvider: React.FC<{ children: ReactNode }> = ({ children })
     });
   }, []);
 
-  const triggerWhisper = useCallback((unit: WorkerUnit, text: string, options?: { rare?: boolean; duration?: number; targetId?: string; priority?: boolean }) => {
+  const triggerWhisper = useCallback((unit: WorkerUnit, text: string, options?: { rare?: boolean; duration?: number; targetId?: string; priority?: boolean; highlightUnit?: WorkerUnit }) => {
     const displayWhisper = () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
 
       // Set highlight if provided
       if (options?.targetId) {
-        setActiveHighlight({ id: options.targetId, unit });
+        setActiveHighlight({ id: options.targetId, unit: options.highlightUnit || unit });
       } else {
         setActiveHighlight(null);
       }
@@ -214,12 +214,14 @@ export const AmbientProvider: React.FC<{ children: ReactNode }> = ({ children })
       triggerWhisper(random.unit, random.text, { 
         rare: random.rare, 
         targetId: quest?.targetElementId,
+        highlightUnit: quest.unit,
         priority: options?.priority
       });
     } else if (quest) {
       // Fallback: Use the generic hint from the QUESTS manifest
       triggerWhisper(quest.unit, quest.hint, { 
         targetId: quest.targetElementId,
+        highlightUnit: quest.unit,
         priority: options?.priority
       });
     }

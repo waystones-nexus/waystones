@@ -153,8 +153,7 @@ const ModelEditor: React.FC<ModelEditorProps> = ({
         setIsMetadataOpen(true);
       }
 
-      // Optional: Add a subtle ambient whisper confirming we moved
-      triggerWhisper('acolyte', "I have opened the Model rituals for you, Architect.");
+      // Navigation handled by setActiveNavSection above
     }
     
     // Layer Quests
