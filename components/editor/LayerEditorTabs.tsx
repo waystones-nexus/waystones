@@ -73,7 +73,7 @@ const LayerEditorTabs: React.FC<LayerEditorTabsProps> = ({
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [isInheritedExpanded, setIsInheritedExpanded] = useState(false);
   const [isValidationExpanded, setIsValidationExpanded] = useState(false);
-  const [isMetaOpen, setIsMetaOpen] = useState(false);
+  const [isMetaOpen, setIsMetaOpen] = useState(true);
   const aiContext = useAiContext();
   const { markQuestVisited } = useAmbient();
 
