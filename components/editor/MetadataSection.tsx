@@ -126,7 +126,7 @@ const MetadataSection: React.FC<MetadataSectionProps> = ({ model, onUpdate, isOp
                   {/* Contact */}
                   <div className="pt-6 space-y-4">
                     <h4 className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">{lang === 'no' ? 'Kontaktinformasjon' : 'Contact information'}</h4>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div id="editor-meta-contact" className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div>
                         <label className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 mb-2 block">{md.contactName}</label>
                         <input type="text" value={meta.contactName} onChange={e => updateMeta({ contactName: e.target.value })} placeholder={md.contactNamePlaceholder} className="w-full bg-slate-50 border border-slate-200 rounded-[18px] px-4 py-3 text-sm font-bold focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 outline-none transition-all" />
@@ -191,6 +191,7 @@ const MetadataSection: React.FC<MetadataSectionProps> = ({ model, onUpdate, isOp
                       ))}
                     </div>
                     <input
+                      id="editor-meta-keywords"
                       ref={keywordInput}
                       type="text"
                       placeholder={md.keywordsPlaceholder}
@@ -222,7 +223,7 @@ const MetadataSection: React.FC<MetadataSectionProps> = ({ model, onUpdate, isOp
                           t={t}
                         />
                       </div>
-                      <select value={meta.theme} onChange={e => updateMeta({ theme: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-[18px] px-4 py-3 text-sm font-bold appearance-none focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 outline-none transition-all cursor-pointer">
+                      <select id="editor-meta-theme" value={meta.theme} onChange={e => updateMeta({ theme: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-[18px] px-4 py-3 text-sm font-bold appearance-none focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 outline-none transition-all cursor-pointer">
                         <option value="">—</option>
                         {Object.entries(md.themes || {}).map(([key, label]) => (
                           <option key={key} value={key}>{label as string}</option>
@@ -274,7 +275,7 @@ const MetadataSection: React.FC<MetadataSectionProps> = ({ model, onUpdate, isOp
                   </div>
 
                   {/* Spatial extent (bbox) */}
-                  <div className="space-y-2">
+                  <div className="space-y-2" id="editor-meta-bbox">
                     <label className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">{md.spatialExtent}</label>
                     <BboxEditor
                       spatialExtent={meta.spatialExtent}

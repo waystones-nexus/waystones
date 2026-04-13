@@ -99,7 +99,7 @@ const ConstraintsEditor: React.FC<ConstraintsEditorProps> = ({ prop, onUpdate, t
               <div className="flex items-center gap-5 pb-1.5">
                 {!isSharedType && (
                   <label className="flex items-center gap-2 cursor-pointer select-none group">
-                    <input type="checkbox" checked={!!c.isPrimaryKey} onChange={e => handleConstraintUpdate({ isPrimaryKey: e.target.checked })} className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer" />
+                    <input id="editor-layer-pk-field" type="checkbox" checked={!!c.isPrimaryKey} onChange={e => handleConstraintUpdate({ isPrimaryKey: e.target.checked })} className="w-4 h-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 accent-emerald-600 cursor-pointer" />
                     <span className="text-[10px] font-black text-slate-600 uppercase group-hover:text-emerald-700 transition-colors">{t.constraints.primaryKey}</span>
                   </label>
                 )}

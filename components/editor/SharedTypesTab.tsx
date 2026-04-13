@@ -65,7 +65,7 @@ const SharedTypesTab: React.FC<SharedTypesTabProps> = ({
           className={`flex items-center gap-1.5 pb-3 text-[10px] font-black uppercase tracking-widest transition-all border-b-2 ${subTab === 'enums' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
         >
           <Hash size={13} />
-          {lang === 'no' ? 'Delte kodelister' : 'Shared Codelists'}
+          {t.sharedCodelists}
           {sharedEnums.length > 0 && (
             <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-black ${subTab === 'enums' ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-500'}`}>{sharedEnums.length}</span>
           )}
@@ -76,8 +76,8 @@ const SharedTypesTab: React.FC<SharedTypesTabProps> = ({
       {subTab === 'types' && (
         <>
           <div className="flex items-center justify-between mb-4 px-2">
-            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{t.sharedTypes || 'Datatyper'}</h3>
-            <button onClick={onAddSharedType} className="text-xs font-black text-indigo-600 hover:underline flex items-center gap-1.5 shrink-0"><Plus size={14} /> {t.addSharedType || 'Ny datatype'}</button>
+            <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">{t.sharedTypes}</h3>
+            <button onClick={onAddSharedType} className="text-xs font-black text-indigo-600 hover:underline flex items-center gap-1.5 shrink-0"><Plus size={14} /> {t.addSharedType}</button>
           </div>
 
           <div className="flex flex-wrap gap-2 md:gap-3 px-1 pb-4">
@@ -91,11 +91,11 @@ const SharedTypesTab: React.FC<SharedTypesTabProps> = ({
                 <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
                   <Box size={14} className={activeSharedTypeId === st.id ? 'text-white' : 'text-slate-400'} />
                 </div>
-                {st.name || 'Untitled Type'}
+                {st.name || t.untitled}
               </button>
             ))}
             {sharedTypes.length === 0 && (
-              <div className="text-xs text-slate-400 italic py-3 px-4">Ingen datatyper opprettet ennå.</div>
+              <div className="text-xs text-slate-400 italic py-3 px-4">{t.noSharedTypes}</div>
             )}
           </div>
 
@@ -103,7 +103,7 @@ const SharedTypesTab: React.FC<SharedTypesTabProps> = ({
             <div className="bg-white rounded-[24px] md:rounded-[32px] border border-slate-200 shadow-sm p-4 sm:p-6 md:p-8">
               <div className="flex items-center justify-between mb-5 md:mb-6">
                 <div className="flex-1 relative">
-                  <label className="text-[10px] md:text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 block mb-2">{t.sharedTypeName || 'Type Name'}</label>
+                  <label className="text-[10px] md:text-[11px] font-black uppercase tracking-[0.15em] text-slate-400 block mb-2">{t.sharedTypeName}</label>
                   <input type="text" value={activeSharedType.name} onChange={e => onUpdateSharedType({ name: e.target.value })} className="w-full bg-slate-50 border-2 border-slate-100 hover:border-fuchsia-200 text-lg sm:text-xl md:text-2xl font-black px-4 py-3 rounded-2xl focus:bg-white focus:border-fuchsia-500 focus:ring-4 focus:ring-fuchsia-500/5 outline-none placeholder:text-slate-200 transition-all" placeholder="f.eks. Adresse" />
                 </div>
                 <button onClick={() => onDeleteSharedType(activeSharedType.id)} className="ml-3 sm:ml-4 p-3 rounded-xl text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition-all self-end"><Trash2 size={20} /></button>
@@ -111,14 +111,14 @@ const SharedTypesTab: React.FC<SharedTypesTabProps> = ({
 
               <textarea placeholder={t.sharedTypeDescriptionPlaceholder} value={activeSharedType.description} onChange={e => onUpdateSharedType({ description: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-[18px] md:rounded-[20px] px-4 py-4 md:px-5 md:py-4 text-xs md:text-sm min-h-[60px] md:min-h-[80px] focus:ring-4 focus:ring-fuchsia-500/10 focus:border-fuchsia-500 outline-none transition-all resize-none leading-relaxed mb-6" />
 
-              {/* Type-nivå-avgrensninger */}
+               {/* Type-nivå-avgrensninger */}
               <div className="mb-8">
                 <div className="flex items-center justify-between mb-2">
                   <label className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">
-                    {lang === 'no' ? 'Avgrensninger på typen' : 'Type-level constraints'}
+                    {t.typeConstraints}
                   </label>
                   <span className="text-[9px] text-fuchsia-500 font-bold bg-fuchsia-50 px-2 py-0.5 rounded-full">
-                    {lang === 'no' ? 'Arves av felt som bruker denne typen' : 'Inherited by fields using this type'}
+                    {t.inheritedByFields}
                   </span>
                 </div>
                 <ConstraintsEditor
@@ -174,10 +174,10 @@ const SharedTypesTab: React.FC<SharedTypesTabProps> = ({
         <>
           <div className="flex items-center justify-between mb-4 px-2">
             <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-              {lang === 'no' ? 'Delte kodelister' : 'Shared Codelists'}
+              {t.sharedCodelists}
             </h3>
             <button onClick={onAddSharedEnum} className="text-xs font-black text-amber-600 hover:underline flex items-center gap-1.5 shrink-0">
-              <Plus size={14} /> {lang === 'no' ? 'Ny kodeliste' : 'New codelist'}
+              <Plus size={14} /> {t.addSharedEnum}
             </button>
           </div>
 
@@ -192,13 +192,13 @@ const SharedTypesTab: React.FC<SharedTypesTabProps> = ({
                 <div className="w-6 h-6 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
                   <Hash size={14} className={activeSharedEnumId === se.id ? 'text-white' : 'text-slate-400'} />
                 </div>
-                {se.name || (lang === 'no' ? 'Uten navn' : 'Untitled')}
+                {se.name || t.untitled}
                 <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${activeSharedEnumId === se.id ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-400'}`}>{se.values.length}</span>
               </button>
             ))}
             {sharedEnums.length === 0 && (
               <div className="text-xs text-slate-400 italic py-3 px-4">
-                {lang === 'no' ? 'Ingen delte kodelister opprettet ennå.' : 'No shared codelists yet.'}
+                {t.noSharedEnums}
               </div>
             )}
           </div>
@@ -208,21 +208,21 @@ const SharedTypesTab: React.FC<SharedTypesTabProps> = ({
               <div className="flex items-center justify-between mb-5 md:mb-6">
                 <div className="flex-1 relative">
                   <label className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 block mb-2">
-                    {lang === 'no' ? 'Navn på kodeliste' : 'Codelist name'}
+                    {t.sharedEnumName}
                   </label>
                   <input
                     type="text"
                     value={activeSharedEnum.name}
                     onChange={e => onUpdateSharedEnum({ name: e.target.value })}
                     className="w-full bg-slate-50 border-2 border-slate-100 hover:border-amber-200 text-lg sm:text-xl md:text-2xl font-black px-4 py-3 rounded-2xl focus:bg-white focus:border-amber-500 focus:ring-4 focus:ring-amber-500/5 outline-none placeholder:text-slate-200 transition-all"
-                    placeholder={lang === 'no' ? 'f.eks. Status' : 'e.g. Status'}
+                    placeholder={t.sharedEnumNamePlaceholder}
                   />
                 </div>
                 <button onClick={() => onDeleteSharedEnum(activeSharedEnum.id)} className="ml-3 sm:ml-4 p-3 rounded-xl text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition-all self-end"><Trash2 size={20} /></button>
               </div>
 
               <textarea
-                placeholder={lang === 'no' ? 'Beskrivelse...' : 'Description...'}
+                placeholder={t.descriptionPlaceholder}
                 value={activeSharedEnum.description}
                 onChange={e => onUpdateSharedEnum({ description: e.target.value })}
                 className="w-full bg-slate-50 border border-slate-200 rounded-[18px] px-4 py-4 text-xs md:text-sm min-h-[60px] focus:ring-4 focus:ring-amber-500/10 focus:border-amber-500 outline-none transition-all resize-none leading-relaxed mb-6"
@@ -232,16 +232,16 @@ const SharedTypesTab: React.FC<SharedTypesTabProps> = ({
               <div className="space-y-3">
                 <div className="flex items-center justify-between mb-2 px-1">
                   <label className="text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">
-                    {lang === 'no' ? 'Verdier' : 'Values'} ({activeSharedEnum.values.length})
+                    {t.codelistValues} ({activeSharedEnum.values.length})
                   </label>
                   <button onClick={onAddEnumValue} className="text-[10px] font-black text-amber-600 hover:underline flex items-center gap-1">
-                    <Plus size={12} /> {lang === 'no' ? 'Legg til' : 'Add value'}
+                    <Plus size={12} /> {t.addValue}
                   </button>
                 </div>
 
                 <div className="grid grid-cols-[80px_1fr_40px] gap-2 px-2 py-1 text-[9px] font-black uppercase tracking-widest text-slate-400">
-                  <span>{lang === 'no' ? 'Kode' : 'Code'}</span>
-                  <span>{lang === 'no' ? 'Navn' : 'Label'}</span>
+                  <span>{t.codeKey}</span>
+                  <span>{t.codeLabel}</span>
                   <span></span>
                 </div>
 
@@ -256,7 +256,7 @@ const SharedTypesTab: React.FC<SharedTypesTabProps> = ({
                     <input
                       value={v.label}
                       onChange={e => onUpdateEnumValue({ ...v, label: e.target.value })}
-                      placeholder={lang === 'no' ? 'Navn' : 'Label'}
+                      placeholder={t.codeLabel}
                       className="w-full bg-white border-transparent rounded-lg px-2.5 py-2 text-xs font-bold outline-none focus:bg-white focus:border-amber-200 border h-9"
                     />
                     <button onClick={() => onDeleteEnumValue(v.id)} className="p-2 rounded-lg text-slate-300 hover:text-rose-600 hover:bg-rose-50 transition-colors flex items-center justify-center">
@@ -267,7 +267,7 @@ const SharedTypesTab: React.FC<SharedTypesTabProps> = ({
 
                 {activeSharedEnum.values.length === 0 && (
                   <div className="py-10 text-center text-slate-300 italic text-[10px] uppercase tracking-widest font-black border-2 border-dashed border-slate-100 rounded-2xl">
-                    {lang === 'no' ? 'Ingen verdier ennå' : 'No values yet'}
+                    {t.noEnumValues}
                   </div>
                 )}
               </div>

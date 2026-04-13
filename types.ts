@@ -145,6 +145,7 @@ export interface ModelMetadata {
   temporalExtentTo: string;
   url?: string;
   termsOfService?: string;
+  bboxVerified?: boolean;
 }
 
 export interface DataModel {

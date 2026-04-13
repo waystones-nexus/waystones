@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import type { Translations } from '../i18n/index';
 import { Eye, ChevronDown, Menu, Send, Settings2, Plus, Layers, Database, Globe, Github, Trash2 } from 'lucide-react';
 import { DataModel } from '../types';
@@ -10,6 +10,7 @@ import {
   suggestLayerKeywords
 } from '../utils/aiService';
 import { useAiContext } from '../contexts/AiContext';
+import { useAmbient } from '../contexts/AmbientContext';
 import { useDragAndDropReorder } from '../hooks/useDragAndDropReorder';
 import { useRenderingOrder } from '../hooks/useRenderingOrder';
 import { useVersionReview } from '../hooks/useVersionReview';
@@ -81,6 +82,8 @@ const ModelEditor: React.FC<ModelEditorProps> = ({
   const [isMobileImportMenuOpen, setIsMobileImportMenuOpen] = useState(false);
   const [isModelHeaderOpen, setIsModelHeaderOpen] = useState(true);
   const [isMetadataOpen, setIsMetadataOpen] = useState(false);
+  const [activeLayerTab, setActiveLayerTab] = useState<'fields' | 'style' | 'rules' | 'settings' | undefined>(undefined);
+  const [forcedLayerDetailsOpen, setForcedLayerDetailsOpen] = useState(false);
   const [isRenderingOrderOpen, setIsRenderingOrderOpen] = useState(true);
 
   // --- Extracted hooks
@@ -130,6 +133,55 @@ const ModelEditor: React.FC<ModelEditorProps> = ({
   });
 
   const aiContext = useAiContext();
+  const { lastQuestAction, triggerWhisper, markQuestVisited } = useAmbient();
+
+  // --- Quest-to-UI Navigation Listener
+  useEffect(() => {
+    if (!lastQuestAction) return;
+
+    const { id } = lastQuestAction;
+    
+    // Model Metadata Quests
+    if (id.startsWith('EDITOR_META_')) {
+      setActiveNavSection('model');
+      setIsMetadataOpen(true);
+      // Optional: Add a subtle ambient whisper confirming we moved
+      triggerWhisper('acolyte', "I have opened the Metadata rituals for you, Architect.");
+    }
+    
+    // Layer Quests
+    const isLayerQuest = id.startsWith('EDITOR_LAYER_') || id === 'RECORD_LORE' || id === 'RULE_ALIGNMENT' || id === 'STYLE_ALIGNMENT_ADV';
+    
+    if (isLayerQuest) {
+      setActiveNavSection('layer');
+      // If jumping from another section or no layer is active, default to the first layer
+      if ((activeNavSection !== 'layer' || !layerActions.activeLayerId) && model.layers.length > 0) {
+        layerActions.setActiveLayerId(model.layers[0].id);
+      }
+      
+      // Auto-expand details for title/keyword quests
+      if (id === 'EDITOR_LAYER_TITLE' || id === 'EDITOR_LAYER_KEYWORDS') {
+        setForcedLayerDetailsOpen(true);
+        // Reset after a moment so user can toggle it later
+        setTimeout(() => setForcedLayerDetailsOpen(false), 500);
+      }
+    }
+
+    if (id === 'RULE_ALIGNMENT') {
+      setActiveLayerTab('rules');
+    }
+    if (id === 'STYLE_ALIGNMENT_ADV') {
+      setActiveLayerTab('style');
+    }
+
+    // Types / Enums
+    if (id === 'ENUM_ALIGNMENT' || id === 'COMMON_TONGUE') {
+      setActiveNavSection('types');
+    }
+    if (id === 'RULE_ALIGNMENT') {
+      setActiveNavSection('rules');
+    }
+  }, [lastQuestAction, triggerWhisper]);
 
   // --- CRS change handler: reproject spatialExtent when CRS changes
   const handleUpdateWithCrsReproject = useCallback(async (updated: DataModel) => {
@@ -400,6 +452,7 @@ const ModelEditor: React.FC<ModelEditorProps> = ({
           {/* Review controls header */}
           <div className="shrink-0 flex flex-wrap items-center justify-end gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 border-b border-slate-200 bg-white shadow-sm sm:shadow-none relative z-20">
             <button
+              id="editor-publish-button"
               onClick={onOpenGithubPublish}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border bg-white border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-300"
             >
@@ -504,7 +557,10 @@ const ModelEditor: React.FC<ModelEditorProps> = ({
                   handleDragEnd={handleDragEnd}
                   resetOrder={resetOrder}
                   isOpen={isRenderingOrderOpen}
-                  onToggle={() => setIsRenderingOrderOpen(!isRenderingOrderOpen)}
+                  onToggle={() => {
+                    setIsRenderingOrderOpen(!isRenderingOrderOpen);
+                    if (!isRenderingOrderOpen) markQuestVisited('NAV_ALIGNMENT');
+                  }}
                   t={t}
                 />
               </div>
@@ -564,6 +620,8 @@ const ModelEditor: React.FC<ModelEditorProps> = ({
                 sharedEnums={sharedTypesActions.sharedEnums}
                 onGenerateLayerDescription={handleGenerateLayerDescription}
                 onSuggestLayerKeywords={handleSuggestLayerKeywords}
+                forcedTab={activeLayerTab}
+                forcedDetailsOpen={forcedLayerDetailsOpen}
               />
             )}
             

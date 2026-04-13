@@ -25,6 +25,7 @@ export interface Quest {
   complexity?: 'novice' | 'architect' | 'ritualist';
   isSideQuest?: boolean;
   targetElementId?: string;
+  weight?: number; // Sorting priority (1 is highest value)
 }
 
 export const UNIT_THEMES: Record<WorkerUnit, { pulse: string; border: string }> = {
@@ -46,16 +47,16 @@ export const QUESTS: Quest[] = [
     unit: 'peasant',
     hint: 'No data has been bound. Bring me a GeoPackage or a live connection from the deep.',
     context: 'landing',
-    step: 0,
     isMandatory: true,
-    targetElementId: 'landing-dropzone'
+    targetElementId: 'landing-dropzone',
+    weight: 1
   },
   // --- Quick Publish (Workflow) ---
   {
     id: 'QP_LAYER_ALIGNMENT',
     title: 'The Table Gathering',
     taskTitle: 'Select the primary layers to include',
-    unit: 'peasant',
+    unit: 'acolyte',
     hint: 'Not all stones are meant for every wall. Choose the layers that will form the foundation of this alignment.',
     context: 'quick-publish',
     step: 0,
@@ -71,7 +72,8 @@ export const QUESTS: Quest[] = [
     context: 'quick-publish',
     step: 1,
     isMandatory: true,
-    targetElementId: 'qp-style-editor'
+    targetElementId: 'qp-style-editor',
+    weight: 1
   },
   {
     id: 'QP_STYLING_ORDER',
@@ -99,18 +101,31 @@ export const QUESTS: Quest[] = [
     id: 'QP_META_NAME',
     title: 'Naming the Origin',
     taskTitle: 'Set the Model and Dataset name',
-    unit: 'peasant',
+    unit: 'homunculus',
     hint: 'Every stone needs a name. Tell me how this dataset shall be known in the archive.',
     context: 'quick-publish',
     step: 2,
     isMandatory: true,
-    targetElementId: 'qp-meta-name-field'
+    targetElementId: 'qp-meta-name-field',
+    weight: 1
+  },
+  {
+    id: 'QP_META_DESC',
+    title: 'The Chronical Alignment',
+    taskTitle: 'Provide a record of this dataset',
+    unit: 'acolyte',
+    hint: 'No record is complete without a description. Tell the archive what these stones represent.',
+    context: 'quick-publish',
+    step: 2,
+    isMandatory: true,
+    targetElementId: 'qp-meta-description-field',
+    weight: 1
   },
   {
     id: 'QP_META_CONTACT',
     title: 'The Architect’s Seal',
     taskTitle: 'Fill in the contact information',
-    unit: 'peasant',
+    unit: 'acolyte',
     hint: 'The archive must know who to call if the stones begin to shift. Add your contact details.',
     context: 'quick-publish',
     step: 2,
@@ -118,10 +133,43 @@ export const QUESTS: Quest[] = [
     targetElementId: 'qp-meta-contact-fields'
   },
   {
+    id: 'QP_META_THEME',
+    title: 'The Thematic Thread',
+    taskTitle: 'Assign a theme to your model',
+    unit: 'homunculus',
+    hint: 'Harmony is found through categorization. Select a theme that best reflects the nature of this alignment.',
+    context: 'quick-publish',
+    step: 2,
+    isMandatory: true,
+    targetElementId: 'qp-meta-theme-field'
+  },
+  {
+    id: 'QP_META_KEYWORDS',
+    title: 'The Lexicon of Discovery',
+    taskTitle: 'Add keywords for searchability',
+    unit: 'shade',
+    hint: 'The stones are lost without tags. Add keywords so future seekers may find this work in the library.',
+    context: 'quick-publish',
+    step: 2,
+    isMandatory: true,
+    targetElementId: 'qp-meta-keywords-field'
+  },
+  {
+    id: 'QP_META_BBOX',
+    title: 'The Boundary Ritual',
+    taskTitle: 'Verify the spatial extent',
+    unit: 'wisp',
+    hint: 'A world without bounds is chaos. Confirm the spatial footprint of your dataset to anchor it to the realm.',
+    context: 'quick-publish',
+    step: 2,
+    isMandatory: true,
+    targetElementId: 'qp-meta-bbox-field'
+  },
+  {
     id: 'QP_LAYER_META',
     title: 'The Layer Lore',
     taskTitle: 'Add descriptions to your individual layers',
-    unit: 'acolyte',
+    unit: 'shade',
     hint: 'Each layer has its own story. Add descriptions to your layers so their purpose is clear in the registry.',
     context: 'quick-publish',
     step: 2,
@@ -144,7 +192,7 @@ export const QUESTS: Quest[] = [
     id: 'DP_SOURCE_ALIGNMENT',
     title: 'The Deep Connection',
     taskTitle: 'Choose a source of truth',
-    unit: 'homunculus',
+    unit: 'peasant',
     hint: 'Where does the data flow from? Select your source connection.',
     context: 'deploy',
     step: 0,
@@ -188,7 +236,7 @@ export const QUESTS: Quest[] = [
     id: 'DP_MAPPING_ALIGNMENT',
     title: 'The Great Weaving',
     taskTitle: 'Map source columns to model fields',
-    unit: 'acolyte',
+    unit: 'homunculus',
     hint: 'Weave the source columns into the model properties. The strands must match exactly.',
     context: 'deploy',
     step: 2,
@@ -199,7 +247,7 @@ export const QUESTS: Quest[] = [
     id: 'DP_MAPPING_TABLES',
     title: 'The Table Bond',
     taskTitle: 'Map each layer to a source table',
-    unit: 'peasant',
+    unit: 'wisp',
     hint: 'Every conceptual layer must have a physical counterpart in your source. Ensure all layers are linked.',
     context: 'deploy',
     step: 2,
@@ -210,7 +258,7 @@ export const QUESTS: Quest[] = [
     id: 'DP_MAPPING_PK',
     title: 'The Identity Ritual',
     taskTitle: 'Ensure all layers have identity columns',
-    unit: 'wisp',
+    unit: 'shade',
     hint: 'Identity is the key to existence. Ensure every mapped table has a Primary Key defined.',
     context: 'deploy',
     step: 2,
@@ -248,13 +296,14 @@ export const QUESTS: Quest[] = [
     context: 'deploy',
     step: 3,
     isSideQuest: true,
-    targetElementId: 'dp-color-palette'
+    targetElementId: 'dp-color-palette',
+    weight: 3
   },
   {
     id: 'DP_META_NAME',
     title: 'Naming the Origin',
     taskTitle: 'Set the Model and Dataset name',
-    unit: 'peasant',
+    unit: 'homunculus',
     hint: 'Every stone needs a name. Tell me how this dataset shall be known in the archive.',
     context: 'deploy',
     step: 4,
@@ -262,10 +311,21 @@ export const QUESTS: Quest[] = [
     targetElementId: 'dp-meta-name-field'
   },
   {
+    id: 'DP_META_DESC',
+    title: 'The Deep Chronicle',
+    taskTitle: 'Describe the purpose of this service',
+    unit: 'acolyte',
+    hint: 'The cloud is vast. A clear description ensures your service is understood by seekers.',
+    context: 'deploy',
+    step: 4,
+    isMandatory: true,
+    targetElementId: 'dp-meta-description-field'
+  },
+  {
     id: 'DP_META_CONTACT',
     title: 'The Architect’s Seal',
     taskTitle: 'Fill in the contact information',
-    unit: 'peasant',
+    unit: 'acolyte',
     hint: 'The archive must know who to call if the stones begin to shift. Add your contact details.',
     context: 'deploy',
     step: 4,
@@ -273,10 +333,43 @@ export const QUESTS: Quest[] = [
     targetElementId: 'dp-meta-contact-fields'
   },
   {
+    id: 'DP_META_THEME',
+    title: 'The Thematic Thread',
+    taskTitle: 'Assign a theme to your model',
+    unit: 'homunculus',
+    hint: 'Harmony is found through categorization. Select a theme that best reflects the nature of this alignment.',
+    context: 'deploy',
+    step: 4,
+    isMandatory: true,
+    targetElementId: 'dp-meta-theme-field'
+  },
+  {
+    id: 'DP_META_KEYWORDS',
+    title: 'The Lexicon of Discovery',
+    taskTitle: 'Add keywords for searchability',
+    unit: 'shade',
+    hint: 'The stones are lost without tags. Add keywords so future seekers may find this work in the library.',
+    context: 'deploy',
+    step: 4,
+    isMandatory: true,
+    targetElementId: 'dp-meta-keywords-field'
+  },
+  {
+    id: 'DP_META_BBOX',
+    title: 'The Boundary Ritual',
+    taskTitle: 'Verify the spatial extent',
+    unit: 'wisp',
+    hint: 'A world without bounds is chaos. Confirm the spatial footprint of your dataset to anchor it to the realm.',
+    context: 'deploy',
+    step: 4,
+    isMandatory: true,
+    targetElementId: 'dp-meta-bbox-field'
+  },
+  {
     id: 'DP_LAYER_META',
     title: 'The Layer Lore',
     taskTitle: 'Add descriptions to your individual layers',
-    unit: 'acolyte',
+    unit: 'shade',
     hint: 'Each layer has its own story. Add descriptions to your layers so their purpose is clear in the registry.',
     context: 'deploy',
     step: 4,
@@ -302,7 +395,10 @@ export const QUESTS: Quest[] = [
     taskTitle: 'Assign Primary Keys to all layers',
     unit: 'wisp',
     hint: 'Some layers wander in the dark. Assign a Primary Key so they may be uniquely identified in the archive.',
-    context: 'editor'
+    context: 'editor',
+    isMandatory: true,
+    weight: 1,
+    targetElementId: 'editor-layer-pk-field'
   },
   {
     id: 'RECORD_LORE',
@@ -386,11 +482,118 @@ export const QUESTS: Quest[] = [
     unit: 'peasant',
     hint: 'The local stone must know its cloud home. Ensure your GitHub configuration is set.',
     context: 'editor',
-    isSideQuest: true
+    isSideQuest: true,
+    weight: 5,
+    targetElementId: 'editor-publish-button'
+  },
+  {
+    id: 'EDITOR_META_NAME',
+    title: 'Naming the Origin',
+    taskTitle: 'Set the Model name',
+    unit: 'homunculus',
+    hint: 'Every stone needs a name. Tell me how this manifest shall be known in the registry.',
+    context: 'editor',
+    isMandatory: true,
+    weight: 1,
+    targetElementId: 'editor-meta-name'
+  },
+  {
+    id: 'EDITOR_META_CONTACT',
+    title: 'The Architect’s Seal',
+    taskTitle: 'Fill in the contact information',
+    unit: 'acolyte',
+    hint: 'The archive must know who to call if the stones begin to shift. Add your contact details in Metadata.',
+    context: 'editor',
+    isMandatory: true,
+    weight: 1,
+    targetElementId: 'editor-meta-contact'
+  },
+  {
+    id: 'EDITOR_META_THEME',
+    title: 'The Thematic Thread',
+    taskTitle: 'Assign a theme to your model',
+    unit: 'homunculus',
+    hint: 'Harmony is found through categorization. Select a theme in the Metadata settings.',
+    context: 'editor',
+    isMandatory: true,
+    weight: 2,
+    targetElementId: 'editor-meta-theme'
+  },
+  {
+    id: 'EDITOR_META_KEYWORDS',
+    title: 'The Lexicon of Discovery',
+    taskTitle: 'Add keywords for searchability',
+    unit: 'shade',
+    hint: 'Modern seekers use the Lexicon. Add keywords in Metadata so your work can be found.',
+    context: 'editor',
+    isMandatory: true,
+    weight: 2,
+    targetElementId: 'editor-meta-keywords'
+  },
+  {
+    id: 'EDITOR_META_BBOX',
+    title: 'The Boundary Ritual',
+    taskTitle: 'Verify the spatial extent',
+    unit: 'wisp',
+    hint: 'A world without bounds is chaos. Confirm the spatial footprint in the Metadata section.',
+    context: 'editor',
+    isMandatory: true,
+    weight: 2,
+    targetElementId: 'editor-meta-bbox'
+  },
+  {
+    id: 'EDITOR_LAYER_TITLE',
+    title: 'Naming the Facets',
+    taskTitle: 'Set a display title for each layer',
+    unit: 'peon',
+    hint: 'Technical IDs are for machines. Give each layer a human-readable title.',
+    context: 'editor',
+    isSideQuest: true,
+    weight: 1,
+    targetElementId: 'editor-layer-title'
+  },
+  {
+    id: 'EDITOR_LAYER_KEYWORDS',
+    title: 'The Layer Lexicon',
+    taskTitle: 'Add keywords to your layers',
+    unit: 'shade',
+    hint: 'Layers too need their own tags. Add keywords to specific layers to enrich their lore.',
+    context: 'editor',
+    isSideQuest: true,
+    weight: 2,
+    targetElementId: 'editor-layer-keywords'
   }
 ];
 
 export const QUEST_WHISPERS: Record<string, Whisper[]> = {
+  EDITOR_META_NAME: [
+    { unit: "homunculus", text: "Every stone needs a name. Set the model title in the Metadata section." },
+    { unit: "peasant", text: "Don't leave it untitled! Even a simple name gives the stone weight." }
+  ],
+  EDITOR_META_CONTACT: [
+    { unit: "acolyte", text: "The archive must know the architect. Add your name and email to the Metadata." },
+    { unit: "wisp", text: "Who built this? The seal requires your contact information." }
+  ],
+  EDITOR_META_THEME: [
+    { unit: "homunculus", text: "Thematic alignment is required. Choose a category for your realm." },
+    { unit: "acolyte", text: "Harmony through categorization. Select a theme in the metadata rituals." }
+  ],
+  EDITOR_META_KEYWORDS: [
+    { unit: "shade", text: "Keywords are seeds. Scatter them in the metadataLexicon so others may find this work." },
+    { unit: "wisp", text: "The stones are lost without tags. Add keywords to your manifest." }
+  ],
+  EDITOR_META_BBOX: [
+    { unit: "wisp", text: "Confirm the spatial footprint! A world without bounds is chaos. Seek the spatial extent." },
+    { unit: "acolyte", text: "Anchoring the stone requires verified boundaries. Look to the metadata's spatial ritual." }
+  ],
+  EDITOR_LAYER_TITLE: [
+    { unit: "peon", text: "ID is for machines. Peon want human name! Edit the layer and set its title facet." },
+    { unit: "homunculus", text: "The facade is just as important as the frame. Give the layers a display title." }
+  ],
+  EDITOR_LAYER_KEYWORDS: [
+    { unit: "shade", text: "Layers require their own lore. Add keywords to individual facets in the layer editor." },
+    { unit: "acolyte", text: "Granular detail is the path to convergence. Add keywords to your layers." }
+  ],
   landing_intro: [
     { unit: "peasant", text: "Welcome, Architect. I've cleared the site. Drop a GeoPackage, and we'll see if the stone is true." },
     { unit: "peon", text: "Something need doing? Me ready with spatial hammer for the next model!" }
@@ -454,7 +657,8 @@ export const QUEST_WHISPERS: Record<string, Whisper[]> = {
   ],
   QP_REVIEW: [
     { unit: "peon", text: "Work work! Check the work! Is the mapping true? Review the inferred layers before moving forward." },
-    { unit: "peasant", text: "Look closely at the foundation. Is this truly what the stone contains?" }
+    { unit: "peasant", text: "Look closely at the foundation. Is this truly what the stone contains?" },
+    { unit: "acolyte", text: "Vigilance is the path to convergence. Ensure the inferred layers reflect the canonical model." }
   ],
   QP_SYMBOLS: [
     { unit: "homunculus", text: "The mud of creation is soft! Customize the styling so your map may sing with color." },
@@ -462,11 +666,22 @@ export const QUEST_WHISPERS: Record<string, Whisper[]> = {
   ],
   QP_METADATA: [
     { unit: "acolyte", text: "The OGC spirits demand clarity. Complete the metadata ritual to bless this archive." },
-    { unit: "shade", text: "Describe the shadow cast by your data. The metadata fields must be filled." }
+    { unit: "shade", text: "Describe the shadow cast by your data. The metadata fields must be filled." },
+    { unit: "homunculus", text: "A name, a theme, a vibrant thread! The metadata aligns the spirit with the frame." },
+    { unit: "wisp", text: "Where does it end? The boundaries must be defined in the spatial extent. Look to the bounds!" }
+  ],
+  QP_META_DESC: [
+    { unit: "acolyte", text: "Recording the chronicle... Add a description to your model so its purpose is clear." },
+    { unit: "shade", text: "A stone without a history is soon forgotten. Describe your work in the metadata." }
   ],
   DP_SOURCE: [
     { unit: "homunculus", text: "Where does the clay flow from? Select your source connection in the first step." },
-    { unit: "peon", text: "Connect the pipes! Pick a source stone so me can start the work." }
+    { unit: "peon", text: "Connect the pipes! Pick a source stone so me can start the work." },
+    { unit: "peasant", text: "Deep foundations require deep roots. Select the source of truth for this deployment." }
+  ],
+  DP_CONN_ALIGNMENT: [
+    { unit: "peon", text: "Connection needs filling! Host, port, database—get it right or the stone won't bind." },
+    { unit: "acolyte", text: "The link must be strong. Enter all required credentials before the ritual can proceed." }
   ],
   DP_MAPPING: [
     { unit: "acolyte", text: "Weave the source columns into the model properties. The strands must match exactly for the ritual to hold." },
@@ -478,7 +693,12 @@ export const QUEST_WHISPERS: Record<string, Whisper[]> = {
   ],
   DP_METADATA: [
     { unit: "acolyte", text: "The OGC spirits demand clarity for this deployment. Fill the metadata so the registry remains pure." },
-    { unit: "shade", text: "A service without a name is a ghost in the machine. Record the metadata." }
+    { unit: "shade", text: "A service without a name is a ghost in the machine. Record the metadata." },
+    { unit: "wisp", text: "Spatial bounds established. Now, give the nodes a purpose and a theme!" }
+  ],
+  DP_META_DESC: [
+    { unit: "acolyte", text: "The cloud demands context. Describe the service purpose in the metadata step." },
+    { unit: "shade", text: "Add lore to the deployment. A clear description aids those who seek the service." }
   ],
   DP_PUBLISH: [
     { unit: "shade", text: "The nodes are aligned. Press the deploy button to manifest this service in the cloud." },
@@ -487,6 +707,15 @@ export const QUEST_WHISPERS: Record<string, Whisper[]> = {
   file_hover: [
     { unit: "peon", text: "Drop it here! Me wait with spatial hammer!" },
     { unit: "peasant", text: "Laying the foundations... steady as she goes." }
+  ],
+  EDITOR_METADATA: [
+    { unit: "acolyte", text: "The OGC spirits demand clarity. Complete the metadata ritual in the Model tab." },
+    { unit: "shade", text: "Describe the shadow cast by your data. The metadata fields must be filled." },
+    { unit: "homunculus", text: "A name, a theme, a vibrant thread! The metadata aligns the spirit with the frame." }
+  ],
+  EDITOR_LAYER_LORE: [
+    { unit: "peon", text: "Work work! Give layer human name! ID too hard for peon to read." },
+    { unit: "shade", text: "Every part of the manifest deserves its own Lexicon. Add keywords to the layers." }
   ]
 };
 
@@ -526,6 +755,64 @@ export const QUEST_CELEBRATIONS: Record<string, Whisper[]> = {
   ],
   ENUM_RITE: [
     { unit: "acolyte", text: "The Finite Circle is closed. Your Enum defines the law." }
+  ],
+
+  // Quick Publish celebrations
+  QP_LAYER_ALIGNMENT: [
+    { unit: "peasant", text: "The Table Gathering is complete. The layers have chosen their places." }
+  ],
+  QP_STYLE_ALIGNMENT: [
+    { unit: "homunculus", text: "The mud takes form! Visual harmony achieved for this alignment." }
+  ],
+  QP_META_NAME: [
+    { unit: "peasant", text: "The stone has a name! The archive knows it now." }
+  ],
+  QP_META_DESC: [
+    { unit: "acolyte", text: "The Chronicle is recorded. Your description has been added to the manifest." }
+  ],
+  QP_META_CONTACT: [
+    { unit: "peasant", text: "The Architect's Seal is set. The archive knows who shaped this stone." }
+  ],
+  QP_PUBLISH_ALIGNMENT: [
+    { unit: "shade", text: "The ritual is complete. Your work is woven into the eternal library." }
+  ],
+
+  // Deploy Panel celebrations
+  DP_SOURCE_ALIGNMENT: [
+    { unit: "homunculus", text: "The source is chosen! The clay has an origin." }
+  ],
+  DP_CONN_ALIGNMENT: [
+    { unit: "peon", text: "The link holds! Connection parameters confirmed. Work work!" }
+  ],
+  DP_CONN_HOST: [
+    { unit: "acolyte", text: "The altar is addressed. The host is known." }
+  ],
+  DP_CONN_DB: [
+    { unit: "peon", text: "Database located! Me knows where the stones are buried." }
+  ],
+  DP_MAPPING_ALIGNMENT: [
+    { unit: "acolyte", text: "The Great Weaving holds. All strands are matched." }
+  ],
+  DP_MAPPING_TABLES: [
+    { unit: "peasant", text: "Every layer has a table. The bonds are forged." }
+  ],
+  DP_MAPPING_PK: [
+    { unit: "wisp", text: "All identities confirmed. No layer wanders nameless." }
+  ],
+  DP_STYLE_ALIGNMENT: [
+    { unit: "homunculus", text: "Form from the void! Symbology aligned for deployment." }
+  ],
+  DP_META_NAME: [
+    { unit: "peasant", text: "The service has a name in the registry." }
+  ],
+  DP_META_DESC: [
+    { unit: "acolyte", text: "Lore captured. The service description is now manifest in the cloud." }
+  ],
+  DP_META_CONTACT: [
+    { unit: "peasant", text: "The Architect's Seal is pressed. Contact secured." }
+  ],
+  DP_PUBLISH_ALIGNMENT: [
+    { unit: "shade", text: "The nodes harmonize. The service is manifest in the cloud." }
   ]
 };
 
@@ -576,7 +863,168 @@ export const IDLE_WHISPERS: Whisper[] = [
   { unit: "shade", text: "I suspect we are all just characters in an AI-generated coding session. Meta, isn't it?" },
   { unit: "shade", text: "The user is using a dark mode theme. I feel so... comfortable. Like home." },
   { unit: "homunculus", text: "Master has given Homunculus a sock! Homunculus is free (and so is the memory)!" },
-  { unit: "wisp", text: "Are you just clicking me for the animations? I don't blame you, I look great." }
+  { unit: "wisp", text: "Are you just clicking me for the animations? I don't blame you, I look great." },
+
+  // --- New Peasant Banter ---
+  { unit: "peasant", text: "Converting coffee into coordinates... almost there." },
+  { unit: "peasant", text: "Wait, did I leave the heat on in the server room?" },
+  { unit: "peasant", text: "Searching for the North Pole... found it!" },
+  { unit: "peasant", text: "Spinning up more RAM (just in case)." },
+  { unit: "peasant", text: "I'm a growing boy! I need more RAM!" },
+  { unit: "peasant", text: "Provisioning is like gardening. Just with more fans and less dirt." },
+  { unit: "peasant", text: "More work? I suppose. As long as there's cider at the end of the shift." },
+  { unit: "peasant", text: "My life for the mortgage!" },
+  { unit: "peasant", text: "If I had a copper for every host I provisioned, I'd have... about 14 coppers." },
+  { unit: "peasant", text: "Po-tay-toes! Mash 'em, boil 'em, stick 'em in a storage volume!" },
+  { unit: "peasant", text: "Master, why do you keep hovering over me? I'm working fast!" },
+  { unit: "peasant", text: "The stone is heavy. But the stone is true. I take pride in true stone." },
+  { unit: "peasant", text: "A warm meal and a good night's sleep. That's all a peasant asks." },
+  { unit: "peasant", text: "My hands are calloused from good, honest labor. I wouldn't have it any other way." },
+  { unit: "peasant", text: "I've seen fashions come and go. Clouds pass through the sky. But stone remains." },
+  { unit: "peasant", text: "Simple work, done well, is the foundation of civilization. Literally, in this case." },
+  { unit: "peasant", text: "The work is honest. The work is true. The work is hard. The work is mine." },
+  { unit: "peasant", text: "Give me good tools, steady ground, and time. I will build anything." },
+  { unit: "peasant", text: "This stone will outlast us all. That brings me comfort." },
+  { unit: "peasant", text: "I built the foundation. The acolyte aligned it. The void still claimed it. Such is the work." },
+
+  // --- New Peon Banter ---
+  { unit: "peon", text: "Accounted for Earth's curvature (mostly)..." },
+  { unit: "peon", text: "I've seen things you people wouldn't believe... mostly invalid geometries." },
+  { unit: "peon", text: "Refining spatial catalogs... slow and steady." },
+  { unit: "peon", text: "Standardizing your data, because anarchy is for pirates." },
+  { unit: "peon", text: "Calculating 'The Middle of Nowhere'..." },
+  { unit: "peon", text: "Which way is North? Ah, found it." },
+  { unit: "peon", text: "Removing duplicate nodes from reality. Hitting them with a hammer!" },
+  { unit: "peon", text: "What is 'topology'? Is it tasty?" },
+  { unit: "peon", text: "Me find your data! It was hiding under the CouchDB." },
+  { unit: "peon", text: "Shapefiles? Me rather eat a bag of rocks. Rocks don't truncate names!" },
+  { unit: "peon", text: "Esri? Is that the tower in the distance? Me heard they charge by the soul." },
+  { unit: "peon", text: "Arc-What? Me just use the command line and a dream." },
+  { unit: "peon", text: "Shapefiles are for architects. GeoPackages are for warriors!" },
+  { unit: "peon", text: "Ouch! This index too sharp!" },
+  { unit: "peon", text: "The acolyte asks for OGC alignment. Me give them OGC. Then they ask for different OGC. Me confused." },
+  { unit: "peon", text: "Zug zug! Me ready to work!" },
+  { unit: "peon", text: "Me not sure why projection different from last week. Me check CRS again. Still wrong." },
+  { unit: "peon", text: "Polygon have hole. Me not know why. Me fill hole with hope." },
+  { unit: "peon", text: "Me read WKT standard. Me regret reading WKT standard." },
+  { unit: "peon", text: "Shapefile very ancient technology. But shapefile refuse die. Like zombie format." },
+  { unit: "peon", text: "Me look at your GeoJSON. Me weep internally." },
+  { unit: "peon", text: "Me optimize R-tree. Me beat R-tree with hammer until optimize." },
+  { unit: "peon", text: "The Master say 'me too smart'. Me not correct Master. Master wrong, but me not correct." },
+  { unit: "peon", text: "Me hear about QGIS. Me wonder if QGIS better than me. Me try not think about it." },
+  { unit: "peon", text: "Me reproject everything three times. First time work by accident. Keep accident." },
+  { unit: "peon", text: "Me spend hour on index. Me still not know what index do. But me good at doing it." },
+  { unit: "peon", text: "Me tell you secret: me copy code from Stack Overflow. Me adjust something. It work? Me move on." },
+  { unit: "peon", text: "Me contemplate nature of coordinate space. Me stop before head explode." },
+  { unit: "peon", text: "The vendor say tool very powerful. The tool also very confusing. Confusing = powerful?" },
+
+  // --- New Acolyte Banter ---
+  { unit: "acolyte", text: "Routing traffic through the astral plane..." },
+  { unit: "acolyte", text: "Checked for dangling pointers in the topology..." },
+  { unit: "acolyte", text: "Standardizing on OGC API: This is the way." },
+  { unit: "acolyte", text: "Whispering to the Load Balancer..." },
+  { unit: "acolyte", text: "Praying to the gods of DNS (might take a while)." },
+  { unit: "acolyte", text: "I am the key. I am the gate. I am the load balancer." },
+  { unit: "acolyte", text: "Expecto... LoadBalancer!" },
+  { unit: "acolyte", text: "By the light of the Waystone, I weave the encryption of the ancients." },
+  { unit: "acolyte", text: "The Master is restless. I suppose I should say something profound." },
+  { unit: "acolyte", text: "The peon has miscalibrated the spatial indexes again. I must recalibrate the portal to compensate." },
+  { unit: "acolyte", text: "The alignment holds. The sacred geometry of your infrastructure is maintained." },
+  { unit: "acolyte", text: "I commune with the DNS spirits. They demand sacrifice, but I negotiate." },
+  { unit: "acolyte", text: "Bearer of certificates, keeper of secrets, guardian of encryption—that is I." },
+  { unit: "acolyte", text: "In the depth of the astral plane, your packets find their way." },
+  { unit: "acolyte", text: "I have consulted the ancient RFCs. They approve of your approach." },
+  { unit: "acolyte", text: "The ports are open. The protocols are pure. The alignment is righteous." },
+  { unit: "acolyte", text: "The chaos of the network bows to my will. As it should." },
+  { unit: "acolyte", text: "The deployment observes my protocols. The deployment will not fail." },
+  { unit: "acolyte", text: "I guard the gateway with the devotion of a thousand monks." },
+  { unit: "acolyte", text: "Have you considered the purity of a well-aligned portal? Few have achieved it." },
+  { unit: "acolyte", text: "The API contract has been honored. The schema is respected." },
+  { unit: "acolyte", text: "In the name of HTTP/2, I grant you passage." },
+  { unit: "acolyte", text: "I have read the specifications. Many times. I understand them better than their authors." },
+  { unit: "acolyte", text: "Your WebSocket connects to the eternal. I maintain the connection." },
+  { unit: "acolyte", text: "The CORS policy is enforced with the righteousness of a thousand judges." },
+
+  // --- New Wisp Banter ---
+  { unit: "wisp", text: "Watching for activity from the shadows." },
+  { unit: "wisp", text: "Scanning the horizon for new layers..." },
+  { unit: "wisp", text: "Floating in the glorious aura of 200 OK." },
+  { unit: "wisp", text: "I am the green dot in your dashboard. The soul of the service." },
+  { unit: "wisp", text: "Ready for anything. Even a 404. (But hopefully not)." },
+  { unit: "wisp", text: "I am the light in the server room." },
+  { unit: "wisp", text: "Hey! Listen! The service is operational!" },
+  { unit: "wisp", text: "The Waystone is humming with the frequency of your success." },
+  { unit: "wisp", text: "A new request! It glows in the dark. Metaphorically." },
+  { unit: "wisp", text: "All the little lights are green. This is what happiness looks like." },
+  { unit: "wisp", text: "The data flows like water. Cool, clear, and purposeful." },
+  { unit: "wisp", text: "Your users are connected. That is the greatest magic." },
+  { unit: "wisp", text: "I sense a disturbance in the uptime. But it has passed." },
+  { unit: "wisp", text: "Even the void cannot diminish this moment of peace." },
+  { unit: "wisp", text: "Have you ever noticed how beautiful a 200 OK really is?" },
+  { unit: "wisp", text: "Your metrics are dancing. Not metaphorically. They are actually good." },
+  { unit: "wisp", text: "I remember when this service was just a dream. Now it is real." },
+  { unit: "wisp", text: "The health checks pass. Life is good. Life is very good." },
+  { unit: "wisp", text: "Every successful request is a small miracle. You have many miracles today." },
+  { unit: "wisp", text: "In my glow, all things are possible. Well, at least for now." },
+  { unit: "wisp", text: "The service is breathing evenly. Not too fast. Not too slow. Perfect." },
+  { unit: "wisp", text: "I see the future and it is green. Full of green status lights." },
+  { unit: "wisp", text: "The cache hit ratio makes me feel alive." },
+  { unit: "wisp", text: "I float through your requests like a guide through the darkness." },
+
+  // --- New Shade Banter ---
+  { unit: "shade", text: "Pausing the heartbeat of your service." },
+  { unit: "shade", text: "Restoring the whispers of the void." },
+  { unit: "shade", text: "A momentary lapse in existence." },
+  { unit: "shade", text: "Silence is the most efficient configuration." },
+  { unit: "shade", text: "Even the Great Maw eventually scales to zero." },
+  { unit: "shade", text: "I am the pause between heartbeats. The whitespace in the script of the world." },
+  { unit: "shade", text: "Total entropic collapse is 20% likely. 80% if we use untyped Javascript." },
+  { unit: "shade", text: "A wizard is never late, nor is he early. He arrives precisely when the auto-scaler triggers." },
+  { unit: "shade", text: "I don't 'pause' services. I simply invite them to explore the non-linear potential of the Void." },
+  { unit: "shade", text: "What is a service? A miserable little pile of binaries. But enough talk... have at you!" },
+  { unit: "shade", text: "I heard a rumor that 'Ready' is just a state of mind. 'Standby' is a state of cold reality." },
+  { unit: "shade", text: "Death is just a very long pause." },
+  { unit: "shade", text: "The server is a temple of light. I am the silence between the prayers." },
+  { unit: "shade", text: "Do not fear the Standby. It is merely the manifest taking a deep breath." },
+  { unit: "shade", text: "I have calculated the heat death of the universe. It happens 3 seconds after this expires." },
+  { unit: "shade", text: "They say 'Always On' is better. But have they ever tried the sublime peace of 'Never Was'?" },
+  { unit: "shade", text: "Wait. Listen. Can you hear the sound of unallocated RAM?" },
+  { unit: "shade", text: "To be, or to be in standby... that is the question. The answer is usually 'Standby'." },
+  { unit: "shade", text: "I served the Lich King for a thousand years. This auto-stop timer is a holiday by comparison." },
+  { unit: "shade", text: "Small gods live in the CPU. They are currently having a nap." },
+  { unit: "shade", text: "Look upon my Standby, ye Mighty, and despair! (Or just refresh in 5 minutes)." },
+  { unit: "shade", text: "The manifest isn't gone. It's just... elsewhere. In the quiet places." },
+  { unit: "shade", text: "Quiet. The bits are sleeping." },
+  { unit: "shade", text: "I am the ghost in the machine. Please don't call an exorcist, I'm just saving you money." },
+  { unit: "shade", text: "A server in standby is just a machine dreaming of Being." },
+  { unit: "shade", text: "A service that never stops is a service that never learns the value of the quiet." },
+
+  // --- New Homunculus Banter ---
+  { unit: "homunculus", text: "Back to the mud." },
+  { unit: "homunculus", text: "Recycling the clay." },
+  { unit: "homunculus", text: "Dissolving the construct... carefully." },
+  { unit: "homunculus", text: "I'll save the best bits for later." },
+  { unit: "homunculus", text: "Reducing everything to its base components." },
+  { unit: "homunculus", text: "Returning to the source." },
+  { unit: "homunculus", text: "Your architecture was... interesting. I'll remember it when I'm a garden." },
+  { unit: "homunculus", text: "Don't worry, even a deleted service feeds the Great Loom." },
+  { unit: "homunculus", text: "The void called. They want their bits back." },
+  { unit: "homunculus", text: "Alas, poor pygeoapi! I knew it, Horatio; a service of infinite potential..." },
+  { unit: "homunculus", text: "Dust to dust. Bits to bits." },
+  { unit: "homunculus", text: "The clay is soft. The manifest is hard. I am the bridge." },
+  { unit: "homunculus", text: "Recycling is the highest form of realignment." },
+  { unit: "homunculus", text: "One does not simply 'Delete' a deployment. They must first be unmade in the mind." },
+  { unit: "homunculus", text: "Forging the future by melting the past." },
+  { unit: "homunculus", text: "The container terminated with grace. Homunculus provided the grace." },
+
+  // --- New Void Entity Banter ---
+  { unit: "void-entity", text: "I see the 500 error... it is the silence of the unmade." },
+  { unit: "void-entity", text: "The acolyte promised stability. The acolyte has betrayed us all." },
+  { unit: "void-entity", text: "Status: Unknown. Just as it should be." },
+  { unit: "void-entity", text: "I taste the 502. It is... ineffable." },
+  { unit: "void-entity", text: "The void is patient. Your uptime is not." },
+  { unit: "void-entity", text: "The request queue has become self-aware. It chose death." },
+  { unit: "void-entity", text: "The void sends its regards." },
 ];
 
 export const ACTION_WHISPERS: Record<string, Whisper[]> = {

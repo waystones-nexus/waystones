@@ -8,6 +8,7 @@ import { sanitizeTechnicalName } from '../../utils/nameSanitizer';
 import { useAiContext } from '../../contexts/AiContext';
 import type { ModelChange } from '../../utils/diffUtils';
 import type { ModelValidationIssue } from '../../utils/validationUtils';
+import { useAmbient } from '../../contexts/AmbientContext';
 
 import DiffField from './DiffField';
 import ValidationBar from './ValidationBar';
@@ -40,6 +41,8 @@ interface LayerEditorTabsProps {
   sharedEnums: SharedEnum[];
   onGenerateLayerDescription: () => void;
   onSuggestLayerKeywords: () => void;
+  forcedTab?: LayerTab;
+  forcedDetailsOpen?: boolean;
 }
 
 const LayerEditorTabs: React.FC<LayerEditorTabsProps> = ({
@@ -63,14 +66,28 @@ const LayerEditorTabs: React.FC<LayerEditorTabsProps> = ({
   sharedEnums,
   onGenerateLayerDescription,
   onSuggestLayerKeywords,
+  forcedTab,
+  forcedDetailsOpen,
 }) => {
   const [activeTab, setActiveTab] = useState<LayerTab>('fields');
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   const [isInheritedExpanded, setIsInheritedExpanded] = useState(false);
   const [isValidationExpanded, setIsValidationExpanded] = useState(false);
   const [isMetaOpen, setIsMetaOpen] = useState(false);
-
   const aiContext = useAiContext();
+  const { markQuestVisited } = useAmbient();
+
+  React.useEffect(() => {
+    if (forcedTab) {
+      setActiveTab(forcedTab);
+    }
+  }, [forcedTab]);
+
+  React.useEffect(() => {
+    if (forcedDetailsOpen) {
+      setIsMetaOpen(true);
+    }
+  }, [forcedDetailsOpen]);
 
   const tabBase =
     'flex items-center gap-1.5 px-2.5 sm:px-4 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all border-b-2';
@@ -145,6 +162,7 @@ const LayerEditorTabs: React.FC<LayerEditorTabsProps> = ({
                       reviewMode={reviewMode}
                     >
                       <input
+                        id="editor-layer-title"
                         type="text"
                         value={activeLayer.title || ''}
                         onChange={(e) => onUpdateLayer({ title: e.target.value })}
@@ -166,7 +184,7 @@ const LayerEditorTabs: React.FC<LayerEditorTabsProps> = ({
                           t={t}
                         />
                       </div>
-                      <div className="flex flex-wrap gap-1.5 p-1.5 min-h-[38px] bg-slate-50/50 border border-slate-200 hover:border-indigo-200 rounded-xl">
+                      <div id="editor-layer-keywords" className="flex flex-wrap gap-1.5 p-1.5 min-h-[38px] bg-slate-50/50 border border-slate-200 hover:border-indigo-200 rounded-xl">
                         {(activeLayer.keywords || []).map((kw, i) => (
                           <span key={i} className="inline-flex items-center gap-1 bg-white text-indigo-700 border border-indigo-100 px-2 py-0.5 rounded-lg text-[10px] font-bold shadow-sm">
                             {kw}
@@ -330,7 +348,10 @@ const LayerEditorTabs: React.FC<LayerEditorTabsProps> = ({
             )}
           </button>
           <button
-            onClick={() => setActiveTab('style')}
+            onClick={() => {
+              setActiveTab('style');
+              markQuestVisited('STYLE_ALIGNMENT_ADV');
+            }}
             className={`${tabBase} ${activeTab === 'style' ? tabActive : tabInactive}`}
           >
             <Palette size={14} />

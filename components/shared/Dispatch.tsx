@@ -5,11 +5,13 @@ import { IDLE_WHISPERS, LEGENDARY_WHISPERS } from '../../constants/ambientManife
 import { DispatchLog } from './DispatchLog';
 
 export const Dispatch: React.FC = () => {
-  const { history, triggerWhisper, activeQuests } = useAmbient();
+  const { history, triggerWhisper, activeQuests, currentContext } = useAmbient();
   const [isLogOpen, setIsLogOpen] = useState(false);
 
-  // Check if all active quests are completed
-  const isAligned = activeQuests.length > 0 && activeQuests.every(q => q.completed);
+  // Check if all active quests are completed OR if we are on the last step of deployment
+  const isAligned = (activeQuests.length > 0 && activeQuests.every(q => q.completed)) ||
+                    (currentContext.tab === 'deploy' && currentContext.step === 5) ||
+                    (currentContext.tab === 'quick-publish' && currentContext.step === 3);
 
   const handleSummon = useCallback(() => {
     // 5% chance for legendary whisper, 95% chance for normal whisper

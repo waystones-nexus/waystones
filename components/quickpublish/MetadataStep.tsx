@@ -46,6 +46,7 @@ const MetadataStep: React.FC<MetadataStepProps> = ({ model, summary, onUpdateMod
     purpose: '', accrualPeriodicity: 'unknown',
     spatialExtent: defaultSpatialExtent,
     temporalExtentFrom: '', temporalExtentTo: '',
+    bboxVerified: false,
   };
 
   const meta: ModelMetadata = {
@@ -226,6 +227,31 @@ const MetadataStep: React.FC<MetadataStepProps> = ({ model, summary, onUpdateMod
           {touched && errors.name && <p className="text-xs text-red-500 font-medium">Required</p>}
         </div>
 
+        {/* Dataset description */}
+        <div id={`${idPrefix}-meta-description-field`} className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t.description}</label>
+            <AiTrigger
+              onClick={handleGenerateDesc}
+              isLoading={aiContext.isLoading}
+              isActive={aiContext.currentOperation === 'description'}
+              hasError={!!aiContext.error}
+              label={t.ai?.generateDescription || 'Generate description'}
+              t={t}
+            />
+          </div>
+          <textarea
+            value={descInput}
+            onChange={e => {
+              setDescInput(e.target.value);
+              onUpdateModel({ ...modelRef.current, description: e.target.value });
+            }}
+            placeholder={t.descriptionPlaceholder}
+            rows={3}
+            className="w-full bg-white border-2 border-slate-200 rounded-2xl px-5 py-3.5 text-sm font-medium outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 transition-all resize-none leading-relaxed"
+          />
+        </div>
+
         {/* Contact */}
         <div id={`${idPrefix}-meta-contact-fields`} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="space-y-1.5">
@@ -272,7 +298,7 @@ const MetadataStep: React.FC<MetadataStepProps> = ({ model, summary, onUpdateMod
 
       {/* Theme + License */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="space-y-1.5">
+        <div id={`${idPrefix}-meta-theme-field`} className="space-y-1.5">
           <div className="flex items-center justify-between">
             <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{md.theme}</label>
             <AiTrigger
@@ -298,7 +324,7 @@ const MetadataStep: React.FC<MetadataStepProps> = ({ model, summary, onUpdateMod
       </div>
 
       {/* Keywords */}
-      <div className="space-y-2">
+      <div id={`${idPrefix}-meta-keywords-field`} className="space-y-2">
         <div className="flex items-center justify-between">
           <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{md.keywords}</label>
           <AiTrigger
@@ -328,9 +354,15 @@ const MetadataStep: React.FC<MetadataStepProps> = ({ model, summary, onUpdateMod
       </div>
 
       {/* Spatial Extent */}
-      <div className={`space-y-4 rounded-2xl border-2 transition-all ${isBboxExpanded ? 'border-indigo-200 ring-4 ring-indigo-500/5 shadow-sm p-5 bg-white' : 'border-slate-100 p-4 bg-slate-50/30'}`}>
+      <div id={`${idPrefix}-meta-bbox-field`} className={`space-y-4 rounded-2xl border-2 transition-all ${isBboxExpanded ? 'border-indigo-200 ring-4 ring-indigo-500/5 shadow-sm p-5 bg-white' : 'border-slate-100 p-4 bg-slate-50/30'}`}>
         <button
-          onClick={() => setIsBboxExpanded(!isBboxExpanded)}
+          onClick={() => {
+            const nextState = !isBboxExpanded;
+            setIsBboxExpanded(nextState);
+            if (nextState && !meta.bboxVerified) {
+              updateMeta({ bboxVerified: true });
+            }
+          }}
           className="w-full flex items-center justify-between text-left group"
         >
           <div className="flex items-center gap-3">

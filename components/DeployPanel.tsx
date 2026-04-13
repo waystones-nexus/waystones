@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAmbient } from '../contexts/AmbientContext';
 import type { Translations } from '../i18n/index';
 import {
@@ -16,6 +16,7 @@ import { generatePygeoapiConfig } from '../utils/deployUtils';
 import { InferredDataSummary } from '../utils/importUtils';
 import { useDragAndDropReorder } from '../hooks/useDragAndDropReorder';
 import { useRenderingOrder } from '../hooks/useRenderingOrder';
+import { QUESTS } from '../constants/ambientManifest';
 import ImportWarnings from './ImportWarnings';
 import SourceTypePicker from './deploy/SourceTypePicker';
 import ConnectionForm from './deploy/ConnectionForm';
@@ -73,7 +74,8 @@ const DeployPanel: React.FC<DeployPanelProps> = ({ model, t, lang, onUpdateModel
   const d = t.deploy;
   const q = t.quickPublish || {};
   const st = t.styling || {};
-  const { updateQuests, triggerQuestWhisper } = useAmbient();
+  const { updateQuests, triggerQuestWhisper, activeQuests, triggerWhisper } = useAmbient();
+  const stuckNudgeRef = useRef<Set<number>>(new Set()); // Track which steps we've nudged
 
   const [step, setStep] = useState(0);
   const [sourceType, setSourceType] = useState<SourceType | null>(null);
@@ -161,6 +163,32 @@ const DeployPanel: React.FC<DeployPanelProps> = ({ model, t, lang, onUpdateModel
       case 5: triggerQuestWhisper('DP_PUBLISH'); break;
     }
   }, [step, triggerQuestWhisper]);
+
+  // Stuck detection: nudge after 90s of inactivity on incomplete mandatory quests
+  useEffect(() => {
+    // Reset nudge tracker when changing steps
+    stuckNudgeRef.current.clear();
+
+    const timer = setTimeout(() => {
+      const mandatoryQuests = activeQuests.filter(q => {
+        const quest = QUESTS.find(qq => qq.id === q.id);
+        return quest?.isMandatory && !q.completed;
+      });
+
+      if (mandatoryQuests.length > 0 && !stuckNudgeRef.current.has(step)) {
+        stuckNudgeRef.current.add(step);
+        const nudges = [
+          { unit: "peon" as const, text: "Still working on this, are we? Me can help! Click the worker to the right of any quest for guidance." },
+          { unit: "peasant" as const, text: "A moment of clarity often comes from asking. The workers have wisdom to share about this alignment." },
+          { unit: "acolyte" as const, text: "Should you find yourself uncertain, the workers stand ready to illuminate the path forward." }
+        ];
+        const random = nudges[Math.floor(Math.random() * nudges.length)];
+        triggerWhisper(random.unit, random.text);
+      }
+    }, 90000); // 90 seconds
+
+    return () => clearTimeout(timer);
+  }, [step, activeQuests, triggerWhisper]);
 
   const togglePreviewCollapse = (layerId: string) => {
     setCollapsedPreviews(prev => {

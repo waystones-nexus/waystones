@@ -15,19 +15,28 @@ export const AmbientHighlighter: React.FC = () => {
       return;
     }
 
-    const element = document.getElementById(activeHighlight.id);
-    if (!element) {
-      setIsVisible(false);
-      return;
-    }
+    const startTime = Date.now();
+    let hasScrolled = false;
 
-    // Scroll into view
-    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-    // Track position
+    // Track position and "hunt" for the element if it's not yet in the DOM
     const updatePosition = () => {
       const el = document.getElementById(activeHighlight.id);
-      if (!el) return;
+      
+      if (!el) {
+        // If we've been hunting for more than 2 seconds, give up
+        if (Date.now() - startTime > 2000) {
+          setIsVisible(false);
+          return;
+        }
+        updateRef.current = requestAnimationFrame(updatePosition);
+        return;
+      }
+
+      // If we found it but haven't scrolled yet, do it now
+      if (!hasScrolled) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        hasScrolled = true;
+      }
       
       const newRect = el.getBoundingClientRect();
       setRect(newRect);
@@ -40,7 +49,7 @@ export const AmbientHighlighter: React.FC = () => {
     return () => {
       if (updateRef.current) cancelAnimationFrame(updateRef.current);
     };
-  }, [activeHighlight]);
+  }, [activeHighlight, isVisible]);
 
   if (!activeHighlight || !rect || !isVisible) return null;
 
@@ -50,7 +59,7 @@ export const AmbientHighlighter: React.FC = () => {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className={`pointer-events-none fixed z-[9999] transition-all duration-300 pulse-${activeHighlight.unit}`}
+        className={`pointer-events-none fixed z-[9990] transition-all duration-300 pulse-${activeHighlight.unit}`}
         style={{
           top: rect.top - 2,
           left: rect.left - 2,

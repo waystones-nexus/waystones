@@ -73,6 +73,7 @@ const ModelHeaderSection: React.FC<ModelHeaderSectionProps> = ({
               className="lg:col-span-2"
             >
               <input
+                id="editor-meta-name"
                 type="text"
                 placeholder={t.modelNamePlaceholder}
                 value={model.name}

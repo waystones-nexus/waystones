@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAmbient } from '../contexts/AmbientContext';
 import type { Translations } from '../i18n/index';
 import {
@@ -8,6 +8,7 @@ import { DataModel, LayerStyle, ImportValidationResult } from '../types';
 import { InferredDataSummary } from '../utils/importUtils';
 import { useDragAndDropReorder } from '../hooks/useDragAndDropReorder';
 import { useRenderingOrder } from '../hooks/useRenderingOrder';
+import { QUESTS } from '../constants/ambientManifest';
 import LayerStyleEditor from './LayerStyleEditor';
 import ImportWarnings from './ImportWarnings';
 import MetadataStep from './quickpublish/MetadataStep';
@@ -33,7 +34,9 @@ const GEOM_ICONS: Record<string, string> = {
 const QuickPublish: React.FC<QuickPublishProps> = ({
   model, summary, validation, t, lang, onUpdateModel, onBack, onOpenEditor, dataBlob
 }) => {
-  const { triggerQuestWhisper, updateQuests } = useAmbient();
+  const { triggerQuestWhisper, updateQuests, activeQuests, triggerWhisper } = useAmbient();
+  const stuckNudgeRef = useRef<Set<number>>(new Set()); // Track which steps we've nudged
+  const seenHintsRef = useRef<Set<string>>(new Set()); // Track which hints the user has already received
   const q = t.quickPublish || {};
 
   const [step, setStep] = useState(0);
@@ -118,29 +121,57 @@ const QuickPublish: React.FC<QuickPublishProps> = ({
     { icon: Github, label: q.step3Title },
   ];
 
-  // Trigger whispers based on step
-  useEffect(() => {
-    switch (step) {
-      case 0: triggerQuestWhisper('QP_REVIEW'); break;
-      case 1: triggerQuestWhisper('QP_SYMBOLS'); break;
-      case 2: triggerQuestWhisper('QP_METADATA'); break;
-      case 3: triggerQuestWhisper('QP_PUBLISH'); break;
-    }
-  }, [step, triggerQuestWhisper]);
-
   // Sync step to Quests
   useEffect(() => {
     updateQuests(model, validation, 'quick-publish', step);
   }, [step, model, validation, updateQuests]);
 
+  // Trigger whispers based on step
+  useEffect(() => {
+    const hintIds = ['QP_REVIEW', 'QP_SYMBOLS', 'QP_METADATA', 'QP_PUBLISH'];
+    const currentHint = hintIds[step];
+    
+    if (currentHint && !seenHintsRef.current.has(currentHint)) {
+      seenHintsRef.current.add(currentHint);
+      triggerQuestWhisper(currentHint);
+    }
+  }, [step, triggerQuestWhisper]);
+
+  // Stuck detection: nudge after 90s of inactivity on incomplete mandatory quests
+  useEffect(() => {
+    // Reset nudge tracker when changing steps
+    stuckNudgeRef.current.clear();
+
+    const timer = setTimeout(() => {
+      const mandatoryQuests = activeQuests.filter(q => {
+        const quest = QUESTS.find(qq => qq.id === q.id);
+        return quest?.isMandatory && !q.completed;
+      });
+
+      if (mandatoryQuests.length > 0 && !stuckNudgeRef.current.has(step)) {
+        stuckNudgeRef.current.add(step);
+        const nudges = [
+          { unit: "peon" as const, text: "Still working on this, are we? Me can help! Click the worker to the right of any quest for guidance." },
+          { unit: "peasant" as const, text: "A moment of clarity often comes from asking. The workers have wisdom to share about this alignment." },
+          { unit: "acolyte" as const, text: "Should you find yourself uncertain, the workers stand ready to illuminate the path forward." }
+        ];
+        const random = nudges[Math.floor(Math.random() * nudges.length)];
+        triggerWhisper(random.unit, random.text);
+      }
+    }, 90000); // 90 seconds
+
+    return () => clearTimeout(timer);
+  }, [step, activeQuests, triggerWhisper]);
+
   return (
     <div className="flex-1 overflow-y-auto p-4 md:p-10 lg:p-14 min-w-0 custom-scrollbar scroll-smooth">
-      {/* Back + Open Editor buttons */}
-      <div className="flex items-center justify-between mb-8">
+      {/* Header Actions grouped on the left to clear the QuestLog on the right */}
+      <div className="flex items-center gap-6 mb-8">
         <button onClick={onBack} className="flex items-center gap-3 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 hover:text-indigo-600 transition-colors group">
           <div className="p-2 rounded-xl bg-white border border-slate-200 shadow-sm group-hover:border-indigo-200 group-hover:bg-indigo-50 transition-all"><ChevronLeft size={16} /></div>
           {q.backToStart}
         </button>
+        <div className="h-6 w-px bg-slate-200 mx-2" />
         <button onClick={onOpenEditor} className="text-[10px] font-black uppercase tracking-[0.15em] text-indigo-500 hover:text-indigo-700 transition-colors">
           {q.editModel} →
         </button>
@@ -182,7 +213,7 @@ const QuickPublish: React.FC<QuickPublishProps> = ({
           {/* Validation warnings */}
           {validation && (
             <ImportWarnings
-              key={`validation-${Date.now()}-${validation.warnings.length}-${validation.errors.length}-${validation.warnings.map(w => `${w.layerName}:${w.type}:${w.message}`).sort().join('|')}-${validation.errors.map(e => `${e.layerName}:${e.type}:${e.message}`).sort().join('|')}`}
+              key={`validation-${validation.warnings.length}-${validation.errors.length}`}
               validation={validation}
               t={t}
               lang={lang}
