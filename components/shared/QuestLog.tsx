@@ -4,9 +4,13 @@ import { LayoutDashboard, CheckCircle2, Circle, HelpCircle, ChevronUp, ChevronDo
 import { useAmbient } from '../../contexts/AmbientContext';
 import { usePersistedState } from '../../hooks/usePersistedState';
 import { QUESTS, UNIT_THEMES } from '../../constants/ambientManifest';
+import { useWindowWidth } from '../../hooks/useWindowWidth';
+
 
 export const QuestLog: React.FC = () => {
   const { activeQuests, triggerQuestWhisper, currentContext } = useAmbient();
+  const { isDesktop } = useWindowWidth();
+
   // Use absolute screen coordinates (top-0, left-0) for total stability
   const [position, setPosition] = usePersistedState('waystones_quest_log_pos_abs', { x: -1, y: -1 });
   const [isOpen, setIsOpen] = useState(false);
@@ -155,7 +159,10 @@ export const QuestLog: React.FC = () => {
     );
   };
 
+  if (!isDesktop) return null;
+
   return (
+
     <motion.div 
       ref={containerRef}
       drag
@@ -416,7 +423,7 @@ export const QuestLog: React.FC = () => {
                <div className="flex items-center gap-2">
                   <div className={`w-2 h-2 rounded-full ${completedCount === totalCount ? 'bg-emerald-500' : 'bg-indigo-500 animate-pulse shadow-[0_0_10px_rgba(79,70,229,0.4)]'}`} />
                   <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em]">
-                    {completedCount === totalCount ? 'Converged' : 'Synchronizing...'}
+                    {completedCount === totalCount ? 'Alignment Complete' : 'Harmonizing Nodes...'}
                   </p>
                </div>
                <div className="flex -space-x-1.5 hover:space-x-0.5 transition-all duration-500 group/units">

@@ -250,6 +250,80 @@ const LayerEditorTabs: React.FC<LayerEditorTabsProps> = ({
                       }}
                     />
                   </DiffField>
+
+                  {/* Geometry Settings — Now inside collapsible metadata */}
+                  <div className="pt-4 border-t border-slate-100/50 space-y-4">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">{t.propGeometryType || 'Geometry Settings'}</span>
+                    </div>
+
+                    <DiffField
+                      label=""
+                      currentValue={activeLayer.geometryType}
+                      baselineValue={baselineLayer?.geometryType}
+                      reviewMode={reviewMode}
+                    >
+                      <div className="flex flex-wrap gap-1.5">
+                        {Object.keys(t.geometryTypes).map((key) => {
+                          const Icon = GEOM_ICONS[key] || Layers;
+                          const isNone = key === 'None';
+                          const isActive = activeLayer.geometryType === key;
+                          return (
+                            <button
+                              key={key}
+                              onClick={() => onUpdateLayer({ geometryType: key as any })}
+                              className={`flex items-center gap-1 sm:gap-1.5 px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg text-[9px] sm:text-[10px] font-black uppercase tracking-wider border transition-all ${isActive
+                                  ? isNone
+                                    ? 'bg-slate-700 border-slate-700 text-white shadow-sm'
+                                    : 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
+                                  : 'bg-slate-50 border-slate-200 text-slate-500 hover:border-indigo-200 hover:text-slate-700'
+                                }`}
+                            >
+                              <Icon size={13} />
+                              <span>{t.geometryTypes[key as keyof typeof t.geometryTypes]}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </DiffField>
+
+                    <div className={`grid gap-3 ${activeLayer.geometryType !== 'None' ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                      {activeLayer.geometryType !== 'None' && (
+                        <DiffField
+                          label={t.geomColumnName}
+                          currentValue={activeLayer.geometryColumnName}
+                          baselineValue={baselineLayer?.geometryColumnName}
+                          reviewMode={reviewMode}
+                        >
+                          <input
+                            type="text"
+                            value={activeLayer.geometryColumnName}
+                            placeholder={t.geomColumnNamePlaceholder}
+                            onChange={(e) =>
+                              onUpdateLayer({ geometryColumnName: sanitizeTechnicalName(e.target.value) })
+                            }
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono text-indigo-700 outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 transition-all font-bold"
+                          />
+                        </DiffField>
+                      )}
+                      <DiffField
+                        label={t.pkColumnName}
+                        currentValue={activeLayer.primaryKeyColumn || ''}
+                        baselineValue={baselineLayer?.primaryKeyColumn || ''}
+                        reviewMode={reviewMode}
+                      >
+                        <input
+                          type="text"
+                          value={activeLayer.primaryKeyColumn || ''}
+                          placeholder={t.pkColumnNamePlaceholder}
+                          onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                            onUpdateLayer({ primaryKeyColumn: sanitizeTechnicalName(e.target.value) || undefined })
+                          }
+                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono text-indigo-700 outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 transition-all font-bold"
+                        />
+                      </DiffField>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
@@ -262,76 +336,6 @@ const LayerEditorTabs: React.FC<LayerEditorTabsProps> = ({
               <Trash2 size={20} />
             </button>
           )}
-        </div>
-
-        {/* Geometry row — always visible */}
-        <div className="mb-4 space-y-2">
-          <DiffField
-            label={t.propGeometryType}
-            currentValue={activeLayer.geometryType}
-            baselineValue={baselineLayer?.geometryType}
-            reviewMode={reviewMode}
-          >
-            <div className="flex flex-wrap gap-1.5">
-              {Object.keys(t.geometryTypes).map((key) => {
-                const Icon = GEOM_ICONS[key] || Layers;
-                const isNone = key === 'None';
-                const isActive = activeLayer.geometryType === key;
-                return (
-                  <button
-                    key={key}
-                    onClick={() => onUpdateLayer({ geometryType: key as any })}
-                    className={`flex items-center gap-1 sm:gap-1.5 px-2 py-1 sm:px-3 sm:py-1.5 rounded-lg text-[9px] sm:text-[10px] font-black uppercase tracking-wider border transition-all ${isActive
-                        ? isNone
-                          ? 'bg-slate-700 border-slate-700 text-white shadow-sm'
-                          : 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
-                        : 'bg-slate-50 border-slate-200 text-slate-500 hover:border-indigo-200 hover:text-slate-700'
-                      }`}
-                  >
-                    <Icon size={13} />
-                    <span>{t.geometryTypes[key as keyof typeof t.geometryTypes]}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </DiffField>
-
-          <div className={`grid gap-3 ${activeLayer.geometryType !== 'None' ? 'grid-cols-2' : 'grid-cols-1'}`}>
-            {activeLayer.geometryType !== 'None' && (
-              <DiffField
-                label={t.geomColumnName}
-                currentValue={activeLayer.geometryColumnName}
-                baselineValue={baselineLayer?.geometryColumnName}
-                reviewMode={reviewMode}
-              >
-                <input
-                  type="text"
-                  value={activeLayer.geometryColumnName}
-                  placeholder={t.geomColumnNamePlaceholder}
-                  onChange={(e) =>
-                    onUpdateLayer({ geometryColumnName: sanitizeTechnicalName(e.target.value) })
-                  }
-                  className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono text-indigo-700 outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 transition-all"
-                />
-              </DiffField>
-            )}
-            <DiffField
-              label={t.pkColumnName}
-              currentValue={activeLayer.primaryKeyColumn || ''}
-              baselineValue={baselineLayer?.primaryKeyColumn || ''}
-              reviewMode={reviewMode}
-            >
-              <input
-                type="text"
-                value={activeLayer.primaryKeyColumn || ''}
-                placeholder={t.pkColumnNamePlaceholder}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  onUpdateLayer({ primaryKeyColumn: sanitizeTechnicalName(e.target.value) || undefined })
-                }
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono text-indigo-700 outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 transition-all"
-              />
-            </DiffField>
-          </div>
         </div>
 
         {/* Tab strip */}

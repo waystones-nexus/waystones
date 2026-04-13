@@ -477,22 +477,24 @@ const App: React.FC = () => {
 
         {/* Quick publish — full width, no panels */}
         {activeTab === 'quick-publish' && selectedModel && quickPublishSummary && (
-          <QuickPublish
-            model={selectedModel}
-            summary={quickPublishSummary}
-            validation={quickPublishValidation}
-            t={t}
-            lang={lang}
-            onUpdateModel={handleUpdateModel}
-            onBack={() => setActiveTab('landing')}
-            onOpenEditor={() => setActiveTab('editor')}
-            dataBlob={transformedData}
-          />
+          <div className="flex-1 flex flex-col pt-20 overflow-hidden">
+            <QuickPublish
+              model={selectedModel}
+              summary={quickPublishSummary}
+              validation={quickPublishValidation}
+              t={t}
+              lang={lang}
+              onUpdateModel={handleUpdateModel}
+              onBack={() => setActiveTab('landing')}
+              onOpenEditor={() => setActiveTab('editor')}
+              dataBlob={transformedData}
+            />
+          </div>
         )}
 
         {/* Standard 3-panel layout */}
         {activeTab !== 'landing' && activeTab !== 'quick-publish' && (
-          <div className="flex-1 flex overflow-hidden relative min-w-0">
+          <div className="flex-1 flex overflow-hidden relative min-w-0 pt-20">
             {activeTab === 'editor' && (
               <button
                 aria-label="Toggle Sidebar"
