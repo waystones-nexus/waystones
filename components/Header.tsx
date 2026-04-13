@@ -65,11 +65,11 @@ const Header: React.FC<{
   };
 
   return (
-    <header className="flex-none h-14 md:h-16 bg-white border-b border-slate-200 px-3 md:px-6 flex items-center justify-between z-[200] shadow-sm relative">
+    <header className="flex-none h-16 md:h-20 bg-white border-b border-slate-100 px-4 md:px-8 flex items-center justify-between z-[200] shadow-sm shadow-slate-100/50 relative">
 
       {/* Added 'text-left' here to fix the button's default center alignment */}
-      <button onClick={onHome} className="flex items-center gap-2 md:gap-4 overflow-hidden min-w-0 hover:opacity-80 transition-opacity text-left">
-        <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg md:rounded-2xl flex items-center justify-center bg-white shrink-0 overflow-hidden shadow-sm">
+      <button onClick={onHome} className="flex items-center gap-3 md:gap-5 hover:opacity-80 transition-opacity text-left">
+        <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl md:rounded-2xl flex items-center justify-center bg-white shrink-0 overflow-hidden shadow-sm border border-slate-100">
           <svg width="100%" height="100%" viewBox="0 0 200 200">
           <defs>
             <linearGradient id="stoneFace" x1="0" y1="0" x2="1" y2="0">
@@ -267,8 +267,8 @@ const Header: React.FC<{
         </svg>
         </div>
         <div className="overflow-hidden min-w-0">
-          <h1 className="text-xs md:text-base font-black leading-tight truncate tracking-tight text-slate-800">{t.appTitle}</h1>
-          <p className="text-[8px] md:text-[10px] text-slate-400 font-black uppercase tracking-[0.05em] md:tracking-[0.2em] truncate">{t.appSubtitle}</p>
+          <h1 className="text-sm md:text-lg font-black leading-tight truncate tracking-tight text-slate-800">{t.appTitle}</h1>
+          <p className="text-[9px] md:text-[11px] text-slate-400 font-bold uppercase tracking-[0.15em] md:tracking-[0.25em] truncate">{t.appSubtitle}</p>
         </div>
       </button>
 
@@ -279,21 +279,21 @@ const Header: React.FC<{
           <button
             onClick={handleAiButtonClick}
             title={aiStatus.hasKey ? `AI: ${aiStatus.provider}` : 'AI settings - click to configure'}
-            className={`p-2 md:p-3 rounded-xl transition-all flex items-center gap-1.5 ${getAiStatusColor()}`}
+            className={`p-2.5 md:p-3.5 rounded-2xl transition-all flex items-center gap-2 border border-transparent ${getAiStatusColor() === 'text-slate-300 hover:text-slate-500 hover:bg-slate-50' ? 'text-slate-400 border-slate-100 hover:border-slate-200' : getAiStatusColor()}`}
           >
             {getAiStatusIcon()}
             {aiStatus.hasKey && (
-              <span className="hidden md:block text-[9px] font-black uppercase tracking-widest">
+              <span className="hidden md:block text-[10px] font-black uppercase tracking-widest pl-1">
                 {aiStatus.provider}
               </span>
             )}
             {aiStatus.hasDefaultKey && !getApiKey() && aiStatus.trialUsesLeft > 0 && (
-              <span className="hidden md:block text-[9px] font-black uppercase bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded ml-1">
+              <span className="hidden md:block text-[10px] font-black uppercase bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-lg ml-1">
                 {aiStatus.trialUsesLeft} {t.ai?.left || 'LEFT'}
               </span>
             )}
             {aiStatus.isActive && (
-              <div className="absolute -top-1 -right-1 w-2 h-2 bg-indigo-600 rounded-full animate-pulse" />
+              <div className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-indigo-600 rounded-full animate-pulse border-2 border-white" />
             )}
           </button>
 
@@ -381,23 +381,25 @@ const Header: React.FC<{
           )}
         </div>
 
-        <a
-          href="https://github.com/henrik716/waystones"
-          target="_blank"
-          rel="noopener noreferrer"
-          title="GitHub - View Source Code"
-          className="p-2 md:p-3 rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all shrink-0"
-        >
-          <Github size={18} className="md:w-[22px] md:h-[22px]" />
-        </a>
+        <div className="flex items-center gap-1 md:gap-2">
+          <a
+            href="https://github.com/henrik716/waystones"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="GitHub - View Source Code"
+            className="p-2.5 md:p-3.5 rounded-2xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-50/50 border border-transparent hover:border-indigo-100 transition-all shrink-0"
+          >
+            <Github size={20} className="md:w-[24px] md:h-[24px]" />
+          </a>
 
-        <button aria-label="Hjelp" onClick={onShowGuide} className="p-2 md:p-3 rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 transition-all shrink-0">
-          <HelpCircle size={18} className="md:w-[22px] md:h-[22px]" />
-        </button>
+          <button aria-label="Hjelp" onClick={onShowGuide} className="p-2.5 md:p-3.5 rounded-2xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-50/50 border border-transparent hover:border-indigo-100 transition-all shrink-0">
+            <HelpCircle size={20} className="md:w-[24px] md:h-[24px]" />
+          </button>
+        </div>
 
-        <div className="flex items-center bg-slate-100 rounded-lg md:rounded-2xl p-0.5 md:p-1 border border-slate-200 shrink-0">
-          <button onClick={() => onLangChange('no')} className={`px-1.5 md:px-3 py-1 text-[8px] md:text-[10px] font-black uppercase tracking-widest rounded-md md:rounded-xl transition-all ${lang === 'no' ? 'bg-white shadow-md text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}>NO</button>
-          <button onClick={() => onLangChange('en')} className={`px-1.5 md:px-3 py-1 text-[8px] md:text-[10px] font-black uppercase tracking-widest rounded-md md:rounded-xl transition-all ${lang === 'en' ? 'bg-white shadow-md text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}>EN</button>
+        <div className="flex items-center bg-slate-50 rounded-2xl p-1 md:p-1.5 border border-slate-100 shrink-0">
+          <button onClick={() => onLangChange('no')} className={`px-2 md:px-4 py-1.5 text-[9px] md:text-[11px] font-black uppercase tracking-widest rounded-xl transition-all ${lang === 'no' ? 'bg-white shadow-sm border border-slate-100 text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}>NO</button>
+          <button onClick={() => onLangChange('en')} className={`px-2 md:px-4 py-1.5 text-[9px] md:text-[11px] font-black uppercase tracking-widest rounded-xl transition-all ${lang === 'en' ? 'bg-white shadow-sm border border-slate-100 text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}>EN</button>
         </div>
       </div>
 

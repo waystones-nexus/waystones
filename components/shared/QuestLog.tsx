@@ -97,18 +97,16 @@ export const QuestLog: React.FC = () => {
     return (
       <div 
         key={quest.id}
-        className={`group relative p-3.5 rounded-2xl border transition-all duration-300 ${
+        className={`group relative p-4 rounded-2xl border transition-all duration-300 ${
           isCompleted 
-            ? 'bg-emerald-500/5 border-emerald-500/20' 
-            : isSide 
-              ? 'bg-slate-50 border-slate-100 hover:border-indigo-300'
-              : 'bg-white border-white hover:border-indigo-500/30 hover:shadow-lg hover:shadow-indigo-500/5'
+            ? 'bg-emerald-50/50 border-emerald-100 shadow-sm' 
+            : 'bg-white border-slate-100 hover:border-indigo-300 hover:shadow-xl hover:shadow-indigo-500/5'
         }`}
       >
         <div className="flex items-start gap-3">
           <div className="mt-1">
             {isCompleted ? (
-              <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center text-white">
+              <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center text-white shadow-sm shadow-emerald-200">
                 <CheckCircle2 size={12} strokeWidth={3} />
               </div>
             ) : (
@@ -123,18 +121,18 @@ export const QuestLog: React.FC = () => {
               </h4>
               <div className="flex items-center gap-2">
                 {quest.isMandatory && !isCompleted && (
-                  <span className="text-[8px] font-black px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-600 border border-amber-200 animate-pulse">
+                  <span className="text-[8px] font-black px-1.5 py-0.5 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100 uppercase tracking-widest">
                      REQUIRED
                   </span>
                 )}
                 {state.progress && (
-                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-500">
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-lg bg-slate-50 text-slate-500 border border-slate-100">
                     {state.progress}
                   </span>
                 )}
               </div>
             </div>
-            <p className={`text-[10px] mt-0.5 font-medium leading-relaxed ${isCompleted ? 'text-emerald-600/70' : 'text-slate-400'}`}>
+            <p className={`text-[10px] mt-0.5 font-medium leading-relaxed ${isCompleted ? 'text-emerald-600/70' : 'text-slate-500'}`}>
               {quest.taskTitle}
             </p>
           </div>
@@ -143,14 +141,14 @@ export const QuestLog: React.FC = () => {
           <button 
             onClick={() => !isCompleted && handleQuestHint(quest.id)}
             disabled={isCompleted}
-            className={`shrink-0 w-8 h-8 rounded-xl border-2 ${theme.border} bg-white flex items-center justify-center overflow-hidden transition-all duration-300 ${
+            className={`shrink-0 w-8 h-8 rounded-xl border border-slate-100 bg-white flex items-center justify-center overflow-hidden transition-all duration-300 ${
               isCompleted 
                 ? 'grayscale opacity-30 shadow-none' 
-                : 'shadow-sm hover:scale-110 active:scale-95 cursor-pointer hover:border-indigo-400'
+                : 'shadow-sm hover:scale-110 active:scale-95 cursor-pointer hover:border-indigo-300 hover:bg-indigo-50/30'
             }`}
             title={isCompleted ? "Quest Archive" : "Seek Guidance"}
           >
-            <img src={`/units/${quest.unit}.png`} alt="" className="w-full h-full object-contain" />
+            <img src={`/units/${quest.unit}.png`} alt="" className="w-full h-full object-contain p-1" />
           </button>
         </div>
       </div>
@@ -191,53 +189,53 @@ export const QuestLog: React.FC = () => {
             if (isDragging) return;
             setIsOpen(!isOpen);
           }}
-          className={`flex items-center gap-3 pl-3 pr-6 py-2 rounded-full shadow-2xl transition-all duration-300 active:scale-95 group border relative ${
+          className={`flex items-center gap-3 pl-3 pr-6 py-2.5 rounded-full shadow-2xl transition-all duration-300 active:scale-95 group border relative ${
             isOpen 
               ? 'bg-slate-900 text-white border-slate-800' 
-              : 'bg-white border-white/50 text-slate-700 hover:bg-white hover:border-indigo-200 shadow-xl'
+              : 'bg-white border-slate-100 text-slate-700 hover:bg-slate-50 hover:border-indigo-200'
           }`}
         >
         {/* Circular Progress Avatar */}
-        <div className="relative w-10 h-10 shrink-0">
+        <div className="relative w-11 h-11 shrink-0">
           <svg className="w-full h-full transform -rotate-90">
             <circle
-              cx="20"
-              cy="20"
-              r="18"
+              cx="22"
+              cy="22"
+              r="19"
               fill="transparent"
-              stroke={isOpen ? '#ffffff10' : '#f1f5f9'}
+              stroke={isOpen ? '#ffffff10' : '#f8fafc'}
               strokeWidth="2.5"
             />
             <motion.circle
-              cx="20"
-              cy="20"
-              r="18"
+              cx="22"
+              cy="22"
+              r="19"
               fill="transparent"
-              stroke={progressPercent === 100 ? '#10b981' : '#6366f1'}
+              stroke={progressPercent === 100 ? '#10b981' : '#4f46e5'}
               strokeWidth="2.5"
-              strokeDasharray={113}
-              initial={{ strokeDashoffset: 113 }}
-              animate={{ strokeDashoffset: 113 - (113 * progressPercent) / 100 }}
+              strokeDasharray={119}
+              initial={{ strokeDashoffset: 119 }}
+              animate={{ strokeDashoffset: 119 - (119 * progressPercent) / 100 }}
               transition={{ duration: 1, ease: "easeOut" }}
               strokeLinecap="round"
             />
           </svg>
           <div className="absolute inset-0 flex items-center justify-center p-1.5">
-            <div className={`w-full h-full rounded-full overflow-hidden border-2 shadow-inner transition-transform duration-300 group-hover:scale-110 ${isOpen ? 'border-white/20' : 'border-slate-50'}`}>
+            <div className={`w-full h-full rounded-full overflow-hidden border-2 shadow-inner transition-transform duration-300 group-hover:scale-110 ${isOpen ? 'border-indigo-400/30' : 'border-slate-100'}`}>
                <img 
                  src={`/units/${avatarUnit}.png`} 
-                 className="w-full h-full object-contain" 
+                 className="w-full h-full object-contain p-0.5" 
                  alt="" 
                />
             </div>
           </div>
         </div>
 
-        <div className="flex flex-col items-start">
-          <span className={`text-[9px] font-black uppercase tracking-[0.25em] transition-colors ${isOpen ? 'text-indigo-400' : 'text-slate-400'}`}>
+        <div className="flex flex-col items-start pr-1">
+          <span className={`text-[9px] font-black uppercase tracking-[0.2em] transition-colors ${isOpen ? 'text-indigo-400' : 'text-slate-400'}`}>
             {isOpen ? 'Minimize' : 'Alignment Status'}
           </span>
-          <span className="text-[12px] font-black tracking-tight leading-none mt-0.5">
+          <span className="text-[13px] font-black tracking-tight leading-none mt-0.5">
             {isOpen ? 'Close Log' : `${completedCount}/${totalCount} Complete`}
           </span>
         </div>
@@ -246,7 +244,7 @@ export const QuestLog: React.FC = () => {
         {!isOpen && totalCount - completedCount > 0 && (
           <div className="absolute -top-1 -right-1 flex h-4 w-4">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-4 w-4 bg-indigo-500 border border-white text-[8px] font-black text-white items-center justify-center">
+            <span className="relative inline-flex rounded-full h-4 w-4 bg-indigo-600 border border-white text-[8px] font-black text-white items-center justify-center">
               {totalCount - completedCount}
             </span>
           </div>
@@ -273,45 +271,42 @@ export const QuestLog: React.FC = () => {
               transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
               style={{
                 position: 'absolute',
-                [quadrant.isTop ? 'top' : 'bottom']: 'calc(100% + 12px)',
+                [quadrant.isTop ? 'top' : 'bottom']: 'calc(100% + 16px)',
                 left: quadrant.isLeft ? 0 : 'auto',
                 right: quadrant.isLeft ? 'auto' : 0,
                 zIndex: 100
               }}
-              className="w-80 bg-white border border-slate-200 rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.18)] overflow-hidden pointer-events-auto"
+              className="w-80 bg-white border border-slate-100 rounded-[40px] shadow-[0_20px_60px_rgba(0,0,0,0.12)] overflow-hidden pointer-events-auto"
             >
-            {/* Header: Ritual Ledger Style */}
-            <div className="bg-gradient-to-br from-slate-900/95 to-indigo-950/95 px-7 py-6 flex items-center justify-between relative overflow-hidden">
-              {/* Subtle light effect */}
-              <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-3xl -mr-16 -mt-16" />
-              
+            {/* Header: Refined SaaS Style */}
+            <div className="bg-slate-50/50 border-b border-slate-100 px-8 py-7 flex items-center justify-between relative overflow-hidden">
               <div className="flex items-center gap-4 relative z-10">
-                <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center text-indigo-300 border border-white/10">
-                  <LayoutDashboard size={20} />
+                <div className="w-11 h-11 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-100">
+                  <LayoutDashboard size={22} />
                 </div>
                 <div>
-                  <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-300/80">Ambient Alignments</h3>
-                  <p className="text-[13px] font-black text-white mt-0.5 tracking-tight">Active Processes</p>
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600">Ambient Alignments</h3>
+                  <p className="text-[15px] font-black text-slate-800 mt-0.5 tracking-tight">Active Processes</p>
                 </div>
               </div>
               
               <div className="flex flex-col items-end relative z-10">
-                <div className="text-[16px] font-black text-white tabular-nums leading-none">
-                  {progressPercent}<span className="text-[10px] opacity-40 ml-0.5">%</span>
+                <div className="text-[18px] font-black text-slate-900 tabular-nums leading-none">
+                  {progressPercent}<span className="text-[11px] text-slate-400 ml-0.5">%</span>
                 </div>
-                <div className="text-[9px] font-bold text-indigo-300/40 uppercase tracking-widest mt-1">Convergence</div>
+                <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mt-1.5">Convergence</div>
               </div>
             </div>
 
             {/* List with improved spacing and contrast */}
-            <div className="p-5 space-y-8 max-h-[420px] overflow-y-auto custom-scrollbar">
+            <div className="p-6 space-y-8 max-h-[420px] overflow-y-auto custom-scrollbar">
               {activeQuests.length === 0 ? (
                 <div className="py-14 text-center">
-                  <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <HelpCircle size={20} className="text-slate-300" />
+                  <div className="w-14 h-14 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-slate-100">
+                    <HelpCircle size={22} className="text-slate-300" />
                   </div>
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">The Path is Clear</p>
-                  <p className="text-[9px] font-medium text-slate-300 mt-1 uppercase tracking-widest">No active alignments found</p>
+                  <p className="text-[11px] font-black text-slate-400 uppercase tracking-[0.2em]">The Path is Clear</p>
+                  <p className="text-[10px] font-bold text-slate-300 mt-1 uppercase tracking-widest">No active alignments</p>
                 </div>
               ) : (
                 <>
@@ -370,8 +365,8 @@ export const QuestLog: React.FC = () => {
                         {mandatory.length > 0 && (
                           <div className="space-y-3">
                             <div className="flex items-center gap-3 px-1 mb-4">
-                              <h4 className="text-[9px] font-black uppercase tracking-[0.3em] text-amber-500/80">Required Alignments</h4>
-                              <div className="h-[1px] flex-1 bg-amber-50" />
+                              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600/80">Required Alignments</h4>
+                              <div className="h-[1px] flex-1 bg-indigo-50" />
                             </div>
                             {mandatory.map((state) => renderQuestItem(state))}
                           </div>
@@ -381,7 +376,7 @@ export const QuestLog: React.FC = () => {
                         {currentStepQuests.length > 0 && (
                           <div className="space-y-3 pt-4">
                             <div className="flex items-center gap-3 px-1 mb-4">
-                              <h4 className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-400">Section Goals</h4>
+                              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400/80">Section Goals</h4>
                               <div className="h-[1px] flex-1 bg-slate-100" />
                             </div>
                             {currentStepQuests.map((state) => renderQuestItem(state))}
@@ -392,8 +387,8 @@ export const QuestLog: React.FC = () => {
                         {auxiliary.length > 0 && (
                           <div className="space-y-3 pt-4">
                              <div className="flex items-center gap-3 px-1 mb-4">
-                               <h4 className="text-[9px] font-black uppercase tracking-[0.3em] text-indigo-400/60">Auxiliary Alignments</h4>
-                               <div className="h-[1px] flex-1 bg-indigo-50" />
+                               <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400/50">Auxiliary Alignments</h4>
+                               <div className="h-[1px] flex-1 bg-slate-50" />
                              </div>
                              {auxiliary.map((state) => renderQuestItem(state, true))}
                           </div>
@@ -403,8 +398,8 @@ export const QuestLog: React.FC = () => {
                         {nicheQuests.length > 0 && (
                           <div className="space-y-3 pt-4">
                              <div className="flex items-center gap-3 px-1 mb-4">
-                               <h4 className="text-[9px] font-black uppercase tracking-[0.3em] text-purple-400/60">Niche Alignments</h4>
-                               <div className="h-[1px] flex-1 bg-purple-50" />
+                               <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-400/40">Niche Alignments</h4>
+                               <div className="h-[1px] flex-1 bg-indigo-50/50" />
                              </div>
                              {nicheQuests.map((state) => renderQuestItem(state, true))}
                           </div>
@@ -417,24 +412,24 @@ export const QuestLog: React.FC = () => {
             </div>
 
             {/* Footer: Minimal & Refined */}
-            <div className="px-7 py-4 bg-slate-50/50 border-t border-slate-100/50 flex items-center justify-between">
+            <div className="px-8 py-5 bg-slate-50/50 border-t border-slate-100/50 flex items-center justify-between">
                <div className="flex items-center gap-2">
-                  <div className={`w-1.5 h-1.5 rounded-full ${completedCount === totalCount ? 'bg-emerald-500' : 'bg-indigo-400 animate-pulse'}`} />
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.1em]">
-                    {completedCount === totalCount ? 'Alignment Complete' : 'Harmonizing Nodes...'}
+                  <div className={`w-2 h-2 rounded-full ${completedCount === totalCount ? 'bg-emerald-500' : 'bg-indigo-500 animate-pulse shadow-[0_0_10px_rgba(79,70,229,0.4)]'}`} />
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.1em]">
+                    {completedCount === totalCount ? 'Converged' : 'Synchronizing...'}
                   </p>
                </div>
                <div className="flex -space-x-1.5 hover:space-x-0.5 transition-all duration-500 group/units">
                   {['peasant', 'peon', 'acolyte', 'wisp', 'homunculus', 'shade'].map((unit) => (
-                    <div key={unit} className="w-6 h-6 rounded-lg border-2 border-white bg-white shadow-sm overflow-hidden transform hover:-translate-y-2 hover:scale-125 hover:z-10 transition-all cursor-help relative group/unit">
-                      <img src={`/units/${unit}.png`} className="w-full h-full object-contain" alt="" title={unit} />
+                    <div key={unit} className="w-6 h-6 rounded-lg border border-slate-100 bg-white shadow-sm overflow-hidden transform hover:-translate-y-2 hover:scale-125 hover:z-10 transition-all cursor-help relative group/unit">
+                      <img src={`/units/${unit}.png`} className="w-full h-full object-contain p-0.5" alt="" title={unit} />
                     </div>
                   ))}
                </div>
             </div>
 
             {/* Admin/Settings Footer */}
-            <div className="px-7 py-3 bg-slate-100/50 border-t border-slate-200/50 flex justify-end">
+            <div className="px-8 py-3 bg-white border-t border-slate-100 flex justify-end">
                <button 
                 onClick={handleReset}
                 className="flex items-center gap-1.5 text-[9px] font-black text-slate-400 hover:text-indigo-600 uppercase tracking-widest transition-colors group"

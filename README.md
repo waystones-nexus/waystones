@@ -21,7 +21,7 @@ Waystones is a modern, web-native platform that bridges the gap between raw spat
 Drop any GeoPackage into Waystones. We'll auto-infer your schema, generate a beautiful OGC API endpoint, and set up a complete CI/CD pipeline to GitHub. No configuration files, no CLI, just results.
 
 ### 🎨 Visual Data Modeler
-**Professional-grade modeling without the complexity.**
+**Production-ready modeling without the complexity.**
 Build complex geospatial schemas with ease:
 - **Inheritance & Reusability**: Link layers via inheritance to share field definitions and constraints.
 - **Shared Types**: Define custom field types once and reuse them across your entire project.

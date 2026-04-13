@@ -27,7 +27,7 @@ export const en = {
     modelImportGithub: "Fetch from GitHub",
     existingModels: "Or continue with an existing model:",
     parsing: "Reading file…",
-    heroTagline: "From geodata to standards-compliant web service — in minutes.",
+    heroTagline: "From geodata to live API — in minutes.",
     heroOutputLabel: "What you get",
     whatCanIDoTitle: "What can I do with this?",
     whatCanIDo1: "Your data becomes accessible to mapping apps — QGIS, ArcGIS, web maps, and more.",
