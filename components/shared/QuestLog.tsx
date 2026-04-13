@@ -326,11 +326,23 @@ export const QuestLog: React.FC = () => {
                          return weightA - weightB;
                       });
 
+                    const nicheQuests = activeQuests
+                      .filter(s => {
+                         const q = QUESTS.find(q => q.id === s.id);
+                         return !q?.isMandatory && q?.isNiche;
+                      })
+                      .sort((a, b) => {
+                         if (a.completed !== b.completed) return a.completed ? 1 : -1;
+                         const weightA = QUESTS.find(q => q.id === a.id)?.weight || 99;
+                         const weightB = QUESTS.find(q => q.id === b.id)?.weight || 99;
+                         return weightA - weightB;
+                      });
+
                     const currentStepQuests = activeQuests
                       .filter(s => {
                          const q = QUESTS.find(q => q.id === s.id);
                          const questSteps = Array.isArray(q?.step) ? q?.step : (q?.step !== undefined ? [q?.step] : null);
-                         return !q?.isMandatory && questSteps?.includes(currentContext.step);
+                         return !q?.isMandatory && !q?.isNiche && questSteps?.includes(currentContext.step);
                       })
                       .sort((a, b) => {
                          if (a.completed !== b.completed) return a.completed ? 1 : -1;
@@ -343,7 +355,7 @@ export const QuestLog: React.FC = () => {
                       .filter(s => {
                          const q = QUESTS.find(q => q.id === s.id);
                          const questSteps = Array.isArray(q?.step) ? q?.step : (q?.step !== undefined ? [q?.step] : null);
-                         return !q?.isMandatory && !questSteps?.includes(currentContext.step);
+                         return !q?.isMandatory && !q?.isNiche && !questSteps?.includes(currentContext.step);
                       })
                       .sort((a, b) => {
                          if (a.completed !== b.completed) return a.completed ? 1 : -1;
@@ -380,10 +392,21 @@ export const QuestLog: React.FC = () => {
                         {auxiliary.length > 0 && (
                           <div className="space-y-3 pt-4">
                              <div className="flex items-center gap-3 px-1 mb-4">
-                               <h4 className="text-[9px] font-black uppercase tracking-[0.3em] text-indigo-400/60">Auxiliary Rites</h4>
+                               <h4 className="text-[9px] font-black uppercase tracking-[0.3em] text-indigo-400/60">Auxiliary Alignments</h4>
                                <div className="h-[1px] flex-1 bg-indigo-50" />
                              </div>
                              {auxiliary.map((state) => renderQuestItem(state, true))}
+                          </div>
+                        )}
+
+                        {/* Niche rituals */}
+                        {nicheQuests.length > 0 && (
+                          <div className="space-y-3 pt-4">
+                             <div className="flex items-center gap-3 px-1 mb-4">
+                               <h4 className="text-[9px] font-black uppercase tracking-[0.3em] text-purple-400/60">Niche Alignments</h4>
+                               <div className="h-[1px] flex-1 bg-purple-50" />
+                             </div>
+                             {nicheQuests.map((state) => renderQuestItem(state, true))}
                           </div>
                         )}
                       </>

@@ -24,6 +24,7 @@ export interface Quest {
   isMandatory?: boolean;   // If true, this quest is part of the 'Required' path for this stage
   complexity?: 'novice' | 'architect' | 'ritualist';
   isSideQuest?: boolean;
+  isNiche?: boolean;
   targetElementId?: string;
   weight?: number; // Sorting priority (1 is highest value)
 }
@@ -401,12 +402,15 @@ export const QUESTS: Quest[] = [
     targetElementId: 'editor-layer-pk-field'
   },
   {
-    id: 'RECORD_LORE',
-    title: 'Record the Lore',
-    taskTitle: 'Add meaningful descriptions to layers',
-    unit: 'acolyte',
-    hint: 'A manifest without descriptions is a silent artifact. Add lore to your layers so others may understand them.',
-    context: 'editor'
+    id: 'ORACLE_ALIGNMENT',
+    title: "The Oracle’s Vision",
+    taskTitle: 'Generate a model description with AI',
+    unit: 'wisp',
+    hint: 'The Oracle sees the patterns. Click the Sparkles in the header to generate a description for your realm.',
+    context: 'editor',
+    complexity: 'ritualist',
+    isMandatory: true,
+    weight: 1.5
   },
   {
     id: 'NAMESPACE_ALIGNMENT',
@@ -414,10 +418,55 @@ export const QUESTS: Quest[] = [
     taskTitle: 'Assign a namespace to your model',
     unit: 'peon',
     hint: 'A nameless realm is a lost realm. Give your model a Namespace so it has a place in the hierarchy.',
-    context: 'editor'
+    context: 'editor',
+    isMandatory: true,
+    targetElementId: 'editor-meta-namespace'
   },
 
-  // --- Advanced Side Alignments ---
+  // --- Advanced Side Alignments (Auxiliary Rites) ---
+  {
+    id: 'STYLE_ALIGNMENT_ADV',
+    title: 'The Aesthetic Weaving',
+    taskTitle: "Customize a layer's styling",
+    unit: 'homunculus',
+    hint: 'The mud is waiting. Go to the "Style" tab and change a layer\'s color or symbol.',
+    context: 'editor',
+    isSideQuest: true,
+    weight: 1
+  },
+  {
+    id: 'EDITOR_LAYER_TITLE',
+    title: 'Naming the Facets',
+    taskTitle: 'Set a display title for each layer',
+    unit: 'peon',
+    hint: 'Technical IDs are for machines. Give each layer a human-readable title.',
+    context: 'editor',
+    isSideQuest: true,
+    weight: 2,
+    targetElementId: 'editor-layer-title'
+  },
+  {
+    id: 'EDITOR_LAYER_KEYWORDS',
+    title: 'The Layer Lexicon',
+    taskTitle: 'Add keywords to your layers',
+    unit: 'shade',
+    hint: 'Layers too need their own tags. Add keywords to specific layers to enrich their lore.',
+    context: 'editor',
+    isSideQuest: true,
+    weight: 3,
+    targetElementId: 'editor-layer-keywords'
+  },
+  {
+    id: 'RECORD_LORE',
+    title: 'Record the Lore',
+    taskTitle: 'Add meaningful descriptions to layers',
+    unit: 'acolyte',
+    hint: 'A manifest without descriptions is a silent artifact. Add lore to your layers so others may understand them.',
+    context: 'editor',
+    isSideQuest: true,
+    weight: 4,
+    targetElementId: 'editor-layer-description'
+  },
   {
     id: 'NAV_ALIGNMENT',
     title: 'The Rendering Alignment',
@@ -426,54 +475,9 @@ export const QUESTS: Quest[] = [
     hint: 'Big layers eat the small! Go to the "Model" tab and drag the layers to change their z-order.',
     context: 'editor',
     complexity: 'architect',
-    isSideQuest: true
-  },
-  {
-    id: 'ORACLE_ALIGNMENT',
-    title: "The Oracle’s Vision",
-    taskTitle: 'Generate a model abstract with AI',
-    unit: 'wisp',
-    hint: 'The Oracle sees the patterns. Click the Sparkles in the header to generate a description for your realm.',
-    context: 'editor',
-    complexity: 'ritualist',
-    isSideQuest: true
-  },
-  {
-    id: 'COMMON_TONGUE',
-    title: 'The Common Tongue',
-    taskTitle: 'Promote a property to a Shared Type',
-    unit: 'acolyte',
-    hint: 'Redundancy is a sin. Find a common field in a layer and "Promote" it to a Shared Type.',
-    context: 'editor',
-    complexity: 'ritualist',
-    isSideQuest: true
-  },
-  {
-    id: 'RULE_ALIGNMENT',
-    title: 'The Law of the Lands',
-    taskTitle: 'Add a validation rule to a layer',
-    unit: 'shade',
-    hint: 'Even the abyss has rules. Go to the "Rules" tab in a layer and add a constraint.',
-    context: 'editor',
-    isSideQuest: true
-  },
-  {
-    id: 'STYLE_ALIGNMENT_ADV',
-    title: 'The Aesthetic Weaving',
-    taskTitle: "Customize a layer's styling",
-    unit: 'homunculus',
-    hint: 'The mud is waiting. Go to the "Style" tab and change a layer\'s color or symbol.',
-    context: 'editor',
-    isSideQuest: true
-  },
-  {
-    id: 'ENUM_ALIGNMENT',
-    title: 'The Finite Circle',
-    taskTitle: 'Define a Shared Enum',
-    unit: 'acolyte',
-    hint: 'Constants represent the order of the universe. Define a Shared Enum in the Types tab.',
-    context: 'editor',
-    isSideQuest: true
+    isSideQuest: true,
+    weight: 5,
+    targetElementId: 'editor-rendering-order'
   },
   {
     id: 'SYNC_ALIGNMENT',
@@ -483,8 +487,42 @@ export const QUESTS: Quest[] = [
     hint: 'The local stone must know its cloud home. Ensure your GitHub configuration is set.',
     context: 'editor',
     isSideQuest: true,
-    weight: 5,
+    weight: 6,
     targetElementId: 'editor-publish-button'
+  },
+  {
+    id: 'COMMON_TONGUE',
+    title: 'The Common Tongue',
+    taskTitle: 'Promote a property to a Shared Type',
+    unit: 'acolyte',
+    hint: 'Redundancy is a sin. Find a common field in a layer and "Promote" it to a Shared Type.',
+    context: 'editor',
+    complexity: 'ritualist',
+    isSideQuest: true,
+    isNiche: true,
+    weight: 7
+  },
+  {
+    id: 'ENUM_ALIGNMENT',
+    title: 'The Finite Circle',
+    taskTitle: 'Define a Shared Enum',
+    unit: 'acolyte',
+    hint: 'Constants represent the order of the universe. Define a Shared Enum in the Types tab.',
+    context: 'editor',
+    isSideQuest: true,
+    isNiche: true,
+    weight: 8
+  },
+  {
+    id: 'RULE_ALIGNMENT',
+    title: 'The Law of the Lands',
+    taskTitle: 'Add a validation rule to a layer',
+    unit: 'shade',
+    hint: 'Even the abyss has rules. Go to the "Rules" tab in a layer and add a constraint.',
+    context: 'editor',
+    isSideQuest: true,
+    isNiche: true,
+    weight: 9
   },
   {
     id: 'EDITOR_META_NAME',
@@ -540,28 +578,6 @@ export const QUESTS: Quest[] = [
     isMandatory: true,
     weight: 2,
     targetElementId: 'editor-meta-bbox'
-  },
-  {
-    id: 'EDITOR_LAYER_TITLE',
-    title: 'Naming the Facets',
-    taskTitle: 'Set a display title for each layer',
-    unit: 'peon',
-    hint: 'Technical IDs are for machines. Give each layer a human-readable title.',
-    context: 'editor',
-    isSideQuest: true,
-    weight: 1,
-    targetElementId: 'editor-layer-title'
-  },
-  {
-    id: 'EDITOR_LAYER_KEYWORDS',
-    title: 'The Layer Lexicon',
-    taskTitle: 'Add keywords to your layers',
-    unit: 'shade',
-    hint: 'Layers too need their own tags. Add keywords to specific layers to enrich their lore.',
-    context: 'editor',
-    isSideQuest: true,
-    weight: 2,
-    targetElementId: 'editor-layer-keywords'
   }
 ];
 
@@ -718,6 +734,16 @@ export const QUEST_WHISPERS: Record<string, Whisper[]> = {
     { unit: "shade", text: "Every part of the manifest deserves its own Lexicon. Add keywords to the layers." }
   ]
 };
+
+export const WELCOME_WHISPERS: Whisper[] = [
+  { unit: "peasant", text: "Welcome back, Architect. The stones have been waiting for your touch." },
+  { unit: "peon", text: "You're back! Me sharpened the spatial hammer while you were gone. Work work!" },
+  { unit: "acolyte", text: "The convergence continues. Your presence strengthens the alignment." },
+  { unit: "wisp", text: "A flicker of light returns! Shall we weave more data today?" },
+  { unit: "shade", text: "The archive remains silent in your absence. Speak, and let the stones respond." },
+  { unit: "homunculus", text: "The clay is soft and ready. What form shall we give it now?" },
+];
+
 
 export const QUEST_CELEBRATIONS: Record<string, Whisper[]> = {
   BIND_DATA: [

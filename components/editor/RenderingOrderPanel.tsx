@@ -41,7 +41,7 @@ const RenderingOrderPanel: React.FC<RenderingOrderPanelProps> = ({
   t,
 }) => {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 mb-4">
+    <div id="editor-rendering-order" className="bg-white rounded-2xl border border-slate-200 mb-4">
       <button
         onClick={onToggle}
         className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-50 transition-all rounded-t-2xl"

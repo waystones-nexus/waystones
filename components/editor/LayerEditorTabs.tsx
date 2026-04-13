@@ -237,6 +237,7 @@ const LayerEditorTabs: React.FC<LayerEditorTabsProps> = ({
                     }
                   >
                     <textarea
+                      id="editor-layer-description"
                       placeholder={t.descriptionPlaceholder}
                       value={activeLayer.description}
                       onChange={(e) => onUpdateLayer({ description: e.target.value })}

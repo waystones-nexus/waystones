@@ -142,11 +142,19 @@ const ModelEditor: React.FC<ModelEditorProps> = ({
     const { id } = lastQuestAction;
     
     // Model Metadata Quests
-    if (id.startsWith('EDITOR_META_')) {
+    if (id.startsWith('EDITOR_META_') || id === 'NAMESPACE_ALIGNMENT' || id === 'NAV_ALIGNMENT') {
       setActiveNavSection('model');
-      setIsMetadataOpen(true);
+      
+      if (id === 'NAMESPACE_ALIGNMENT') {
+        setIsModelHeaderOpen(true);
+      } else if (id === 'NAV_ALIGNMENT') {
+        setIsRenderingOrderOpen(true);
+      } else {
+        setIsMetadataOpen(true);
+      }
+
       // Optional: Add a subtle ambient whisper confirming we moved
-      triggerWhisper('acolyte', "I have opened the Metadata rituals for you, Architect.");
+      triggerWhisper('acolyte', "I have opened the Model rituals for you, Architect.");
     }
     
     // Layer Quests
@@ -159,8 +167,8 @@ const ModelEditor: React.FC<ModelEditorProps> = ({
         layerActions.setActiveLayerId(model.layers[0].id);
       }
       
-      // Auto-expand details for title/keyword quests
-      if (id === 'EDITOR_LAYER_TITLE' || id === 'EDITOR_LAYER_KEYWORDS') {
+      // Auto-expand details for title/keyword/lore quests
+      if (id === 'EDITOR_LAYER_TITLE' || id === 'EDITOR_LAYER_KEYWORDS' || id === 'RECORD_LORE') {
         setForcedLayerDetailsOpen(true);
         // Reset after a moment so user can toggle it later
         setTimeout(() => setForcedLayerDetailsOpen(false), 500);

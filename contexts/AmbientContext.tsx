@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode, useRef } from 'react';
-import { WorkerUnit, Whisper, Quest, QUESTS, QUEST_WHISPERS, QUEST_CELEBRATIONS, IDLE_WHISPERS, LEGENDARY_WHISPERS, ACTION_WHISPERS } from '../constants/ambientManifest';
+import { WorkerUnit, Whisper, Quest, QUESTS, QUEST_WHISPERS, QUEST_CELEBRATIONS, IDLE_WHISPERS, LEGENDARY_WHISPERS, ACTION_WHISPERS, WELCOME_WHISPERS } from '../constants/ambientManifest';
 import { DataModel, ImportValidationResult } from '../types';
 
 interface UserStats {
@@ -102,6 +102,7 @@ export const AmbientProvider: React.FC<{ children: ReactNode }> = ({ children })
       console.error("Failed to load ambient persistence", e);
     }
   }, []);
+
 
   // Save stats to localStorage
   useEffect(() => {
@@ -575,6 +576,22 @@ export const AmbientProvider: React.FC<{ children: ReactNode }> = ({ children })
 
     return () => clearInterval(interval);
   }, [activeWhisper, triggerWhisper]);
+
+  // Welcome session logic
+  useEffect(() => {
+    const hasSeenWelcome = sessionStorage.getItem('waystones_welcomed');
+    if (!hasSeenWelcome) {
+      const random = WELCOME_WHISPERS[Math.floor(Math.random() * WELCOME_WHISPERS.length)];
+      
+      // Delay it slightly to let the site settle
+      const timer = setTimeout(() => {
+        triggerWhisper(random.unit, random.text, { priority: true });
+        sessionStorage.setItem('waystones_welcomed', 'true');
+      }, 2000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [triggerWhisper]);
 
   return (
     <AmbientContext.Provider value={{ 

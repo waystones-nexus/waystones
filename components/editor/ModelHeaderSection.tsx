@@ -112,6 +112,7 @@ const ModelHeaderSection: React.FC<ModelHeaderSectionProps> = ({
               reviewMode={reviewMode}
             >
               <input
+                id="editor-meta-namespace"
                 type="text"
                 placeholder={t.namespacePlaceholder}
                 value={model.namespace}
