@@ -18,7 +18,7 @@ interface LandingScreenProps {
 }
 
 const Tag: React.FC<{ label: string, color: string, icon: any }> = ({ label, color, icon: Icon }) => (
-  <div className={`px-4 py-1.5 md:px-5 md:py-2 rounded-2xl text-[10px] md:text-[11px] font-black uppercase tracking-[0.2em] flex items-center gap-2 ${color} border border-black/5 shadow-sm`}>
+  <div className={`px-4 py-1.5 md:px-5 md:py-2 rounded-2xl text-[9px] md:text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 ${color} border border-black/5 shadow-sm`}>
     <Icon className="w-3 h-3 md:w-3.5 md:h-3.5 opacity-70" />
     <span className="whitespace-nowrap">{label}</span>
   </div>
@@ -55,16 +55,16 @@ const LandingScreen: React.FC<LandingScreenProps> = ({
   };
 
   return (
-    <div className="flex-1 flex flex-col items-center p-6 md:p-12 pt-20 md:pt-24 bg-slate-50 overflow-y-auto">
+    <div className="flex-1 flex flex-col items-center p-6 md:p-12 pt-32 md:pt-48 bg-slate-50 overflow-y-auto">
       <div className="w-full max-w-5xl space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
 
         {/* Hero */}
         <div className="text-center space-y-8 max-w-3xl mx-auto">
           <div className="space-y-4">
-            <h1 className="text-4xl md:text-6xl font-black tracking-tight text-slate-800 leading-[1.1]">
+            <h1 className="text-4xl md:text-6xl font-black tracking-tight text-slate-800 leading-[1.1] whitespace-pre-line">
               {l.heroTagline}
             </h1>
-            <p className="text-lg text-slate-500 font-medium max-w-2xl mx-auto">
+            <p className="text-lg md:text-xl text-slate-500 font-medium max-w-2xl mx-auto leading-relaxed">
               Design, publish, and scale your spatial data infrastructure with zero friction.
             </p>
           </div>
@@ -78,7 +78,7 @@ const LandingScreen: React.FC<LandingScreenProps> = ({
               <Tag label="CI/CD" color="bg-indigo-50 text-indigo-600" icon={GitBranch} />
               <Tag label="OpenAPI" color="bg-violet-50 text-violet-600" icon={Code2} />
             </div>
-            <p className="text-xs text-slate-400 font-bold uppercase tracking-[0.2em]">
+            <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.3em]">
               {l.heroOutputLabel}
             </p>
           </div>

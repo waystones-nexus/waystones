@@ -1,6 +1,6 @@
 export const no = {
   appTitle: "Waystones",
-  appSubtitle: "Fra data til tjeneste",
+  appSubtitle: "FROM DATA TO SERVICE",
   newModel: "Ny modell", models: "Modeller", noModels: "Ingen modeller ennå",
   noModelsHint: "Opprett en ny modell for å komme i gang",
   abstract: "«abstrakt»",
@@ -27,7 +27,8 @@ export const no = {
     modelImportGithub: "Hent fra GitHub",
     existingModels: "Eller fortsett med en eksisterende modell:",
     parsing: "Leser fil…",
-    heroTagline: "Fra geodata til live-API — på minutter.",
+    heroTagline: `Fra geodata til live-API.
+På minutter.`,
     heroOutputLabel: "Du får",
     whatCanIDoTitle: "Hva kan jeg bruke dette til?",
     whatCanIDo1: "Dataene dine blir tilgjengelige i kartapper — QGIS, ArcGIS, webkart og mer.",
