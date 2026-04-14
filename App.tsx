@@ -4,6 +4,7 @@ import { DataModel, ViewTab, Language, ImportValidationResult, ImportWarning } f
 import { i18n, createEmptyModel } from './constants';
 import { AiProvider } from './contexts/AiContext';
 import { useAmbient } from './contexts/AmbientContext';
+import { VOID_ENTITY_QUOTES } from './constants/ambientManifest';
 import ModelEditor from './components/ModelEditor';
 import PreviewPanel from './components/PreviewPanel';
 import DataMapper from './components/DataMapper';
@@ -50,6 +51,8 @@ const App: React.FC = () => {
   const [showDatabaseImportForEditor, setShowDatabaseImportForEditor] = useState(false);
   const [databaseSourceType, setDatabaseSourceType] = useState<'postgis' | 'supabase'>('postgis');
   const [modelToDelete, setModelToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deletingQuote, setDeletingQuote] = useState('');
   const [showGithubPublish, setShowGithubPublish] = useState(false);
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -159,22 +162,29 @@ const App: React.FC = () => {
   }, []);
 
   const handleDeleteModel = (id: string) => {
-    setModels(prev => {
-      const updated = prev.filter(m => m.id !== id);
-      setTimeout(() => pushToHistory(updated, true), 0);
-      if (selectedId === id) {
-        if (updated.length > 0) {
-          setSelectedId(updated[0].id);
-          setActiveTab('editor');
-        } else {
-          setSelectedId(null);
-          setActiveTab('landing');
+    const randomQuote = VOID_ENTITY_QUOTES[Math.floor(Math.random() * VOID_ENTITY_QUOTES.length)];
+    setDeletingQuote(randomQuote);
+    setIsDeleting(true);
+
+    setTimeout(() => {
+      setModels(prev => {
+        const updated = prev.filter(m => m.id !== id);
+        setTimeout(() => pushToHistory(updated, true), 0);
+        if (selectedId === id) {
+          if (updated.length > 0) {
+            setSelectedId(updated[0].id);
+            setActiveTab('editor');
+          } else {
+            setSelectedId(null);
+            setActiveTab('landing');
+          }
         }
-      }
-      return updated;
-    });
-    setDirty(false);
-    setModelToDelete(null);
+        return updated;
+      });
+      setDirty(false);
+      setIsDeleting(false);
+      setModelToDelete(null);
+    }, 2500);
   };
 
   const handleImportModel = (imported: DataModel, meta?: { repo: string; path: string; branch: string }) => {
@@ -449,7 +459,15 @@ const App: React.FC = () => {
         {showUrlImport && <UrlImportDialog t={t} onClose={() => setShowUrlImport(false)} onImport={handleUrlImportSuccess} />}
         {showDatabaseImport && <DatabaseImportDialog t={t} onClose={() => setShowDatabaseImport(false)} onImport={handleDatabaseImport} initialSourceType={databaseSourceType} />}
         {showDatabaseImportForEditor && <DatabaseImportDialog t={t} onClose={() => setShowDatabaseImportForEditor(false)} onImport={handleDatabaseImportToEditor} />}
-        {modelToDelete && <ConfirmDeleteDialog t={t} onClose={() => setModelToDelete(null)} onConfirm={() => handleDeleteModel(modelToDelete)} />}
+        {modelToDelete && (
+          <ConfirmDeleteDialog
+            t={t}
+            isDeleting={isDeleting}
+            deletingQuote={deletingQuote}
+            onClose={() => setModelToDelete(null)}
+            onConfirm={() => handleDeleteModel(modelToDelete)}
+          />
+        )}
 
         <Header t={t} lang={lang} onLangChange={setLang} onShowGuide={() => setShowGuide(true)} onHome={() => setActiveTab('landing')} />
 
