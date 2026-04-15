@@ -175,7 +175,8 @@ const ConnectionForm: React.FC<ConnectionFormProps> = ({
                       if (modelCrs && summary.srid) {
                         const modelSrid = parseInt(modelCrs.replace('EPSG:', ''));
                         if (summary.srid !== modelSrid) {
-                          const msg = t.deploy.crsMismatchGpkg
+                          const template = t.deploy.crsMismatchGpkg || 'File CRS (EPSG:{fileCrs}) does not match model CRS ({modelCrs})';
+                          const msg = template
                             .replace('{fileCrs}', summary.srid.toString())
                             .replace('{modelCrs}', modelCrs);
                           setCrsWarning(msg);
@@ -258,34 +259,34 @@ const ConnectionForm: React.FC<ConnectionFormProps> = ({
                 <option value="aws">{d.s3ProviderAws}</option>
                 <option value="custom">{d.s3ProviderCustom}</option>
               </select>
-              {s3Config.provider === 'tigris' && (
+              {s3Config?.provider === 'tigris' && (
                 <p className="text-[10px] text-indigo-600 font-medium px-1 leading-relaxed">{d.s3TigrisNote}</p>
               )}
             </div>
             <Field
               label={d.s3Endpoint}
-              value={s3Config.endpointUrl}
-              onChange={v => onS3Change({ ...s3Config, endpointUrl: v, provider: 'custom' })}
+              value={s3Config?.endpointUrl || ''}
+              onChange={v => onS3Change({ ...s3Config!, endpointUrl: v, provider: 'custom' })}
               placeholder="https://..."
             />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Field
                 label={d.s3BucketName}
-                value={s3Config.bucketName}
-                onChange={v => onS3Change({ ...s3Config, bucketName: v })}
+                value={s3Config?.bucketName || ''}
+                onChange={v => onS3Change({ ...s3Config!, bucketName: v })}
                 placeholder="my-geodata"
               />
               <Field
                 label={d.s3Region}
-                value={s3Config.region}
-                onChange={v => onS3Change({ ...s3Config, region: v })}
+                value={s3Config?.region || ''}
+                onChange={v => onS3Change({ ...s3Config!, region: v })}
                 placeholder="auto"
               />
             </div>
             <Field
               label={d.s3ObjectKey}
-              value={s3Config.objectKey}
-              onChange={v => onS3Change({ ...s3Config, objectKey: v })}
+              value={s3Config?.objectKey || ''}
+              onChange={v => onS3Change({ ...s3Config!, objectKey: v })}
               placeholder={isGpkg ? 'datasets/mydata.gpkg' : 'outputs/mymodel/'}
               hint={d.s3ObjectKeyHint}
             />

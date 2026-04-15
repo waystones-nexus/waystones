@@ -92,7 +92,7 @@ export const generatePygeoapiConfig = async (
     // in top-level metadata. Missing keywords causes a KeyError on /collections.
     const layerKeywords = layer.keywords?.length
       ? layer.keywords
-      : [model.namespace || 'data', layer.name.toLowerCase().replace(/[^a-z0-9]/g, '-')];
+      : [model.namespace || 'data', (layer.name || 'layer').toLowerCase().replace(/[^a-z0-9]/g, '-')];
 
     // OGC API Features Part 2 — advertise native CRS + common CRSes when model is not WGS84.
     const nativeCrsUri = toCrsUri(model.crs);
@@ -100,8 +100,8 @@ export const generatePygeoapiConfig = async (
 
     yaml += `  ${collectionId}:\n`;
     yaml += `    type: collection\n`;
-    yaml += `    title: ${layer.title || layer.name}\n`;
-    yaml += `    description: ${layer.description || 'Spatial collection'}\n`;
+    yaml += `    title: "${layer.title || layer.name || collectionId}"\n`;
+    yaml += `    description: "${layer.description || 'Spatial collection'}"\n`;
     yaml += `    keywords:\n`;
     layerKeywords.forEach((kw: string) => { yaml += `      - ${kw}\n`; });
 
@@ -197,8 +197,9 @@ export const generatePygeoapiConfig = async (
     allProperties.forEach(prop => {
       const typeInfo = mapFieldToSchemaType(prop);
       // Quote property names to avoid YAML parsing issues with reserved words or types
-      yaml += `        "${prop.name}":\n`;
-      yaml += `          title: "${prop.title || prop.name}"\n`;
+      const pName = prop.name || 'untitled_property';
+      yaml += `        "${pName}":\n`;
+      yaml += `          title: "${prop.title || pName}"\n`;
       yaml += `          type: ${typeInfo.type}\n`;
       if (typeInfo.format) yaml += `          format: ${typeInfo.format}\n`;
       if (typeInfo.enum) {

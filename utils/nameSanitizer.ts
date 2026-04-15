@@ -55,5 +55,7 @@ export const sanitizeTechnicalName = (name: string): string => {
  * Simpler than sanitizeTechnicalName (no NFD normalization, no Nordic char handling).
  * Used for deploy targets and export utilities.
  */
-export const toTableName = (name: string): string =>
-  name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+export const toTableName = (name: string): string => {
+  if (!name) return 'untitled';
+  return name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+};
