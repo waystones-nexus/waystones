@@ -263,12 +263,26 @@ export const AmbientProvider: React.FC<{ children: ReactNode }> = ({ children })
         const isCorrectContext = q.context === currentTab || q.context === 'all';
         if (!isCorrectContext) return false;
 
-        // New: Step-aware filtering
         const questSteps = Array.isArray(q.step) ? q.step : (q.step !== undefined ? [q.step] : null);
         
         if (questSteps && currentStep !== undefined) {
-          // Only show quests for the current step — past and future steps are hidden
-          return questSteps.includes(currentStep);
+          const isInCurrentStep = questSteps.includes(currentStep);
+          const isPastStep = questSteps.some(s => s < currentStep);
+          
+          // Re-evaluate completion for past steps to see if we should still show it
+          if (isInCurrentStep) return true;
+          
+          // If it's a past step, only show it if it's NOT completed yet (meaning user skipped it)
+          // OR if it's mandatory and completed (to show the checkmark)
+          // This ensures the "satisfaction" of seeing the completed list.
+          if (isPastStep) {
+            // We'll calculate completion properly in the next phase, 
+            // but here we just decide visibility. Let's keep all mandatory 
+            // and recently active ones.
+            return q.isMandatory;
+          }
+
+          return false;
         }
         
         // Side quest 'Unlocking' logic for Editor
@@ -335,10 +349,10 @@ export const AmbientProvider: React.FC<{ children: ReactNode }> = ({ children })
           completed = !!model.name && model.name !== 'Untitled'; 
           break;
         case 'QP_META_DESC':
-          completed = !!model.description && model.description.length > 20;
+          completed = !!model.description && model.description.length > 5;
           break;
         case 'QP_META_CONTACT':
-          completed = !!model.metadata?.contactEmail && !!model.metadata?.contactName;
+          completed = !!model.metadata?.contactEmail && (!!model.metadata?.contactName || !!model.metadata?.contactOrganization);
           break;
         case 'QP_META_THEME':
           completed = !!model.metadata?.theme;
@@ -415,10 +429,10 @@ export const AmbientProvider: React.FC<{ children: ReactNode }> = ({ children })
           completed = !!model.name && model.name !== 'Untitled';
           break;
         case 'DP_META_DESC':
-          completed = !!model.description && model.description.length > 20;
+          completed = !!model.description && model.description.length > 5;
           break;
         case 'DP_META_CONTACT':
-          completed = !!model.metadata?.contactEmail && !!model.metadata?.contactName;
+          completed = !!model.metadata?.contactEmail && (!!model.metadata?.contactName || !!model.metadata?.contactOrganization);
           break;
         case 'DP_META_THEME':
           completed = !!model.metadata?.theme;
@@ -431,7 +445,7 @@ export const AmbientProvider: React.FC<{ children: ReactNode }> = ({ children })
           completed = !!(dpSpatial?.westBoundLongitude && dpSpatial?.eastBoundLongitude && dpSpatial?.southBoundLatitude && dpSpatial?.northBoundLatitude);
           break;
         case 'DP_LAYER_META':
-          const dpLayersWithDesc = model.layers.filter(l => l.description && l.description.length > 5).length;
+          const dpLayersWithDesc = model.layers.filter(l => l.description && l.description.length > 2).length;
           completed = dpLayersWithDesc > 0;
           progress = `${dpLayersWithDesc}/${model.layers.length}`;
           break;
@@ -439,7 +453,7 @@ export const AmbientProvider: React.FC<{ children: ReactNode }> = ({ children })
           completed = model.layers.length > 1 && visitedQuests.includes('NAV_ALIGNMENT');
           break;
         case 'ORACLE_ALIGNMENT':
-          completed = !!model.description && model.description.length > 20;
+          completed = !!model.description && model.description.length > 5;
           break;
         case 'COMMON_TONGUE':
           completed = model.sharedTypes.length > 0;

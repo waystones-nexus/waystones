@@ -231,7 +231,14 @@ const DeployPanel: React.FC<DeployPanelProps> = ({ model, t, lang, onUpdateModel
       }
     };
     generatePreview();
-  }, [sourceType, pgConfig, supaConfig, dbConfig, gpkgConfig, layerMappings, model, lang]);
+
+    // Synchronize to parent model for real-time quest updates
+    const source = buildSource();
+    if (source && onSourceChange) {
+      onSourceChange(source);
+    }
+  }, [sourceType, pgConfig, supaConfig, dbConfig, gpkgConfig, layerMappings, s3Config, model.id, lang, onSourceChange]);
+
 
   const isConnectionValid = (): boolean => {
     if (!sourceType) return false;
