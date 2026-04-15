@@ -184,7 +184,7 @@ const App: React.FC = () => {
       setDirty(false);
       setIsDeleting(false);
       setModelToDelete(null);
-    }, 5000);
+    }, 3500);
   };
 
   const handleImportModel = (imported: DataModel, meta?: { repo: string; path: string; branch: string }) => {

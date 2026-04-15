@@ -305,7 +305,7 @@ In minutes.`,
   deploy: {
     title: "Deploy",
     subtitle: "Connect to data source and publish service configuration",
-    steps: ["Choose source", "Connect", "Map layers", "Publish"],
+    steps: ["Choose source", "Connect", "Map layers", "Symbology", "Metadata", "Publish"],
     sourceTitle: "Where is the data you want to publish?",
     sources: {
       postgis: "Cloud SQL / PostGIS",

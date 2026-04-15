@@ -279,13 +279,14 @@ const DeployPanel: React.FC<DeployPanelProps> = ({ model, t, lang, onUpdateModel
   };
 
   // 6-step flow
+  // 6-step flow - uses d.steps array for all labels if possible, falling back to English defaults
   const steps = [
-    { icon: Database,   label: d.steps?.[0]         || 'Source' },
-    { icon: Link2,      label: d.steps?.[1]         || 'Connection' },
-    { icon: Table,      label: d.steps?.[2]         || 'Mapping' },
-    { icon: Paintbrush, label: q.stepStyleTitle     || st.title || 'Styling' },
-    { icon: Tag,        label: q.step2Title         || 'Metadata' },
-    { icon: Github,     label: d.steps?.[3]         || 'Publish' },
+    { icon: Database,   label: d.steps?.[0] || 'Source' },
+    { icon: Link2,      label: d.steps?.[1] || 'Connection' },
+    { icon: Table,      label: d.steps?.[2] || 'Mapping' },
+    { icon: Paintbrush, label: d.steps?.[3] || q.stepStyleTitle || st.title || 'Styling' },
+    { icon: Tag,        label: d.steps?.[4] || q.step2Title     || 'Metadata' },
+    { icon: Github,     label: d.steps?.[5] || d.steps?.[3]     || 'Publish' },
   ];
 
   return (

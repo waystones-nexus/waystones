@@ -6,6 +6,7 @@ import { SourceType } from '../../types';
 interface SourceTypePickerProps {
   sourceType: SourceType | null;
   onSelect: (type: SourceType) => void;
+  idPrefix?: string;
   t: Translations;
 }
 
@@ -48,6 +49,7 @@ const SourceTypePicker: React.FC<SourceTypePickerProps> = ({ sourceType, onSelec
           return (
             <button
               key={type}
+              id={`${idPrefix}-source-type-${type}`}
               onClick={() => { onSelect(type); }}
               className={`w-full overflow-hidden text-left p-5 sm:p-6 rounded-[24px] border-2 transition-all flex flex-col gap-4 active:scale-95 group hover:scale-[1.02] ${sourceType === type ? 'border-violet-400 bg-violet-50 shadow-xl' : 'border-slate-100 bg-white shadow-sm'
                 }`}
