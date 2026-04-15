@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { Translations } from '../i18n/index';
 import {
   ChevronDown, ChevronUp, Trash2, Asterisk,
@@ -15,6 +15,7 @@ import {
 } from '../utils/aiService';
 import { sanitizeTechnicalName } from '../utils/nameSanitizer';
 import { useAiContext } from '../contexts/AiContext';
+import { useAmbient } from '../contexts/AmbientContext';
 import AiLoadingSkeleton from './ai/AiLoadingSkeleton';
 import AiErrorHandler from './ai/AiErrorHandler';
 import AiTrigger from './ai/AiTrigger';
@@ -115,11 +116,23 @@ const PropertyEditor: React.FC<PropertyEditorProps> = ({
   prop, baselineProp, onUpdate, onDelete, onMove, isFirst, isLast, t, allLayers, allLayersFull = [], sharedTypes = [], sharedEnums = [], change, isGhost, reviewMode, depth = 0, layerName = '', lang = 'en', isSharedType = false
 }) => {
   const [isOpen, setIsOpen] = useState(prop.name === "" || depth > 0);
+  const containerRef = useRef<HTMLDivElement>(null);
   const config = getFieldConfig(prop.fieldType);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const typeOptions = getTypeOptions(t);
 
   const aiContext = useAiContext();
+  const { lastQuestAction, triggerWhisper, markQuestVisited, activeHighlight } = useAmbient();
+
+  // Auto-expand if a child element is targeted by highight
+  useEffect(() => {
+    if (activeHighlight && containerRef.current) {
+      if (containerRef.current.querySelector(`#${activeHighlight.id}`)) {
+        setIsOpen(true);
+      }
+    }
+  }, [activeHighlight]);
+
   const ft = prop.fieldType;
   const isRequired = prop.multiplicity === '1..1' || prop.multiplicity === '1..*';
 
@@ -253,7 +266,7 @@ const PropertyEditor: React.FC<PropertyEditorProps> = ({
   const subProperties = ft.kind === 'datatype-inline' ? ft.properties : [];
 
   return (
-    <div className={`bg-white rounded-2xl border transition-all relative ${isOpen ? 'border-indigo-200 ring-4 ring-indigo-50 shadow-sm mb-4' : 'border-slate-200 hover:border-slate-300'} ${change ? (change.type === 'added' ? 'border-emerald-500 ring-4 ring-emerald-50' : 'border-amber-500 ring-4 ring-amber-50') : ''} ${isGhost ? 'opacity-50 grayscale-[0.5] border-rose-300 bg-rose-50/10 pointer-events-none' : ''}`}>
+    <div ref={containerRef} className={`bg-white rounded-2xl border transition-all relative ${isOpen ? 'border-indigo-200 ring-4 ring-indigo-50 shadow-sm mb-4' : 'border-slate-200 hover:border-slate-300'} ${change ? (change.type === 'added' ? 'border-emerald-500 ring-4 ring-emerald-50' : 'border-amber-500 ring-4 ring-amber-50') : ''} ${isGhost ? 'opacity-50 grayscale-[0.5] border-rose-300 bg-rose-50/10 pointer-events-none' : ''}`}>
       {(change || isGhost) && (
         <div className={`absolute -top-2.5 -right-2.5 px-2 py-1 rounded-lg text-[9px] font-black text-white shadow-lg z-10 animate-in zoom-in-95 duration-300 ${isGhost ? 'bg-rose-600' : (change?.type === 'added' ? 'bg-emerald-500' : 'bg-amber-500')}`}>
           {isGhost ? t.review.deleted.toUpperCase() : (change?.type === 'added' ? t.review.added.toUpperCase() : t.review.modified.toUpperCase())}

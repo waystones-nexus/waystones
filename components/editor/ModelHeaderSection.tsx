@@ -178,6 +178,7 @@ const ModelHeaderSection: React.FC<ModelHeaderSectionProps> = ({
             reviewMode={reviewMode}
             action={
               <AiTrigger
+                id="editor-ai-abstract"
                 onClick={onGenerateDescription}
                 isLoading={aiContext.isLoading}
                 isActive={aiContext.currentOperation === 'abstract'}

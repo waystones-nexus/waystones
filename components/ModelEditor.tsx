@@ -142,22 +142,20 @@ const ModelEditor: React.FC<ModelEditorProps> = ({
     const { id } = lastQuestAction;
     
     // Model Metadata Quests
-    if (id.startsWith('EDITOR_META_') || id === 'NAMESPACE_ALIGNMENT' || id === 'NAV_ALIGNMENT') {
+    if (id.startsWith('EDITOR_META_') || id === 'NAMESPACE_ALIGNMENT' || id === 'NAV_ALIGNMENT' || id === 'ORACLE_ALIGNMENT') {
       setActiveNavSection('model');
       
-      if (id === 'NAMESPACE_ALIGNMENT') {
+      if (id === 'NAMESPACE_ALIGNMENT' || id === 'ORACLE_ALIGNMENT') {
         setIsModelHeaderOpen(true);
       } else if (id === 'NAV_ALIGNMENT') {
         setIsRenderingOrderOpen(true);
       } else {
         setIsMetadataOpen(true);
       }
-
-      // Navigation handled by setActiveNavSection above
     }
     
     // Layer Quests
-    const isLayerQuest = id.startsWith('EDITOR_LAYER_') || id === 'RECORD_LORE' || id === 'RULE_ALIGNMENT' || id === 'STYLE_ALIGNMENT_ADV';
+    const isLayerQuest = id.startsWith('EDITOR_LAYER_') || id === 'RECORD_LORE' || id === 'RULE_ALIGNMENT' || id === 'STYLE_ALIGNMENT_ADV' || id === 'DEFINE_KEYS';
     
     if (isLayerQuest) {
       setActiveNavSection('layer');

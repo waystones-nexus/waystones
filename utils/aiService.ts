@@ -265,7 +265,7 @@ export async function generateLayerDescription(params: {
 }): Promise<string> {
   const langInstruction = params.lang === 'no' ? 'Svar kun på norsk.' : 'Reply in English only.';
   const propsSummary = params.properties.slice(0, 8).map(p => `${p.name} (${p.type})`).join(', ');
-  const system = `You are a geospatial metadata specialist. Write a concise, professional layer description for use in a geographic data model (2-3 sentences max). Describe what this layer contains, its purpose, and key attributes. ${langInstruction} Output ONLY the description text, no quotes, no preamble.`;
+  const system = `You are a geospatial metadata specialist. Write a concise, professional layer description for use in a geographic data model (2-3 sentences max). Focus on what real-world features this layer represents and its purpose. Use professional, descriptive language and avoid technical jargon. ${langInstruction} Output ONLY the description text, no quotes, no preamble.`;
   const user = `Layer name: "${params.layerName}"\nGeometry type: ${params.geometryType}\nProperties: ${propsSummary || '(no properties)'}`;
   return callAI(system, user);
 }
@@ -280,7 +280,7 @@ export async function generateModelAbstract(params: {
     const topProps = l.properties.slice(0, 6).map(p => `${p.name} (${p.type})`).join(', ');
     return `- ${l.name}: ${topProps || '(no properties)'}`;
   }).join('\n');
-  const system = `You are a geospatial metadata specialist. Write a GeoDCAT-ready abstract paragraph for the dataset described below (3-5 sentences). Describe what the dataset contains, its geographic purpose, and key attributes. ${langInstruction} Output ONLY the abstract text, no quotes, no preamble.`;
+  const system = `You are a geospatial metadata specialist. Write a GeoDCAT-ready abstract paragraph for the dataset described below (3-5 sentences). Front-load the most critical information (what, where, why) in the first sentence. Focus on the dataset's purpose rather than technical implementation. ${langInstruction} Output ONLY the abstract text, no quotes, no preamble.`;
   const user = `Dataset name: "${params.modelName}"\nLayers:\n${layerSummary}`;
   return callAI(system, user);
 }

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { Translations } from '../../i18n/index';
 import { ChevronDown, ChevronUp, ShieldCheck, X, Plus } from 'lucide-react';
 import { Field, PropertyConstraints } from '../../types';
+import { useAmbient } from '../../contexts/AmbientContext';
 
 interface ConstraintsEditorProps {
   prop: Field;
@@ -13,7 +14,19 @@ interface ConstraintsEditorProps {
 
 const ConstraintsEditor: React.FC<ConstraintsEditorProps> = ({ prop, onUpdate, t, isSharedType = false, hideMultiplicity = false }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [enumInputValue, setEnumInputValue] = useState('');
+
+  const { activeHighlight } = useAmbient();
+
+  // Auto-expand if a child element is targeted by highight
+  useEffect(() => {
+    if (activeHighlight && containerRef.current) {
+      if (containerRef.current.querySelector(`#${activeHighlight.id}`)) {
+        setIsOpen(true);
+      }
+    }
+  }, [activeHighlight]);
 
   const c = prop.constraints || {};
   const hasActiveConstraints = prop.multiplicity !== '0..1' || Object.keys(c).some(k => {
@@ -58,7 +71,7 @@ const ConstraintsEditor: React.FC<ConstraintsEditorProps> = ({ prop, onUpdate, t
   const isString = ft.kind === 'primitive' && ft.baseType === 'string' || ft.kind === 'codelist';
 
   return (
-    <div className="space-y-2 pt-2">
+    <div ref={containerRef} className="space-y-2 pt-2">
       <button
         onClick={() => setIsOpen(!isOpen)}
         className={`w-full flex items-center gap-3 text-[10px] font-black uppercase tracking-widest transition-colors py-4 px-5 rounded-xl border ${isOpen ? 'text-emerald-700 bg-emerald-50 border-emerald-100 shadow-sm' : 'text-slate-500 bg-white border-slate-100 hover:border-emerald-200'}`}

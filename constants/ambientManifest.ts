@@ -410,7 +410,8 @@ export const QUESTS: Quest[] = [
     context: 'editor',
     complexity: 'ritualist',
     isMandatory: true,
-    weight: 1.5
+    weight: 1.5,
+    targetElementId: 'editor-ai-abstract'
   },
   {
     id: 'NAMESPACE_ALIGNMENT',
