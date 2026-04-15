@@ -31,7 +31,7 @@ const SOURCE_META: Record<SourceType, { icon: React.ReactNode; colorClass: strin
 
 const sourceTypes: SourceType[] = ['postgis', 'supabase', 'geopackage'];
 
-const SourceTypePicker: React.FC<SourceTypePickerProps> = ({ sourceType, onSelect, t }) => {
+const SourceTypePicker: React.FC<SourceTypePickerProps> = ({ sourceType, onSelect, idPrefix = 'dp', t }) => {
   const d = t.deploy;
 
   return (
