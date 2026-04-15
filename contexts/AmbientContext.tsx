@@ -327,7 +327,7 @@ export const AmbientProvider: React.FC<{ children: ReactNode }> = ({ children })
         case 'RECORD_LORE': {
           const totalL = model.layers.length;
           const layersWithL = model.layers.filter(l => 
-            (l.description && l.description.length >= 10) && 
+            (l.description && l.description.length >= 50) && 
             (l.keywords && l.keywords.length > 0)
           ).length;
           completed = totalL > 0 && layersWithL === totalL;
@@ -353,7 +353,7 @@ export const AmbientProvider: React.FC<{ children: ReactNode }> = ({ children })
           completed = !!model.name && model.name !== 'Untitled'; 
           break;
         case 'QP_META_DESC':
-          completed = !!model.description && model.description.length >= 10;
+          completed = !!model.description && model.description.length >= 50;
           break;
         case 'QP_META_CONTACT':
           completed = !!model.metadata?.contactEmail && (!!model.metadata?.contactName || !!model.metadata?.contactOrganization);
@@ -370,7 +370,7 @@ export const AmbientProvider: React.FC<{ children: ReactNode }> = ({ children })
         case 'QP_LAYER_META': {
           const totalL = model.layers.length;
           const layersWithL = model.layers.filter(l => 
-            (l.description && l.description.length >= 10) && 
+            (l.description && l.description.length >= 50) && 
             (l.keywords && l.keywords.length > 0)
           ).length;
           completed = layersWithL > 0; // Partial fulfillment for side quest
@@ -438,7 +438,7 @@ export const AmbientProvider: React.FC<{ children: ReactNode }> = ({ children })
           completed = !!model.name && model.name !== 'Untitled';
           break;
         case 'DP_META_DESC':
-          completed = !!model.description && model.description.length >= 10;
+          completed = !!model.description && model.description.length >= 50;
           break;
         case 'DP_META_CONTACT':
           completed = !!model.metadata?.contactEmail && (!!model.metadata?.contactName || !!model.metadata?.contactOrganization);
@@ -456,7 +456,7 @@ export const AmbientProvider: React.FC<{ children: ReactNode }> = ({ children })
         case 'DP_LAYER_META': {
           const totalL = model.layers.length;
           const layersWithL = model.layers.filter(l => 
-            (l.description && l.description.length >= 10) && 
+            (l.description && l.description.length >= 50) && 
             (l.keywords && l.keywords.length > 0)
           ).length;
           completed = layersWithL > 0; // Partial fulfillment for side quest
@@ -467,7 +467,7 @@ export const AmbientProvider: React.FC<{ children: ReactNode }> = ({ children })
           completed = model.layers.length > 1 && visitedQuests.includes('NAV_ALIGNMENT');
           break;
         case 'ORACLE_ALIGNMENT':
-          completed = !!model.description && model.description.length >= 10;
+          completed = !!model.description && model.description.length >= 50;
           break;
         case 'COMMON_TONGUE':
           completed = model.sharedTypes.length > 0;
