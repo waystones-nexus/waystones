@@ -324,12 +324,16 @@ export const AmbientProvider: React.FC<{ children: ReactNode }> = ({ children })
           progress = `${pkLayers}/${model.layers.length}`;
           break;
         }
-        case 'RECORD_LORE':
-          const layersWithDesc = model.layers.filter(l => l.description && l.description.length > 5).length;
+        case 'RECORD_LORE': {
           const totalL = model.layers.length;
-          completed = totalL > 0 && layersWithDesc === totalL;
-          progress = totalL > 0 ? `${layersWithDesc}/${totalL} descriptions` : '';
+          const layersWithL = model.layers.filter(l => 
+            (l.description && l.description.length > 5) && 
+            (l.keywords && l.keywords.length > 0)
+          ).length;
+          completed = totalL > 0 && layersWithL === totalL;
+          progress = totalL > 0 ? `${layersWithL}/${totalL} described` : '';
           break;
+        }
         case 'NAMESPACE_ALIGNMENT':
           completed = !!model.namespace;
           break;
@@ -363,11 +367,16 @@ export const AmbientProvider: React.FC<{ children: ReactNode }> = ({ children })
         case 'QP_META_BBOX':
           completed = !!model.metadata?.bboxVerified;
           break;
-        case 'QP_LAYER_META':
-          const layersWithDescQ = model.layers.filter(l => l.description && l.description.length > 5).length;
-          completed = layersWithDescQ > 0; 
-          progress = `${layersWithDescQ}/${model.layers.length}`;
+        case 'QP_LAYER_META': {
+          const totalL = model.layers.length;
+          const layersWithL = model.layers.filter(l => 
+            (l.description && l.description.length > 2) && 
+            (l.keywords && l.keywords.length > 0)
+          ).length;
+          completed = layersWithL > 0; // Partial fulfillment for side quest
+          progress = `${layersWithL}/${totalL}`;
           break;
+        }
         case 'QP_PUBLISH_ALIGNMENT':
           completed = currentStep > 3;
           break;
@@ -444,11 +453,16 @@ export const AmbientProvider: React.FC<{ children: ReactNode }> = ({ children })
           const dpSpatial = model.metadata?.spatialExtent;
           completed = !!(dpSpatial?.westBoundLongitude && dpSpatial?.eastBoundLongitude && dpSpatial?.southBoundLatitude && dpSpatial?.northBoundLatitude);
           break;
-        case 'DP_LAYER_META':
-          const dpLayersWithDesc = model.layers.filter(l => l.description && l.description.length > 2).length;
-          completed = dpLayersWithDesc > 0;
-          progress = `${dpLayersWithDesc}/${model.layers.length}`;
+        case 'DP_LAYER_META': {
+          const totalL = model.layers.length;
+          const layersWithL = model.layers.filter(l => 
+            (l.description && l.description.length > 2) && 
+            (l.keywords && l.keywords.length > 0)
+          ).length;
+          completed = layersWithL > 0; // Partial fulfillment for side quest
+          progress = `${layersWithL}/${totalL}`;
           break;
+        }
         case 'NAV_ALIGNMENT':
           completed = model.layers.length > 1 && visitedQuests.includes('NAV_ALIGNMENT');
           break;
