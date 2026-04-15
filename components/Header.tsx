@@ -1,9 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { HelpCircle, Sparkles, X, Activity, Check, AlertTriangle, Github } from 'lucide-react';
+import React, { useRef, useEffect } from 'react';
+import { HelpCircle, Sparkles, X, Activity, Check, AlertTriangle, Github, ChevronDown } from 'lucide-react';
 import { Language } from '../types';
-import { AiProvider, getProvider, setProvider, getApiKey, saveApiKey, clearApiKey, getTrialUsesLeft } from '../utils/aiService';
+import { AiProvider, getProvider, setProvider, getApiKey, saveApiKey, clearApiKey, getTrialUsesLeft, SUPPORTED_LANGUAGES } from '../utils/aiService';
 import { useAiStatus } from '../hooks/useAiStatus';
+import { useAiContext } from '../contexts/AiContext';
 import AiConfigModal from './ai/AiConfigModal';
+import AiLanguageSelector from './ai/AiLanguageSelector';
 import AiErrorHandler from './ai/AiErrorHandler';
 
 const Header: React.FC<{
@@ -13,11 +15,12 @@ const Header: React.FC<{
   onShowGuide: () => void;
   onHome?: () => void;
 }> = ({ t, lang, onLangChange, onShowGuide, onHome }) => {
-  const [showAiPanel, setShowAiPanel] = useState(false);
-  const [showAiModal, setShowAiModal] = useState(false);
-  const [pendingOperation, setPendingOperation] = useState<string | null>(null);
+  const [showAiPanel, setShowAiPanel] = React.useState(false);
+  const [showAiModal, setShowAiModal] = React.useState(false);
+  const [pendingOperation, setPendingOperation] = React.useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
+  const { aiLang, setAiLang } = useAiContext();
   const aiStatus = useAiStatus();
 
   useEffect(() => {
@@ -230,6 +233,14 @@ const Header: React.FC<{
                     </span>
                   </div>
                 )}
+              </div>
+
+              {/* AI Language Selection */}
+              <div className="mb-4 pt-3 border-t border-slate-100">
+                <AiLanguageSelector
+                  t={t}
+                  lang={lang}
+                />
               </div>
 
               {/* Actions */}

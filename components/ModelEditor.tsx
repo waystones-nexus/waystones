@@ -253,7 +253,7 @@ const ModelEditor: React.FC<ModelEditorProps> = ({
   const handleGenerateDatasetDescription = () => {
     if (!aiContext.ensureApiKey('abstract')) return;
     aiContext.setLoading('abstract', 'Generating dataset description…');
-    generateModelAbstract({ modelName: model.name, layers: getLayersForAi(), lang })
+    generateModelAbstract({ modelName: model.name, layers: getLayersForAi(), lang: aiContext.aiLang || lang })
       .then((result) => {
         onUpdate({ ...model, description: result });
         aiContext.setSuccess();
@@ -275,7 +275,7 @@ const ModelEditor: React.FC<ModelEditorProps> = ({
       layerName: layerActions.activeLayer.name,
       geometryType: layerActions.activeLayer.geometryType || 'None',
       properties: layerProperties,
-      lang,
+      lang: aiContext.aiLang || lang,
     })
       .then((result) => {
         layerActions.handleUpdateLayer({ description: result });
@@ -298,7 +298,7 @@ const ModelEditor: React.FC<ModelEditorProps> = ({
     suggestLayerKeywords({
       layerName: layerActions.activeLayer.name,
       properties: layerProperties,
-      lang,
+      lang: aiContext.aiLang || lang,
     })
       .then((result) => {
         const existing = layerActions.activeLayer?.keywords || [];

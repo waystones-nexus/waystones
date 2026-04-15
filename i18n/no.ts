@@ -895,6 +895,13 @@ På minutter.`,
     // AI Provider descriptions
     claudeDescription: 'Rask, pålitelig AI med utmerket tekstgenerering',
     geminiDescription: 'Googles AI-modell med sterke resonneringsevner',
+    targetLanguage: 'Målspråk (generering)',
+    languageNotice: 'AI vil svare på dette språket uavhengig av UI-innstillinger.',
+    groups: {
+      nordic: 'Nordiske',
+      european: 'Europeiske',
+      global: 'Globale',
+    },
   },
   validation: {
     FIELD_DUPLICATE_NAME: 'Duplikat feltnavn',

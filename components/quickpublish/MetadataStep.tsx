@@ -146,7 +146,7 @@ const MetadataStep: React.FC<MetadataStepProps> = ({ model, summary, onUpdateMod
     if (!aiContext.ensureApiKey('description')) return;
 
     aiContext.setLoading('description', 'Generating description…');
-    generateModelAbstract({ modelName: modelRef.current.name, layers: getLayers(), lang }).then(result => {
+    generateModelAbstract({ modelName: modelRef.current.name, layers: getLayers(), lang: aiContext.aiLang || lang }).then(result => {
       onUpdateModel({ ...modelRef.current, description: result });
       aiContext.setSuccess();
     }).catch(error => {
@@ -158,7 +158,7 @@ const MetadataStep: React.FC<MetadataStepProps> = ({ model, summary, onUpdateMod
     if (!aiContext.ensureApiKey('theme')) return;
     
     aiContext.setLoading('theme', 'Suggesting theme…');
-    suggestTheme({ modelName: model.name, layers: getLayers(), lang, validThemes: md.themes || {} }).then(result => {
+    suggestTheme({ modelName: model.name, layers: getLayers(), lang: aiContext.aiLang || lang, validThemes: md.themes || {} }).then(result => {
       updateMeta({ theme: result.trim() });
       aiContext.setSuccess();
     }).catch(error => {
@@ -170,7 +170,7 @@ const MetadataStep: React.FC<MetadataStepProps> = ({ model, summary, onUpdateMod
     if (!aiContext.ensureApiKey('keywords')) return;
     
     aiContext.setLoading('keywords', 'Generating keywords…');
-    suggestKeywords({ modelName: model.name, layers: getLayers(), lang }).then(keywords => {
+    suggestKeywords({ modelName: model.name, layers: getLayers(), lang: aiContext.aiLang || lang }).then(keywords => {
       updateMeta({ keywords: [...new Set([...(meta.keywords || []), ...keywords])] });
       aiContext.setSuccess();
     }).catch(error => {
@@ -182,7 +182,7 @@ const MetadataStep: React.FC<MetadataStepProps> = ({ model, summary, onUpdateMod
     if (!aiContext.ensureApiKey('layerKeywords')) return;
     aiContext.setLoading('layerKeywords', 'Extracting keywords…');
     const props = layer.properties.map(p => ({ name: p.name, type: p.fieldType.kind === 'primitive' ? p.fieldType.baseType : p.fieldType.kind }));
-    suggestLayerKeywords({ layerName: layer.name, properties: props, lang }).then(keywords => {
+    suggestLayerKeywords({ layerName: layer.name, properties: props, lang: aiContext.aiLang || lang }).then(keywords => {
       const existing = layer.keywords || [];
       updateLayer(layer.id, { keywords: [...new Set([...existing, ...keywords])] });
       aiContext.setSuccess();
@@ -197,7 +197,7 @@ const MetadataStep: React.FC<MetadataStepProps> = ({ model, summary, onUpdateMod
       layerName: layer.name, 
       geometryType: layer.geometryType || 'None',
       properties: props, 
-      lang 
+      lang: aiContext.aiLang || lang 
     }).then(description => {
       updateLayer(layer.id, { description });
       aiContext.setSuccess();

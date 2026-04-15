@@ -10,6 +10,88 @@ const GEMINI_MODEL = 'gemini-2.5-flash';
 const CLAUDE_ENDPOINT = 'https://api.anthropic.com/v1/messages';
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
+export const SUPPORTED_LANGUAGES = [
+  // Nordic (Norwegian first as requested)
+  { code: 'no', name: 'Norsk', group: 'nordic' },
+  { code: 'sv', name: 'Svenska', group: 'nordic' },
+  { code: 'da', name: 'Dansk', group: 'nordic' },
+  { code: 'fi', name: 'Suomi', group: 'nordic' },
+  { code: 'is', name: 'Íslenska', group: 'nordic' },
+  // European
+  { code: 'en', name: 'English', group: 'european' },
+  { code: 'de', name: 'Deutsch', group: 'european' },
+  { code: 'fr', name: 'Français', group: 'european' },
+  { code: 'es', name: 'Español', group: 'european' },
+  { code: 'it', name: 'Italiano', group: 'european' },
+  { code: 'nl', name: 'Nederlands', group: 'european' },
+  { code: 'pt', name: 'Português', group: 'european' },
+  { code: 'pl', name: 'Polski', group: 'european' },
+  { code: 'ru', name: 'Русский', group: 'european' },
+  { code: 'uk', name: 'Українська', group: 'european' },
+  { code: 'ro', name: 'Română', group: 'european' },
+  { code: 'cs', name: 'Čeština', group: 'european' },
+  { code: 'hu', name: 'Magyar', group: 'european' },
+  { code: 'el', name: 'Ελληνικά', group: 'european' },
+  // Global
+  { code: 'zh', name: '中文', group: 'global' },
+  { code: 'ja', name: '日本語', group: 'global' },
+  { code: 'ko', name: '한국어', group: 'global' },
+  { code: 'ar', name: 'العربية', group: 'global' },
+  { code: 'hi', name: 'हिन्दी', group: 'global' },
+  { code: 'tr', name: 'Türkçe', group: 'global' },
+  { code: 'vi', name: 'Tiếng Việt', group: 'global' },
+  { code: 'id', name: 'Bahasa Indonesia', group: 'global' },
+  { code: 'th', name: 'ภาษาไทย', group: 'global' },
+] as const;
+
+export type SupportedLanguageCode = typeof SUPPORTED_LANGUAGES[number]['code'];
+
+const AI_LANG_KEY = 'waystones-ai-language';
+
+export function getAiLang(): string | null {
+  return localStorage.getItem(AI_LANG_KEY);
+}
+
+export function setAiLang(lang: string): void {
+  localStorage.setItem(AI_LANG_KEY, lang);
+  window.dispatchEvent(new CustomEvent('ai-lang-changed', { detail: { lang } }));
+}
+
+function getLangInstruction(lang: string): string {
+  const map: Record<string, string> = {
+    no: 'Svar kun på norsk (bokmål).',
+    en: 'Reply in English only.',
+    sv: 'Svara endast på svenska.',
+    da: 'Svar kun på dansk.',
+    fi: 'Vastaa vain suomeksi.',
+    is: 'Svaraðu aðeins á íslensku.',
+    de: 'Antworten Sie nur auf Deutsch.',
+    fr: 'Répondez uniquement en français.',
+    es: 'Responda solo en español.',
+    it: 'Rispondi solo in italiano.',
+    nl: 'Antwoord alleen in het Nederlands.',
+    pt: 'Responda apenas em português.',
+    pl: 'Odpowiadaj tylko po polsku.',
+    ru: 'Отвечайте только на русском языке.',
+    uk: 'Відповідайте тільки українською мовою.',
+    ro: 'Răspundeți numai în limba română.',
+    cs: 'Odpovídejte pouze v češtině.',
+    hu: 'Csak magyarul válaszoljon.',
+    el: 'Απαντήστε μόνο στα ελληνικά.',
+    zh: '请仅以中文回答。',
+    ja: '日本語でのみ回答してください。',
+    ko: '한국어로만 답변해 주세요.',
+    ar: 'يرجى الرد باللغة العربية فقط.',
+    hi: 'केवल हिंदी में उत्तर दें।',
+    tr: 'Sadece Türkçe cevap verin.',
+    vi: 'Chỉ trả lời bằng tiếng Việt.',
+    id: 'Harap hanya menjawab dalam Bahasa Indonesia.',
+    th: 'กรุณาตอบเป็นภาษาไทยเท่านั้น',
+  };
+  return map[lang] || `Reply in ${lang} only.`;
+}
+
+
 export class AiKeyMissingError extends Error {
   constructor() {
     super('AI key not configured');
@@ -213,7 +295,7 @@ export async function generatePropertyDescription(params: {
   layerName: string;
   lang: string;
 }): Promise<string> {
-  const langInstruction = params.lang === 'no' ? 'Svar kun på norsk.' : 'Reply in English only.';
+  const langInstruction = getLangInstruction(params.lang);
   const system = `You are a geospatial data modeler. Generate a concise, professional field description for use in a geographic data model (1-2 sentences max). ${langInstruction} Output ONLY the description text, no quotes, no preamble.`;
   const user = `Layer: "${params.layerName}"\nField name: "${params.fieldName}"\nData type: ${params.fieldType}`;
   return callAI(system, user);
@@ -241,7 +323,7 @@ export async function suggestKeywords(params: {
   layers: Array<{ name: string; properties: Array<{ name: string; type: string }> }>;
   lang: string;
 }): Promise<string[]> {
-  const langInstruction = params.lang === 'no' ? 'Svar kun på norsk.' : 'Reply in English only.';
+  const langInstruction = getLangInstruction(params.lang);
   const layerSummary = params.layers.map(l => {
     const topProps = l.properties.slice(0, 4).map(p => p.name).join(', ');
     return `- ${l.name}: ${topProps || '(no properties)'}`;
@@ -263,7 +345,7 @@ export async function generateLayerDescription(params: {
   properties: Array<{ name: string; type: string }>;
   lang: string;
 }): Promise<string> {
-  const langInstruction = params.lang === 'no' ? 'Svar kun på norsk.' : 'Reply in English only.';
+  const langInstruction = getLangInstruction(params.lang);
   const propsSummary = params.properties.slice(0, 8).map(p => `${p.name} (${p.type})`).join(', ');
   const system = `You are a geospatial metadata specialist. Write a concise, professional layer description for use in a geographic data model (2-3 sentences max). Focus on what real-world features this layer represents and its purpose. Use professional, descriptive language and avoid technical jargon. ${langInstruction} Output ONLY the description text, no quotes, no preamble.`;
   const user = `Layer name: "${params.layerName}"\nGeometry type: ${params.geometryType}\nProperties: ${propsSummary || '(no properties)'}`;
@@ -275,7 +357,7 @@ export async function generateModelAbstract(params: {
   layers: Array<{ name: string; properties: Array<{ name: string; type: string }> }>;
   lang: string;
 }): Promise<string> {
-  const langInstruction = params.lang === 'no' ? 'Svar kun på norsk.' : 'Reply in English only.';
+  const langInstruction = getLangInstruction(params.lang);
   const layerSummary = params.layers.map(l => {
     const topProps = l.properties.slice(0, 6).map(p => `${p.name} (${p.type})`).join(', ');
     return `- ${l.name}: ${topProps || '(no properties)'}`;
@@ -289,7 +371,7 @@ export async function suggestLayerTitle(params: {
   properties: Array<{ name: string; type: string }>;
   lang: string;
 }): Promise<string> {
-  const langInstruction = params.lang === 'no' ? 'Svar kun på norsk.' : 'Reply in English only.';
+  const langInstruction = getLangInstruction(params.lang);
   const propsSummary = params.properties.slice(0, 6).map(p => p.name).join(', ');
   const system = `You are a geospatial metadata specialist. Given a technical layer name and its properties, suggest a concise, professional, and human-friendly display title for the layer. ${langInstruction} Output ONLY the title text, no quotes, no preamble.`;
   const user = `Technical name: "${params.layerName}"\nProperties: ${propsSummary || '(no properties)'}`;

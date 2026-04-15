@@ -895,6 +895,13 @@ In minutes.`,
     // AI Provider descriptions
     claudeDescription: 'Fast, reliable AI with excellent text generation',
     geminiDescription: 'Google\'s AI model with strong reasoning capabilities',
+    targetLanguage: 'Target Language (Generation)',
+    languageNotice: 'AI will respond in this language regardless of UI settings.',
+    groups: {
+      nordic: 'Nordic',
+      european: 'European',
+      global: 'Global',
+    },
   },
   validation: {
     FIELD_DUPLICATE_NAME: 'Duplicate field name',

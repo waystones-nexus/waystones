@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import type { Translations } from '../../i18n/index';
-import { X, Sparkles, Check, AlertCircle, HelpCircle, ExternalLink } from 'lucide-react';
 import { AiProvider, getProvider, setProvider, getApiKey, saveApiKey, clearApiKey, getTrialUsesLeft } from '../../utils/aiService';
+import { X, Sparkles, Check, AlertCircle, HelpCircle, ExternalLink, ChevronDown } from 'lucide-react';
+
 import { AiOperationType } from '../../hooks/useAiContext';
 
 interface AiConfigModalProps {
@@ -34,15 +35,16 @@ const AiConfigModal: React.FC<AiConfigModalProps> = ({
   t,
   lang
 }) => {
-  const [provider, setProviderState] = useState<AiProvider>(getProvider());
-  const [keyDraft, setKeyDraft] = useState('');
-  const [hasKey, setHasKey] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveError, setSaveError] = useState('');
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [trialUsesLeft, setTrialUsesLeft] = useState(getTrialUsesLeft());
+  const [provider, setProviderState] = React.useState<AiProvider>(getProvider());
+  const [keyDraft, setKeyDraft] = React.useState('');
+  const [hasKey, setHasKey] = React.useState(false);
+  const [isSaving, setIsSaving] = React.useState(false);
+  const [saveError, setSaveError] = React.useState('');
+  const [showSuccess, setShowSuccess] = React.useState(false);
+  const [trialUsesLeft, setTrialUsesLeft] = React.useState(getTrialUsesLeft());
   const modalRef = useRef<HTMLDivElement>(null);
   const hasDefaultKey = !!import.meta.env.VITE_DEFAULT_AI_KEY;
+
 
   useEffect(() => {
     if (isOpen) {

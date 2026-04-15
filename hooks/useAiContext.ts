@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
-import { AiAuthError, AiKeyMissingError, getApiKey, getProvider, hasApiKey } from '../utils/aiService';
+import { AiAuthError, AiKeyMissingError, getApiKey, getProvider, hasApiKey, getAiLang, setAiLang as updateAiLang } from '../utils/aiService';
 
 export type AiOperationType = 'description' | 'type' | 'constraints' | 'abstract' | 'theme' | 'keywords' | 'layerTitle' | 'layerKeywords';
 
@@ -24,6 +24,8 @@ export interface AiContextType {
   setSuccess: () => void;
   setError: (error: Error | AiError, operation?: AiOperationType) => void;
   ensureApiKey: (operation: AiOperationType) => boolean;
+  aiLang: string | null;
+  setAiLang: (lang: string) => void;
 }
 
 const operationMessages: Record<AiOperationType, { start: string; success: string }> = {
@@ -117,6 +119,8 @@ export const useAiContextState = (): AiContextType => {
   const [currentMessage, setCurrentMessage] = useState<string | null>(null);
   const [error, setErrorState] = useState<AiError | null>(null);
   const [status, setStatus] = useState<'idle' | 'loading' | 'error' | 'success'>('idle');
+  const [aiLang, setAiLangState] = useState<string | null>(getAiLang());
+
 
   const setLoading = useCallback((operation: AiOperationType, message?: string) => {
     setIsLoading(true);
@@ -188,6 +192,12 @@ export const useAiContextState = (): AiContextType => {
     return true;
   }, []);
 
+  const setAiLang = useCallback((lang: string) => {
+    updateAiLang(lang);
+    setAiLangState(lang);
+  }, []);
+
+
   return {
     isLoading,
     currentOperation,
@@ -200,6 +210,9 @@ export const useAiContextState = (): AiContextType => {
     setLoading,
     setSuccess,
     setError,
-    ensureApiKey
+    ensureApiKey,
+    aiLang,
+    setAiLang
   };
 };
+

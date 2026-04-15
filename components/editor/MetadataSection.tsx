@@ -41,7 +41,7 @@ const MetadataSection: React.FC<MetadataSectionProps> = ({ model, onUpdate, isOp
     generateModelAbstract({
       modelName: model.name,
       layers: getLayers(),
-      lang,
+      lang: aiContext.aiLang || lang,
     }).then(abstract => {
       onUpdate({ ...model, metadata: { ...model.metadata, purpose: abstract } });
       aiContext.setSuccess();
@@ -55,7 +55,7 @@ const MetadataSection: React.FC<MetadataSectionProps> = ({ model, onUpdate, isOp
     suggestTheme({
       modelName: model.name,
       layers: getLayers(),
-      lang,
+      lang: aiContext.aiLang || lang,
       validThemes: t.metadata?.themes || {},
     }).then(theme => {
       onUpdate({ ...model, metadata: { ...model.metadata, theme: theme.trim() } });
@@ -70,7 +70,7 @@ const MetadataSection: React.FC<MetadataSectionProps> = ({ model, onUpdate, isOp
     suggestKeywords({
       modelName: model.name,
       layers: getLayers(),
-      lang,
+      lang: aiContext.aiLang || lang,
     }).then(keywords => {
       const cur = model.metadata || defaultMeta;
       onUpdate({ ...model, metadata: { ...cur, keywords: [...new Set([...(cur.keywords || []), ...keywords])] } });

@@ -1,5 +1,7 @@
 import React from 'react';
 import { Sparkles } from 'lucide-react';
+import { useAiContext } from '../../contexts/AiContext';
+
 
 interface AiTriggerProps {
   onClick: () => void;
@@ -22,7 +24,9 @@ const AiTrigger: React.FC<AiTriggerProps> = ({
   className = '',
   t,
 }) => {
+  const { aiLang } = useAiContext();
   const isIconOnly = !label;
+
   const sparklesSize = isIconOnly ? 14 : 10;
   const displayLabel = isActive ? (t?.ai?.generating || 'Generating…') : label;
 
@@ -39,7 +43,13 @@ const AiTrigger: React.FC<AiTriggerProps> = ({
           ${isLoading ? 'opacity-50 cursor-not-allowed' : ''} ${className}`}
       >
         <Sparkles size={sparklesSize} className={isActive ? 'animate-pulse' : ''} />
+        {aiLang && (
+          <span className="absolute -top-1 -right-1 flex items-center justify-center p-0.5 min-w-[12px] h-[12px] bg-indigo-100 text-indigo-600 rounded-full text-[6px] font-black uppercase ring-1 ring-white">
+            {aiLang}
+          </span>
+        )}
       </button>
+
     );
   }
 
@@ -56,7 +66,13 @@ const AiTrigger: React.FC<AiTriggerProps> = ({
     >
       <Sparkles size={sparklesSize} className={isActive ? 'animate-pulse' : ''} />
       {displayLabel}
+      {aiLang && (
+        <span className="ml-1 opacity-50 text-[7px] font-bold border border-current/20 rounded-md px-1 py-0.5 leading-none bg-white/50">
+          {aiLang}
+        </span>
+      )}
     </button>
+
   );
 };
 
