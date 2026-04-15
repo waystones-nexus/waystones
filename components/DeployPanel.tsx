@@ -76,6 +76,8 @@ const DeployPanel: React.FC<DeployPanelProps> = ({ model, t, lang, onUpdateModel
   const st = t.styling || {};
   const { updateQuests, triggerQuestWhisper, activeQuests, triggerWhisper } = useAmbient();
   const stuckNudgeRef = useRef<Set<number>>(new Set()); // Track which steps we've nudged
+  const onSourceChangeRef = useRef(onSourceChange); // Stable ref so the effect doesn't depend on the prop identity
+  useEffect(() => { onSourceChangeRef.current = onSourceChange; }); // Keep ref in sync every render
 
   const [step, setStep] = useState(0);
   const [sourceType, setSourceType] = useState<SourceType | null>(null);
@@ -217,8 +219,17 @@ const DeployPanel: React.FC<DeployPanelProps> = ({ model, t, lang, onUpdateModel
   };
 
   useEffect(() => {
+    const source = buildSource();
+
+    // Synchronize to parent for real-time quest updates.
+    // Use the ref so this dep array doesn't include onSourceChange
+    // (which is an inline arrow in App.tsx and would cause an infinite loop).
+    if (source && onSourceChangeRef.current) {
+      onSourceChangeRef.current(source);
+    }
+
+    // Also regenerate the YAML preview
     const generatePreview = async () => {
-      const source = buildSource();
       if (source) {
         try {
           const yaml = await generatePygeoapiConfig(model, source, lang);
@@ -231,13 +242,8 @@ const DeployPanel: React.FC<DeployPanelProps> = ({ model, t, lang, onUpdateModel
       }
     };
     generatePreview();
-
-    // Synchronize to parent model for real-time quest updates
-    const source = buildSource();
-    if (source && onSourceChange) {
-      onSourceChange(source);
-    }
-  }, [sourceType, pgConfig, supaConfig, dbConfig, gpkgConfig, layerMappings, s3Config, model.id, lang, onSourceChange]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sourceType, pgConfig, supaConfig, dbConfig, gpkgConfig, layerMappings, s3Config, model.id, lang]);
 
 
   const isConnectionValid = (): boolean => {
