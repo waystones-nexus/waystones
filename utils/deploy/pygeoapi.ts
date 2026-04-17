@@ -94,30 +94,23 @@ export const generatePygeoapiConfig = async (
       ? layer.keywords
       : [model.namespace || 'data', (layer.name || 'layer').toLowerCase().replace(/[^a-z0-9]/g, '-')];
 
-    // OGC API Features Part 2 — advertise native CRS + common CRSes when model is not WGS84.
+    // OGC API Features Part 2 — advertise native CRS + common CRSes
     const nativeCrsUri = toCrsUri(model.crs);
-    const needsCrsPart2 = !isWgs84(model.crs) && nativeCrsUri !== null;
 
-    yaml += `  ${collectionId}:\n`;
-    yaml += `    type: collection\n`;
-    yaml += `    title: "${layer.title || layer.name || collectionId}"\n`;
-    yaml += `    description: "${layer.description || 'Spatial collection'}"\n`;
-    yaml += `    keywords:\n`;
-    layerKeywords.forEach((kw: string) => { yaml += `      - ${kw}\n`; });
+    const crsList = [
+      'http://www.opengis.net/def/crs/OGC/1.3/CRS84',
+      ...(nativeCrsUri ? [nativeCrsUri] : []),
+      ...COMMON_CRS_URIS,
+    ].filter((v, i, arr) => arr.indexOf(v) === i);
+    yaml += `    crs:\n`;
+    crsList.forEach(uri => { yaml += `      - ${uri}\n`; });
 
-    if (needsCrsPart2) {
-      const crsList = [
-        'http://www.opengis.net/def/crs/OGC/1.3/CRS84',
-        nativeCrsUri,
-        ...COMMON_CRS_URIS,
-      ].filter((v, i, arr) => arr.indexOf(v) === i);
-      yaml += `    crs:\n`;
-      crsList.forEach(uri => { yaml += `      - ${uri}\n`; });
-      // storageCrs only for file-based providers — PostGIS handles reprojection
-      // via PostGIS itself, so declaring storageCrs causes double-transformation.
-      if (!usePg) {
-        yaml += `    storageCrs: ${nativeCrsUri}\n`;
-      }
+    // storageCrs tells pygeoapi what CRS the provider returns, so it can transform
+    // to whatever CRS the client requests.
+    // - GeoPackage (file): GDAL/pygeoapi handles reprojection, use native CRS.
+    // - PostGIS: storageCrs causes double-transformation, skip entirely.
+    if (!usePg && nativeCrsUri && !isWgs84(model.crs)) {
+      yaml += `    storageCrs: ${nativeCrsUri}\n`;
     }
 
     if (layer.geometryType !== 'None') {
@@ -194,6 +187,9 @@ export const generatePygeoapiConfig = async (
     yaml += `      title: "${layer.name}"\n`;
     yaml += `      type: object\n`;
     yaml += `      properties:\n`;
+    yaml += `        "waystones_ping":\n`;
+    yaml += `          title: "Waystones Connection Check"\n`;
+    yaml += `          type: string\n`;
     allProperties.forEach(prop => {
       const typeInfo = mapFieldToSchemaType(prop);
       // Quote property names to avoid YAML parsing issues with reserved words or types
@@ -229,7 +225,8 @@ function getCQL2Extensions(): string {
   let s = `        extensions:\n`;
   s += `          filters:\n`;
   s += `            - cql2-text\n`;
-  s += `            - cql2-json\n\n`;
+  s += `            - cql2-json\n`;
+  s += `            - cql-text\n\n`;
   return s;
 }
 
