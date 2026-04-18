@@ -1,10 +1,8 @@
 import React, { useState } from 'react';
 import type { Translations } from '../../i18n/index';
 import type { DataModel } from '../../types';
-import type { SupabaseConfig } from '../../types';
 import { parsePostgresConnectionString } from '../../utils/deploy/_helpers';
 import { X, Loader2, Check } from 'lucide-react';
-import { processSupabaseSchemaToModel } from '../../utils/supabaseSchemaService';
 import { processPostgisSchemaToModel } from '../../utils/postgisSchemaService';
 
 interface DatabaseImportDialogProps {
@@ -21,18 +19,14 @@ const DatabaseImportDialog: React.FC<DatabaseImportDialogProps> = ({ t, onClose,
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Supabase form
-  const [supabaseUrl, setSupabaseUrl] = useState('');
-  const [supabaseAnonKey, setSupabaseAnonKey] = useState('');
-  const [supabaseSchema, setSupabaseSchema] = useState('public');
-
-  // PostGIS form
-  const [postgisConnectionString, setPostgisConnectionString] = useState('');
-  const [postgisSchema, setPostgisSchema] = useState('public');
+  // Shared form state — both tabs use the same postgres connection string
+  const [connectionString, setConnectionString] = useState('');
+  const [schema, setSchema] = useState('public');
 
   // Step control
   const [step, setStep] = useState<'credentials' | 'selectTables'>('credentials');
   const [fetchedModel, setFetchedModel] = useState<DataModel | null>(null);
+  const [featureCounts, setFeatureCounts] = useState<Record<string, number>>({});
   const [selectedLayerIds, setSelectedLayerIds] = useState<Set<string>>(new Set());
 
   const labels = t.importDatabase || {};
@@ -42,19 +36,12 @@ const DatabaseImportDialog: React.FC<DatabaseImportDialogProps> = ({ t, onClose,
       setError(null);
       setLoading(true);
 
-      let model: DataModel;
-
-      if (sourceType === 'supabase') {
-        if (!supabaseUrl || !supabaseAnonKey) {
-          throw new Error('Project URL and Anon Key are required');
-        }
-        model = await processSupabaseSchemaToModel(supabaseUrl, supabaseAnonKey, supabaseSchema);
-      } else {
-        if (!postgisConnectionString) {
-          throw new Error('Connection string is required');
-        }
-        model = await processPostgisSchemaToModel(postgisConnectionString, undefined, postgisSchema);
+      if (!connectionString) {
+        throw new Error('Connection string is required');
       }
+      const result = await processPostgisSchemaToModel(connectionString, undefined, schema);
+      const model = result.model;
+      setFeatureCounts(result.featureCounts);
 
       setFetchedModel(model);
       setSelectedLayerIds(new Set(model.layers.map(l => l.id)));
@@ -70,18 +57,11 @@ const DatabaseImportDialog: React.FC<DatabaseImportDialogProps> = ({ t, onClose,
     if (!fetchedModel) return;
     const filteredLayers = fetchedModel.layers.filter(l => selectedLayerIds.has(l.id));
 
-    // Attach source connection to the model in the proper SourceConnection format
-    const sourceConnection = sourceType === 'supabase'
-      ? {
-          type: 'supabase' as const,
-          config: { projectUrl: supabaseUrl, anonKey: supabaseAnonKey, schema: supabaseSchema } as SupabaseConfig,
-          layerMappings: {},
-        }
-      : {
-          type: 'postgis' as const,
-          config: parsePostgresConnectionString(postgisConnectionString, postgisSchema),
-          layerMappings: {},
-        };
+    const sourceConnection = {
+      type: 'postgis' as const,
+      config: parsePostgresConnectionString(connectionString, schema),
+      layerMappings: {},
+    };
 
     const modelWithSource = {
       ...fetchedModel,
@@ -96,6 +76,7 @@ const DatabaseImportDialog: React.FC<DatabaseImportDialogProps> = ({ t, onClose,
     setStep('credentials');
     setError(null);
     setFetchedModel(null);
+    setFeatureCounts({});
     setSelectedLayerIds(new Set());
   };
 
@@ -166,93 +147,47 @@ const DatabaseImportDialog: React.FC<DatabaseImportDialogProps> = ({ t, onClose,
               </div>
             )}
 
-            {/* Supabase Form */}
-            {sourceType === 'supabase' && (
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-2">
-                    {labels.supabaseUrlLabel || 'Project URL'}
-                  </label>
-                  <input
-                    type="text"
-                    value={supabaseUrl}
-                    onChange={e => setSupabaseUrl(e.target.value)}
-                    placeholder={labels.supabaseUrlPlaceholder || 'https://yourproject.supabase.co'}
-                    disabled={loading}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:bg-slate-50"
-                  />
+            {/* Shared form — same fields for both PostGIS and Supabase */}
+            <div className="space-y-4">
+              {sourceType === 'supabase' && (
+                <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3 text-xs text-indigo-700">
+                  Find your connection string in the Supabase Dashboard under{' '}
+                  <strong>Project Settings → Database → Connection string</strong> (URI format).
                 </div>
+              )}
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-2">
-                    {labels.supabaseAnonKeyLabel || 'Anon Key'}
-                  </label>
-                  <input
-                    type="password"
-                    value={supabaseAnonKey}
-                    onChange={e => setSupabaseAnonKey(e.target.value)}
-                    placeholder={labels.supabaseAnonKeyPlaceholder || 'eyJhbGci...'}
-                    disabled={loading}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:bg-slate-50"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-2">
-                    {labels.schemaLabel || 'Schema'} <span className="text-slate-400 font-normal">(default: public)</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={supabaseSchema}
-                    onChange={e => setSupabaseSchema(e.target.value)}
-                    placeholder="public"
-                    disabled={loading}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:bg-slate-50"
-                  />
-                </div>
-
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-2">
+                  {labels.postgisConnectionLabel || 'Connection string'}
+                </label>
+                <input
+                  type="password"
+                  value={connectionString}
+                  onChange={e => setConnectionString(e.target.value)}
+                  placeholder={labels.postgisConnectionPlaceholder || 'postgresql://user:pass@host:5432/db'}
+                  disabled={loading}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:bg-slate-50 font-mono"
+                />
               </div>
-            )}
 
-            {/* PostGIS Form */}
-            {sourceType === 'postgis' && (
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-2">
-                    {labels.postgisConnectionLabel || 'Connection string'}
-                  </label>
-                  <input
-                    type="password"
-                    value={postgisConnectionString}
-                    onChange={e => setPostgisConnectionString(e.target.value)}
-                    placeholder={labels.postgisConnectionPlaceholder || 'postgresql://user:pass@host:5432/db'}
-                    disabled={loading}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:bg-slate-50 font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-2">
-                    {labels.schemaLabel || 'Schema'} <span className="text-slate-400 font-normal">(default: public)</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={postgisSchema}
-                    onChange={e => setPostgisSchema(e.target.value)}
-                    placeholder="public"
-                    disabled={loading}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:bg-slate-50"
-                  />
-                </div>
-
-                {/* Info */}
-                <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-                  <p>
-                    <strong>Note:</strong> Your connection string will be used only to read schema information and is not stored.
-                  </p>
-                </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-2">
+                  {labels.schemaLabel || 'Schema'} <span className="text-slate-400 font-normal">(default: public)</span>
+                </label>
+                <input
+                  type="text"
+                  value={schema}
+                  onChange={e => setSchema(e.target.value)}
+                  placeholder="public"
+                  disabled={loading}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 disabled:bg-slate-50"
+                />
               </div>
-            )}
+
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-600">
+                Connection string is used only to read schema and is not stored.
+              </div>
+            </div>
           </div>
         )}
 
@@ -305,11 +240,13 @@ const DatabaseImportDialog: React.FC<DatabaseImportDialogProps> = ({ t, onClose,
                     <span className="text-sm font-medium text-slate-800 truncate">
                       {layer.name}
                     </span>
-                    {layer.tableName && layer.tableName !== layer.name && (
-                      <span className="text-xs text-slate-400 font-mono ml-auto shrink-0">
-                        {layer.tableName}
-                      </span>
-                    )}
+                    <span className="text-xs text-slate-400 font-mono ml-auto shrink-0">
+                      {featureCounts[layer.name] != null
+                        ? `${featureCounts[layer.name].toLocaleString()} rows`
+                        : layer.tableName && layer.tableName !== layer.name
+                          ? layer.tableName
+                          : ''}
+                    </span>
                   </label>
                 ))
               )}

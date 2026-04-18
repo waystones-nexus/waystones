@@ -17,6 +17,9 @@ interface SchemaRow {
   is_nullable: boolean | string;
   column_default?: string;
   constraint_type?: string;
+  geometry_type?: string;
+  geometry_srid?: number;
+  row_count?: number;
 }
 
 /**
@@ -46,7 +49,7 @@ export const processPostgisSchemaToModel = async (
   connectionString: string,
   supabaseJwt?: string,
   schema: string = 'public'
-): Promise<DataModel> => {
+): Promise<{ model: DataModel; featureCounts: Record<string, number> }> => {
   if (!connectionString) {
     throw new Error('connectionString is required');
   }
@@ -86,6 +89,7 @@ export const processPostgisSchemaToModel = async (
   model.name = sanitizeTechnicalName(rawDbName) || 'postgis_model';
   model.crs = 'EPSG:4326'; // WGS 84 - widely used geographic CRS; user can change if needed
   model.layers = [];
+  const featureCounts: Record<string, number> = {};
 
   // Group rows by table
   const tableMap: Record<string, SchemaRow[]> = {};
@@ -108,15 +112,27 @@ export const processPostgisSchemaToModel = async (
     let geometryColumnName = '';
     let geometryType: GeometryType = 'Polygon';
 
+    // Collect row count from first column row (same value for all columns of a table)
+    if (rows[0]?.row_count != null) {
+      featureCounts[sanitizeTechnicalName(tableName)] = Number(rows[0].row_count);
+    }
+
     for (const row of rows) {
       const colName = row.column_name;
       const dataType = row.data_type;
       const udtName = row.udt_name?.toLowerCase() || dataType.toLowerCase();
 
-      // Skip geometry columns for now, track them separately
-      if (udtName.includes('geometry') || udtName.includes('geography')) {
+      // Detect geometry columns: native PostGIS type OR text column with a geometry-hinting name
+      const colNameLower = colName.toLowerCase();
+      const isGeomNamedColumn =
+        colNameLower === 'wkt' || colNameLower === 'geom' || colNameLower === 'geometry' ||
+        colNameLower.startsWith('wkt_') || colNameLower.endsWith('_wkt') ||
+        colNameLower.startsWith('geom_') || colNameLower.endsWith('_geom');
+
+      if (udtName.includes('geometry') || udtName.includes('geography') || isGeomNamedColumn) {
         geometryColumnName = sanitizeTechnicalName(colName);
-        geometryType = normalizeGeometryType(udtName);
+        // Use subtype from geometry_columns view if available; fall back to udt_name
+        geometryType = normalizeGeometryType(row.geometry_type || udtName);
         continue;
       }
 
@@ -151,5 +167,5 @@ export const processPostgisSchemaToModel = async (
     model.layers = [createEmptyLayer()];
   }
 
-  return model;
+  return { model, featureCounts };
 };

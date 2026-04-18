@@ -160,7 +160,7 @@ async function handlePostgisSchema(req, res) {
     });
 
     try {
-      // Query information_schema
+      // Query information_schema, geometry_columns (PostGIS), and row counts
       const query = `
         SELECT
           c.table_name,
@@ -169,7 +169,10 @@ async function handlePostgisSchema(req, res) {
           c.udt_name,
           c.is_nullable,
           c.column_default,
-          tc.constraint_type
+          tc.constraint_type,
+          gc.type       AS geometry_type,
+          gc.srid       AS geometry_srid,
+          st.n_live_tup AS row_count
         FROM information_schema.columns c
         LEFT JOIN information_schema.key_column_usage kcu
           ON c.table_schema = kcu.table_schema
@@ -178,6 +181,13 @@ async function handlePostgisSchema(req, res) {
         LEFT JOIN information_schema.table_constraints tc
           ON kcu.constraint_name = tc.constraint_name
           AND kcu.table_schema = tc.table_schema
+        LEFT JOIN geometry_columns gc
+          ON gc.f_table_schema    = c.table_schema
+          AND gc.f_table_name     = c.table_name
+          AND gc.f_geometry_column = c.column_name
+        LEFT JOIN pg_stat_user_tables st
+          ON st.schemaname = c.table_schema
+          AND st.relname   = c.table_name
         WHERE c.table_schema = $1
         ORDER BY c.table_name, c.ordinal_position
       `;
