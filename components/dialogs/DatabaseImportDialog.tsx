@@ -8,7 +8,7 @@ import { processPostgisSchemaToModel } from '../../utils/postgisSchemaService';
 interface DatabaseImportDialogProps {
   t: Translations;
   onClose: () => void;
-  onImport: (model: DataModel) => void;
+  onImport: (model: DataModel, featureCounts: Record<string, number>) => void;
   initialSourceType?: 'supabase' | 'postgis';
 }
 
@@ -69,7 +69,7 @@ const DatabaseImportDialog: React.FC<DatabaseImportDialogProps> = ({ t, onClose,
       sourceConnection,
     };
 
-    onImport(modelWithSource);
+    onImport(modelWithSource, featureCounts);
   };
 
   const handleBack = () => {
@@ -184,8 +184,11 @@ const DatabaseImportDialog: React.FC<DatabaseImportDialogProps> = ({ t, onClose,
                 />
               </div>
 
-              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-600">
-                Connection string is used only to read schema and is not stored.
+              <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
+                <p>Connection string is used only to read schema and is not stored.</p>
+                {sourceType === 'supabase' && (
+                  <p>Use the <strong>Session pooler</strong> URL (port 5432) — the direct DB host is IPv6-only and may not connect.</p>
+                )}
               </div>
             </div>
           </div>

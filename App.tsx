@@ -210,7 +210,7 @@ const App: React.FC = () => {
     setDirty(false);
   };
 
-  const handleDatabaseImport = (model: DataModel) => {
+  const handleDatabaseImport = (model: DataModel, featureCounts: Record<string, number> = {}) => {
     // Infer summary from the model
     const srid = parseInt(model.crs?.replace('EPSG:', '') || '4326');
     const summary: InferredDataSummary = {
@@ -218,7 +218,7 @@ const App: React.FC = () => {
       layers: model.layers.map(layer => ({
         tableName: layer.name,
         geometryType: layer.geometryType,
-        featureCount: 0, // Unknown for DB sources
+        featureCount: featureCounts[layer.name] ?? 0,
         srid: srid,
         columnCount: layer.properties.length,
         primaryKeyColumn: layer.properties.find(p => p.constraints?.isPrimaryKey)?.name || 'id'
@@ -254,7 +254,7 @@ const App: React.FC = () => {
     triggerWhisper('homunculus', "The deep currents are connected. Your database layers are now part of the clay.");
   };
 
-  const handleDatabaseImportToEditor = (model: DataModel) => {
+  const handleDatabaseImportToEditor = (model: DataModel, _featureCounts: Record<string, number> = {}) => {
     setModels(prev => {
       const updated = [...prev, model];
       pushToHistory(updated, true);

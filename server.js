@@ -157,6 +157,9 @@ async function handlePostgisSchema(req, res) {
       connectionTimeoutMillis: 5000,   // 5 s to connect
       statement_timeout: 10000,        // 10 s per query
       ssl: sslOptions,
+      // Force IPv4 — some hosts (incl. Supabase direct DB) resolve to IPv6
+      // which fails on IPv4-only networks. Pooler URLs already use IPv4.
+      family: 4,
     });
 
     try {
