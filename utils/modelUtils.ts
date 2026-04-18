@@ -1,4 +1,4 @@
-import { Layer, Field } from '../types';
+import { Layer, Field, DataModel } from '../types';
 
 /**
  * Returns a layer's own properties merged with all inherited properties from
@@ -45,4 +45,27 @@ export function topoSortLayers(layers: Layer[]): Layer[] {
 
   layers.forEach(visit);
   return sorted;
+}
+
+/**
+ * Creates a copy of the model with all sensitive credentials removed.
+ * Useful for public exports (model.json, model.yaml).
+ */
+export function scrubModelForExport(model: DataModel): DataModel {
+  // Deep clone using JSON serialization for simplicity and safety
+  const clone = JSON.parse(JSON.stringify(model)) as DataModel;
+
+  if (clone.sourceConnection?.config) {
+    const config = clone.sourceConnection.config as any;
+    
+    // Remove PostGIS / Supabase / Databricks secrets
+    if ('password' in config) config.password = '';
+    if ('token' in config) config.token = '';
+    if ('anonKey' in config) config.anonKey = '';
+    
+    // Also clear the PG connection string if it was somehow cached/added
+    if ('pgConnectionString' in config) (config as any).pgConnectionString = '';
+  }
+
+  return clone;
 }

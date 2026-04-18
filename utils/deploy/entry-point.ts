@@ -17,6 +17,7 @@ import {
   generateStacCatalog, generateStacCollection, generateStacLayerCatalog,
   generateStacItemSnippet, generateNginxStacConf,
 } from '../stacUtils';
+import { scrubModelForExport } from '../modelUtils';
 
 
 // ============================================================
@@ -34,8 +35,9 @@ export const generateDeployFiles = async (
   const useS3 = hasS3Config(source);
 
   // Shared files — always included
+  const scrubbedModel = scrubModelForExport(model);
   const files: Record<string, string> = {
-    'model.json': JSON.stringify(model, null, 2),
+    'model.json': JSON.stringify(scrubbedModel, null, 2),
     'Dockerfile': generateDockerfile(model, source),
     'pygeoapi-config.yml': await generatePygeoapiConfig(model, source, lang),
     'templates/landing_page.html': generateIndexHtml(model),

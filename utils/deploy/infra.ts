@@ -39,7 +39,7 @@ export const generateEnvFile = (source: SourceConnection): string => {
     env += `POSTGRES_PORT=${c.port}\n`;
     env += `POSTGRES_DB=${c.dbname}\n`;
     env += `POSTGRES_USER=${c.user}\n`;
-    env += `POSTGRES_PASSWORD=${c.password}\n`;
+    env += `POSTGRES_PASSWORD=YOUR_DATABASE_PASSWORD_HERE\n`;
     env += `POSTGRES_SCHEMA=${c.schema || 'public'}\n`;
   } else if (source.type === 'supabase') {
     const c = source.config as SupabaseConfig;
@@ -52,13 +52,13 @@ export const generateEnvFile = (source: SourceConnection): string => {
     env += `POSTGRES_PASSWORD=your-supabase-db-password-here\n`;
     env += `POSTGRES_SCHEMA=${c.schema || 'public'}\n`;
     env += `SUPABASE_URL=${c.projectUrl}\n`;
-    env += `SUPABASE_ANON_KEY=${c.anonKey}\n`;
+    env += `SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY_HERE\n`;
   } else if (source.type === 'databricks') {
     const c = source.config as DatabricksConfig;
     env += `# --- Databricks connection ---\n`;
     env += `DATABRICKS_HOST=${c.host}\n`;
     env += `DATABRICKS_HTTP_PATH=${c.httpPath}\n`;
-    env += `DATABRICKS_TOKEN=${c.token}\n`;
+    env += `DATABRICKS_TOKEN=YOUR_DATABRICKS_TOKEN_HERE\n`;
     env += `DATABRICKS_CATALOG=${c.catalog}\n`;
     env += `DATABRICKS_SCHEMA=${c.schema}\n`;
   } else if (source.type === 'geopackage') {

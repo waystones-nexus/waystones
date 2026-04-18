@@ -117,7 +117,7 @@ export const generateQgisProject = (
 
       let datasource: string;
       if (pgEnv) {
-        datasource = `dbname='${pgEnv.POSTGRES_DB}' host=${pgEnv.POSTGRES_HOST} port=${pgEnv.POSTGRES_PORT} user='${pgEnv.POSTGRES_USER}' password='${pgEnv.POSTGRES_PASSWORD}' sslmode=require key='${pkCol}' srid=${srid} type=${layer.geometryType} table="${pgEnv.POSTGRES_SCHEMA}"."${sourceTable}" (${geomCol})`;
+        datasource = `dbname='${pgEnv.POSTGRES_DB}' host=${pgEnv.POSTGRES_HOST} port=${pgEnv.POSTGRES_PORT} user='${pgEnv.POSTGRES_USER}' password='YOUR_DATABASE_PASSWORD_HERE' sslmode=require key='${pkCol}' srid=${srid} type=${layer.geometryType} table="${pgEnv.POSTGRES_SCHEMA}"."${sourceTable}" (${geomCol})`;
       } else {
         datasource = `/data/${gpkgFilename}|layername=${sourceTable}`;
       }

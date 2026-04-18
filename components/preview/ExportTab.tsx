@@ -11,6 +11,7 @@ import {
   exportModelAsYaml, exportModelSchema, exportModelSchemaAsYaml
 } from '../../utils/exportUtils';
 import { exportTypeScript } from '../../utils/exportTypeScript';
+import { scrubModelForExport } from '../../utils/modelUtils';
 
 interface ExportTabProps {
   model: DataModel;
@@ -52,11 +53,13 @@ const ExportTab: React.FC<ExportTabProps> = ({ model, t, lang }) => {
   };
 
   const handleModelJsonExport = () => {
-    downloadJson(model, modelFilename + '.model.json');
+    const scrubbed = scrubModelForExport(model);
+    downloadJson(scrubbed, modelFilename + '.model.json');
   };
 
   const handleModelYamlExport = () => {
-    exportModelAsYaml(model, modelFilename);
+    const scrubbed = scrubModelForExport(model);
+    exportModelAsYaml(scrubbed, modelFilename);
   };
 
   const handleModelSchemaYamlExport = () => {
