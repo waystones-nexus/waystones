@@ -198,17 +198,25 @@ async function handlePostgisSchema(req, res) {
       const result = await pool.query(query, [targetSchema]);
       const rows = result.rows;
 
-      // Group by table and return in the same format as Supabase RPC
-      const grouped = rows.reduce((acc, row) => {
-        acc[row.table_name] = acc[row.table_name] || [];
-        acc[row.table_name].push(row);
-        return acc;
-      }, {});
+      // For geometry columns whose subtype is unspecified ('GEOMETRY' or null),
+      // sample one row with ST_GeometryType() to get the actual type from data.
+      const toSample = rows.filter(r =>
+        r.udt_name === 'geometry' && (!r.geometry_type || r.geometry_type.toUpperCase() === 'GEOMETRY')
+      );
 
-      const layers = Object.entries(grouped).map(([tableName, tableRows]) => ({
-        table_name: tableName,
-        columns: tableRows,
-      }));
+      for (const row of toSample) {
+        try {
+          const tbl = `"${targetSchema}"."${row.table_name}"`;
+          const col = `"${row.column_name}"`;
+          const sr = await pool.query(
+            `SELECT ST_GeometryType(${col}) AS gtype FROM ${tbl} WHERE ${col} IS NOT NULL LIMIT 1`
+          );
+          if (sr.rows[0]?.gtype) {
+            // ST_GeometryType returns e.g. 'ST_Point' — strip prefix
+            row.geometry_type = sr.rows[0].gtype.replace(/^ST_/i, '').toUpperCase();
+          }
+        } catch { /* sampling is best-effort; leave geometry_type as-is */ }
+      }
 
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ layers: rows })); // Return flat rows; client groups them
