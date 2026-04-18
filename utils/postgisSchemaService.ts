@@ -20,6 +20,10 @@ interface SchemaRow {
   geometry_type?: string;
   geometry_srid?: number;
   row_count?: number;
+  bbox_west?: number;
+  bbox_south?: number;
+  bbox_east?: number;
+  bbox_north?: number;
 }
 
 /**
@@ -87,9 +91,10 @@ export const processPostgisSchemaToModel = async (
   const model = createEmptyModel();
   const rawDbName = connectionString.split('/').pop()?.split('?')[0] || 'postgis_model';
   model.name = sanitizeTechnicalName(rawDbName) || 'postgis_model';
-  model.crs = 'EPSG:4326'; // WGS 84 - widely used geographic CRS; user can change if needed
+  model.crs = 'EPSG:4326';
   model.layers = [];
   const featureCounts: Record<string, number> = {};
+  let unionBbox: { west: number; south: number; east: number; north: number } | undefined;
 
   // Group rows by table
   const tableMap: Record<string, SchemaRow[]> = {};
@@ -131,8 +136,18 @@ export const processPostgisSchemaToModel = async (
 
       if (udtName.includes('geometry') || udtName.includes('geography') || isGeomNamedColumn) {
         geometryColumnName = sanitizeTechnicalName(colName);
-        // Use subtype from geometry_columns view if available; fall back to udt_name
         geometryType = normalizeGeometryType(row.geometry_type || udtName);
+        if (row.bbox_west != null && row.bbox_south != null &&
+            row.bbox_east != null && row.bbox_north != null) {
+          if (!unionBbox) {
+            unionBbox = { west: row.bbox_west, south: row.bbox_south, east: row.bbox_east, north: row.bbox_north };
+          } else {
+            unionBbox.west  = Math.min(unionBbox.west,  row.bbox_west);
+            unionBbox.south = Math.min(unionBbox.south, row.bbox_south);
+            unionBbox.east  = Math.max(unionBbox.east,  row.bbox_east);
+            unionBbox.north = Math.max(unionBbox.north, row.bbox_north);
+          }
+        }
         continue;
       }
 
@@ -165,6 +180,23 @@ export const processPostgisSchemaToModel = async (
   // Fallback to single empty layer if no tables found
   if (model.layers.length === 0) {
     model.layers = [createEmptyLayer()];
+  }
+
+  if (unionBbox) {
+    model.metadata = {
+      ...(model.metadata || {
+        title: '', abstract: '', keywords: [], theme: '', license: 'CC-BY-4.0',
+        accessRights: 'public', purpose: '', accrualPeriodicity: 'unknown',
+        temporalExtentFrom: '', temporalExtentTo: '',
+        spatialExtent: { westBoundLongitude: '', eastBoundLongitude: '', southBoundLatitude: '', northBoundLatitude: '' },
+      }),
+      spatialExtent: {
+        westBoundLongitude:  unionBbox.west.toString(),
+        eastBoundLongitude:  unionBbox.east.toString(),
+        southBoundLatitude:  unionBbox.south.toString(),
+        northBoundLatitude:  unionBbox.north.toString(),
+      },
+    };
   }
 
   return { model, featureCounts };

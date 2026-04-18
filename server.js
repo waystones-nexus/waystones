@@ -218,6 +218,30 @@ async function handlePostgisSchema(req, res) {
         } catch { /* sampling is best-effort; leave geometry_type as-is */ }
       }
 
+      // Compute bbox for every geometry column via ST_Extent, reprojected to WGS84
+      const geomRows = rows.filter(r => r.udt_name === 'geometry' || r.udt_name === 'geography');
+      for (const row of geomRows) {
+        try {
+          const tbl = `"${targetSchema}"."${row.table_name}"`;
+          const col = `"${row.column_name}"`;
+          const srid = row.geometry_srid || 4326;
+          const transform = srid !== 4326
+            ? `ST_Transform(ST_Extent(${col}), ${srid}, 4326)`
+            : `ST_Extent(${col})`;
+          const br = await pool.query(
+            `SELECT ST_XMin(ext) AS west, ST_YMin(ext) AS south,
+                    ST_XMax(ext) AS east, ST_YMax(ext) AS north
+             FROM (SELECT ${transform} AS ext FROM ${tbl}) t`
+          );
+          if (br.rows[0]?.west != null) {
+            row.bbox_west  = br.rows[0].west;
+            row.bbox_south = br.rows[0].south;
+            row.bbox_east  = br.rows[0].east;
+            row.bbox_north = br.rows[0].north;
+          }
+        } catch { /* bbox is best-effort */ }
+      }
+
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ layers: rows })); // Return flat rows; client groups them
     } finally {
