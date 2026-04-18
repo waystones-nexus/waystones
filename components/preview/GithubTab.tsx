@@ -6,6 +6,7 @@ import {
   History, ArrowRight, GitBranch, Terminal, ShieldAlert
 } from 'lucide-react';
 import { compareModels, generateChangelog, calculateNextVersion } from '../../utils/diffUtils';
+import { scrubModelForExport } from '../../utils/modelUtils';
 import GitHubAuth from '../GitHubAuth';
 import GitHubRepoBrowser from '../GitHubRepoBrowser';
 
@@ -127,7 +128,8 @@ const GithubTab: React.FC<GithubTabProps> = ({
     try {
       // Update model version before publishing
       const updatedModel = { ...model, version: suggestedVersion, updatedAt: new Date().toISOString() };
-      const content = btoa(unescape(encodeURIComponent(JSON.stringify(updatedModel, null, 2))));
+      const scrubbedModel = scrubModelForExport(updatedModel);
+      const content = btoa(unescape(encodeURIComponent(JSON.stringify(scrubbedModel, null, 2))));
       let sha = null;
 
       const checkResponse = await fetch(

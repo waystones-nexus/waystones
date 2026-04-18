@@ -58,13 +58,13 @@ export function scrubModelForExport(model: DataModel): DataModel {
   if (clone.sourceConnection?.config) {
     const config = clone.sourceConnection.config as any;
     
-    // Remove PostGIS / Supabase / Databricks secrets
-    if ('password' in config) config.password = '';
-    if ('token' in config) config.token = '';
-    if ('anonKey' in config) config.anonKey = '';
+    // Remove PostGIS / Supabase / Databricks secrets completely
+    if ('password' in config) delete config.password;
+    if ('token' in config) delete config.token;
+    if ('anonKey' in config) delete config.anonKey;
     
     // Also clear the PG connection string if it was somehow cached/added
-    if ('pgConnectionString' in config) (config as any).pgConnectionString = '';
+    if ('pgConnectionString' in config) delete config.pgConnectionString;
   }
 
   return clone;
