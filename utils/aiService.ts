@@ -1,4 +1,5 @@
 export type AiProvider = 'claude' | 'gemini';
+import { encryptValue, decryptValue } from './encryption';
 
 
 const PROVIDER_KEY = 'waystones-ai-provider';
@@ -147,7 +148,8 @@ export function setProvider(p: AiProvider): void {
 }
 
 export function getApiKey(p?: AiProvider): string | null {
-  return localStorage.getItem(API_KEY_PREFIX + (p ?? getProvider()));
+  const saved = localStorage.getItem(API_KEY_PREFIX + (p ?? getProvider()));
+  return saved ? decryptValue(saved) : null;
 }
 
 export function hasApiKey(p?: AiProvider): boolean {
@@ -157,7 +159,7 @@ export function hasApiKey(p?: AiProvider): boolean {
 }
 
 export function saveApiKey(key: string, p?: AiProvider): void {
-  localStorage.setItem(API_KEY_PREFIX + (p ?? getProvider()), key.trim());
+  localStorage.setItem(API_KEY_PREFIX + (p ?? getProvider()), encryptValue(key.trim()));
   // Dispatch custom event to notify components about the API key change
   window.dispatchEvent(new CustomEvent('ai-key-changed', {
     detail: { provider: p ?? getProvider(), hasKey: true }
@@ -183,7 +185,8 @@ export function getTrialUsesLeft(): number {
   const raw = localStorage.getItem(TRIAL_USES_KEY);
   if (!raw) return MAX_TRIAL_USES;
   try {
-    const { uses, week } = JSON.parse(raw);
+    const decrypted = decryptValue(raw);
+    const { uses, week } = JSON.parse(decrypted);
     if (week !== getWeekKey()) return MAX_TRIAL_USES; // new week → fresh
     return Math.max(0, MAX_TRIAL_USES - (uses || 0));
   } catch {
@@ -195,11 +198,13 @@ export function incrementTrialUses(): void {
   const raw = localStorage.getItem(TRIAL_USES_KEY);
   let uses = 0;
   try {
-    const parsed = JSON.parse(raw || '{}');
+    const decrypted = decryptValue(raw || '');
+    const parsed = JSON.parse(decrypted || '{}');
     if (parsed.week === getWeekKey()) uses = parsed.uses || 0;
   } catch { /* start fresh */ }
   const newUses = uses + 1;
-  localStorage.setItem(TRIAL_USES_KEY, JSON.stringify({ uses: newUses, week: getWeekKey() }));
+  const serialized = JSON.stringify({ uses: newUses, week: getWeekKey() });
+  localStorage.setItem(TRIAL_USES_KEY, encryptValue(serialized));
   window.dispatchEvent(new CustomEvent('ai-trial-updated', {
     detail: { usesLeft: Math.max(0, MAX_TRIAL_USES - newUses) }
   }));

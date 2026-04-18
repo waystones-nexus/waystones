@@ -1,5 +1,6 @@
 // GitHub OAuth Service Implementation
 // Handles OAuth 2.0 flow with PKCE for secure authentication
+import { encryptValue, decryptValue } from './encryption';
 
 export interface OAuthConfig {
   clientId: string;
@@ -85,15 +86,17 @@ export const storeToken = (tokenData: TokenResponse) => {
     stored_at: Date.now()
   };
   
-  localStorage.setItem(TOKEN_KEY, JSON.stringify(tokenInfo));
+  const serialized = JSON.stringify(tokenInfo);
+  localStorage.setItem(TOKEN_KEY, encryptValue(serialized));
 };
 
 export const getToken = (): TokenResponse | null => {
-  const stored = localStorage.getItem(TOKEN_KEY);
-  if (!stored) return null;
-  
   try {
-    const tokenInfo = JSON.parse(stored);
+    const stored = localStorage.getItem(TOKEN_KEY);
+    if (!stored) return null;
+    
+    const decrypted = decryptValue(stored);
+    const tokenInfo = JSON.parse(decrypted);
     
     // Check if token is expired
     if (tokenInfo.expires_at && Date.now() > tokenInfo.expires_at) {
@@ -114,15 +117,16 @@ export const clearToken = () => {
 };
 
 export const storeUser = (user: GitHubUser) => {
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
+  localStorage.setItem(USER_KEY, encryptValue(JSON.stringify(user)));
 };
 
 export const getUser = (): GitHubUser | null => {
-  const stored = localStorage.getItem(USER_KEY);
-  if (!stored) return null;
-  
   try {
-    return JSON.parse(stored);
+    const stored = localStorage.getItem(USER_KEY);
+    if (!stored) return null;
+    
+    const decrypted = decryptValue(stored);
+    return JSON.parse(decrypted);
   } catch {
     return null;
   }
