@@ -31,35 +31,33 @@ export const generateReadme = (model: DataModel, source: SourceConnection, lang:
   md += '## ' + s.snapshotArchTitle + '\n\n';
   md += s.snapshotArchDesc + '\n\n';
 
-  md += '```mermaid\n';
-  md += 'graph TD\n';
-  md += '    subgraph P1[Phase 1: Conversion]\n';
-  md += '        Source[(Input Data)] --> Peasant[Peasant: Binder]\n';
-  md += '        Peasant --> Peon[Peon: Transformer]\n';
-  md += '        Peon --> Parquet[(GeoParquet)]\n';
-  md += '        Peon --> FGB[(FlatGeobuf)]\n';
-  md += '    end\n\n';
-  md += '    subgraph P2[Phase 2 & 3: Serving & Gateway]\n';
-  md += '        Parquet --> pygeoapi[pygeoapi Engine]\n';
-  md += '        FGB --> QGIS[QGIS Engine]\n';
-  md += '        pygeoapi --> Acolyte[Acolyte: Caddy Gateway]\n';
-  md += '        QGIS -.-> Acolyte\n';
-  md += '    end\n\n';
-  md += '    Acolyte --> API[OGC API / WMS]\n';
-  md += '    API --> User((Architect))\n';
+  // Build plain-text architecture flow
+  const layerNames = model.layers
+    .filter(l => l.geometryType !== 'None')
+    .map(l => l.name.toLowerCase().replace(/\s+/g, '_'));
+  const sourceName = isGpkg ? getGpkgFilename(model, source) : 'source data';
+  const indent = ' '.repeat(sourceName.length + ' → [worker] → '.length);
+
+  md += '```\n';
+  if (layerNames.length > 0) {
+    md += sourceName + ' → [worker] → ' + layerNames[0] + '.parquet  → pygeoapi (DuckDB) → OGC API Features\n';
+    md += indent + '→ ' + layerNames[0] + '.fgb      → QGIS Server        → WMS\n';
+    for (let i = 1; i < layerNames.length; i++) {
+      md += indent + '→ ' + layerNames[i] + '.parquet\n';
+      md += indent + '→ ' + layerNames[i] + '.fgb\n';
+    }
+  } else {
+    md += sourceName + ' → [worker] → layer.parquet  → pygeoapi (DuckDB) → OGC API Features\n';
+  }
   md += '```\n\n';
 
-  md += '- ' + s.snapshotArchStep1 + '\n';
-  md += '- ' + s.snapshotArchStep2 + '\n';
-  md += '- ' + s.snapshotArchStep3 + '\n\n';
-
   md += '### ' + s.workingUnits + '\n\n';
-  md += '| ' + s.service + ' | ' + s.role + ' | ' + s.lore + ' |\n';
-  md += '|----------|------|------|\n';
-  md += '| `worker` | ' + s.workerPeon + ' | ' + s.workerDesc + ' |\n';
-  md += '| `pygeoapi` | ' + s.workerAcolyte + ' | ' + s.pygeoapiConfigFile + ' |\n';
-  if (!isGpkg) {
-    md += '| `delta-worker` | ' + s.workerShade + ' | ' + s.deltaScriptFile + ' |\n';
+  md += '| ' + s.service + ' | ' + s.description + ' |\n';
+  md += '|----------|-------------|\n';
+  md += '| `worker` | ' + s.workerDesc + ' |\n';
+  md += '| `pygeoapi` | ' + s.workerAcolyte + ' |\n';
+  if (hasWms) {
+    md += '| `qgis-server` | WMS rendering from FlatGeobuf. Accessible at `/ows/`. |\n';
   }
   md += '\n';
 
@@ -168,7 +166,14 @@ export const generateWorkflowForTarget = (
   target: DeployTarget
 ): string => {
   if (target === 'railway') {
-    return 'name: Validate ' + model.name + '\non:\n  push:\n    branches: [main]\njobs:\n  validate:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - name: Validate\n        run: echo "Validating..."\n';
+    const hasWms = model.layers.some(l => l.geometryType !== 'None');
+    let workflow = 'name: Validate ' + model.name + '\non:\n  push:\n    branches: [main]\njobs:\n  validate:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n';
+    workflow += '      - name: Validate railway.json\n        run: |\n          python3 -c "\n          import json\n          with open(\'railway.json\') as f:\n              config = json.load(f)\n          assert config.get(\'build\', {}).get(\'builder\'), \'railway.json missing build.builder\'\n          "\n';
+    workflow += '      - name: Validate pygeoapi config\n        run: |\n          python3 -c "\n          import yaml, sys\n          with open(\'pygeoapi-config.yml\') as f:\n              config = yaml.safe_load(f)\n          if not config.get(\'resources\'):\n              print(\'ERROR: pygeoapi-config.yml must have resources key\')\n              sys.exit(1)\n          "\n';
+    if (hasWms) {
+      workflow += '      - name: Validate QGIS project exists\n        run: test -f project.qgs || (echo "ERROR: project.qgs not found for WMS layers" && exit 1)\n';
+    }
+    return workflow;
   }
   return generateGithubActionsWorkflow(model, source);
 };
@@ -193,35 +198,33 @@ export const generateReadmeForTarget = (
   md += '## ' + s.snapshotArchTitle + '\n\n';
   md += s.snapshotArchDesc + '\n\n';
 
-  md += '```mermaid\n';
-  md += 'graph TD\n';
-  md += '    subgraph P1[Phase 1: Conversion]\n';
-  md += '        Source[(Input Data)] --> Peasant[Peasant: Binder]\n';
-  md += '        Peasant --> Peon[Peon: Transformer]\n';
-  md += '        Peon --> Parquet[(GeoParquet)]\n';
-  md += '        Peon --> FGB[(FlatGeobuf)]\n';
-  md += '    end\n\n';
-  md += '    subgraph P2[Phase 2 & 3: Serving & Gateway]\n';
-  md += '        Parquet --> pygeoapi[pygeoapi Engine]\n';
-  md += '        FGB --> QGIS[QGIS Engine]\n';
-  md += '        pygeoapi --> Acolyte[Acolyte: Caddy Gateway]\n';
-  md += '        QGIS -.-> Acolyte\n';
-  md += '    end\n\n';
-  md += '    Acolyte --> API[OGC API / WMS]\n';
-  md += '    API --> User((Architect))\n';
+  // Build plain-text architecture flow
+  const layerNames = model.layers
+    .filter(l => l.geometryType !== 'None')
+    .map(l => l.name.toLowerCase().replace(/\s+/g, '_'));
+  const sourceName = source.type === 'geopackage' ? getGpkgFilename(model, source) : 'source data';
+  const indent = ' '.repeat(sourceName.length + ' → [worker] → '.length);
+
+  md += '```\n';
+  if (layerNames.length > 0) {
+    md += sourceName + ' → [worker] → ' + layerNames[0] + '.parquet  → pygeoapi (DuckDB) → OGC API Features\n';
+    md += indent + '→ ' + layerNames[0] + '.fgb      → QGIS Server        → WMS\n';
+    for (let i = 1; i < layerNames.length; i++) {
+      md += indent + '→ ' + layerNames[i] + '.parquet\n';
+      md += indent + '→ ' + layerNames[i] + '.fgb\n';
+    }
+  } else {
+    md += sourceName + ' → [worker] → layer.parquet  → pygeoapi (DuckDB) → OGC API Features\n';
+  }
   md += '```\n\n';
 
-  md += '- ' + s.snapshotArchStep1 + '\n';
-  md += '- ' + s.snapshotArchStep2 + '\n';
-  md += '- ' + s.snapshotArchStep3 + '\n\n';
-
   md += '### ' + s.workingUnits + '\n\n';
-  md += '| ' + s.service + ' | ' + s.role + ' | ' + s.lore + ' |\n';
-  md += '|----------|------|------|\n';
-  md += '| `worker` | ' + s.workerPeon + ' | ' + s.workerDesc + ' |\n';
-  md += '| `pygeoapi` | ' + s.workerAcolyte + ' | ' + s.pygeoapiConfigFile + ' |\n';
+  md += '| ' + s.service + ' | ' + s.description + ' |\n';
+  md += '|----------|-------------|\n';
+  md += '| `worker` | ' + s.workerDesc + ' |\n';
+  md += '| `pygeoapi` | ' + s.workerAcolyte + ' |\n';
   if (hasWms) {
-    md += '| `qgis-server` | ' + s.workerPeon + ' | ' + s.qgisProjectFile + ' |\n';
+    md += '| `qgis-server` | WMS rendering from FlatGeobuf. Accessible at `/ows/`. |\n';
   }
   md += '\n';
 
