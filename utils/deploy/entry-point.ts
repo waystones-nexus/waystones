@@ -7,6 +7,15 @@ import { generateEnvFile, generateDockerCompose, generateRailwayJson } from './i
 import { generateReadmeForTarget, generateWorkflowForTarget } from './readme';
 import { scrubModelForExport } from '../modelUtils';
 import * as railwayTemplates from './railway-templates';
+import {
+  generatePygeoapiTheme,
+  generateIndexHtml,
+  generateCollectionsHtml,
+  generateCollectionHtml,
+  generateItemsHtml,
+  generateItemHtml,
+} from './pygeoapi-theme';
+import { hasS3Config, getGpkgFilename } from './_helpers';
 
 
 // ============================================================
@@ -47,10 +56,20 @@ export const generateDeployFiles = async (
       files['railway.qgis.json'] = generateRailwayQgisJson(model, source);
     }
 
+    // Branded HTML templates baked into the deploy kit
+    files['docker/pygeoapi/local-templates/_base.html'] = generatePygeoapiTheme(model);
+    files['docker/pygeoapi/local-templates/landing_page.html'] = generateIndexHtml(model);
+    files['docker/pygeoapi/local-templates/collections/index.html'] = generateCollectionsHtml(model);
+    files['docker/pygeoapi/local-templates/collections/collection.html'] = generateCollectionHtml(model);
+    files['docker/pygeoapi/local-templates/collections/items/index.html'] = generateItemsHtml(model);
+    files['docker/pygeoapi/local-templates/collections/items/item.html'] = generateItemHtml(model);
+
     // Include Docker/Railway infra for a self-contained kit
-    files['docker/railway/Dockerfile'] = railwayTemplates.dockerfile;
+    const isLocalGpkg = source.type === 'geopackage' && !hasS3Config(source);
+    const gpkgFilename = isLocalGpkg ? getGpkgFilename(model, source) : undefined;
+    files['docker/railway/Dockerfile'] = railwayTemplates.generateDockerfile(isLocalGpkg, gpkgFilename);
     files['docker/railway/railway-boot.sh'] = railwayTemplates.railwayBoot;
-    
+
     if (hasWms) {
       files['docker/railway/Dockerfile.qgis'] = railwayTemplates.dockerfileQgis;
       files['docker/railway/qgis-boot.sh'] = railwayTemplates.qgisBoot;

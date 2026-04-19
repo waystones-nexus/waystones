@@ -182,8 +182,7 @@ const renderEnvironmentVariables = (ctx: RenderContext): string => {
   md += `|---|---|---|\n`;
   md += `| \`PYGEOAPI_SERVER_URL\` | ${s.envDesc_PYGEOAPI_SERVER_URL} | \`https://api.example.com\` |\n`;
   md += `| \`QGIS_SERVER_PUBLIC_URL\` | ${s.envDesc_QGIS_SERVER_PUBLIC_URL} | \`https://api.example.com/ows/\` |\n`;
-  md += `| \`PORT\` | ${s.envDesc_PORT} | \`5000\` |\n`;
-  md += `| \`SYNC_INTERVAL_SECONDS\` | ${s.envDesc_SYNC_INTERVAL_SECONDS} | \`86400\` |\n\n`;
+  md += `| \`PORT\` | ${s.envDesc_PORT} | \`5000\` |\n\n`;
 
   if (isPg) {
     md += `### 🗄️ Database Connection (Source)\n\n`;

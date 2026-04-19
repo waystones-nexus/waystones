@@ -5,7 +5,8 @@
  * These are included in the deployment export when the Railway target is selected.
  */
 
-export const dockerfile = `FROM ghcr.io/henrik716/waystones:pygeoapi-latest
+export function generateDockerfile(isGpkg: boolean, gpkgFilename?: string): string {
+  let df = `FROM ghcr.io/henrik716/waystones:pygeoapi-latest
 
 USER root
 
@@ -33,8 +34,27 @@ COPY docker/worker/*.py /app/worker/
 COPY docker/railway/railway-boot.sh /railway-boot.sh
 RUN chmod +x /railway-boot.sh
 
+# Bake in the generated pygeoapi config
+COPY pygeoapi-config.yml /pygeoapi/local.config.yml
+
+# Bake in branded HTML templates
+COPY docker/pygeoapi/local-templates/ /pygeoapi/local-templates/
+`;
+
+  if (isGpkg && gpkgFilename) {
+    df += `
+# Copy GeoPackage so railway-boot.sh can find it at /input/data.gpkg
+RUN mkdir -p /input
+COPY ${gpkgFilename} /input/data.gpkg
+`;
+  }
+
+  df += `
 ENTRYPOINT ["/railway-boot.sh"]
 `;
+
+  return df;
+}
 
 export const dockerfileQgis = `FROM ghcr.io/henrik716/waystones:qgis-latest
 
