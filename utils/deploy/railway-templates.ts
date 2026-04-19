@@ -43,9 +43,17 @@ COPY docker/pygeoapi/local-templates/ /pygeoapi/local-templates/
 
   if (isGpkg && gpkgFilename) {
     df += `
-# Copy GeoPackage so railway-boot.sh can find it at /input/data.gpkg
-RUN mkdir -p /input
-COPY ${gpkgFilename} /input/data.gpkg
+# Copy GeoPackage into the image if present at data/${gpkgFilename}.
+# Build succeeds even when absent — in that case mount a Railway Volume
+# at /input/ containing ${gpkgFilename} so railway-boot.sh can find it.
+RUN --mount=type=bind,source=.,target=/build \\
+    mkdir -p /input && \\
+    if [ -f /build/data/${gpkgFilename} ]; then \\
+        cp /build/data/${gpkgFilename} /input/data.gpkg && \\
+        echo "[build] GeoPackage baked in from data/${gpkgFilename}"; \\
+    else \\
+        echo "[build] data/${gpkgFilename} not in repo — provide via Railway Volume at /input/"; \\
+    fi
 `;
   }
 
