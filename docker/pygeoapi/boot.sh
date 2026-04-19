@@ -39,14 +39,6 @@ if [ ! -s "$PYGEOAPI_CONFIG" ] && [ -n "${PYGEOAPI_CONFIG_B64:-}" ]; then
     echo "$PYGEOAPI_CONFIG_B64" | base64 -d > "$PYGEOAPI_CONFIG"
 fi
 
-# ─── Proactive Resource Wakeup ────────────────────────────────────────────
-# If WMS is enabled, wake up the QGIS machine/service machine in the background.
-if [ "${DEPLOY_QGIS:-0}" = "1" ] && [ -n "${FLY_APP_NAME:-}" ]; then
-    (sleep 2 && \
-     echo "[boot] Proactively waking up QGIS service..." && \
-     curl -s -o /dev/null --retry 1 --connect-timeout 5 "http://${FLY_APP_NAME}.flycast:8080/health") &
-fi
-
 # ─── Process Management ───────────────────────────────────────────────────
 
 # Determine if we should run in Sidecar mode (Caddy + pygeoapi)

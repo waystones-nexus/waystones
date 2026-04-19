@@ -14,7 +14,7 @@ def generate():
     print("[cache_openapi] Generating openapi.yml...", flush=True)
     with open(DEST, "w") as fh:
         subprocess.run(
-            ["pygeoapi", "openapi", "generate", "-c", CONFIG],
+            ["pygeoapi", "openapi", "generate", CONFIG],
             stdout=fh,
             check=True,
         )
