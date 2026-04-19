@@ -5,15 +5,13 @@ COPY --from=caddy:latest /usr/bin/caddy /usr/bin/caddy
 
 # Install system dependencies
 USER root
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends curl && \
+    rm -rf /var/lib/apt/lists/*
 USER nobody
 
 # Bake runtime paths at build time while the base image's ENV/PATH is active.
-# /etc/pygeoapi-venv-bin  → directory containing gunicorn (for PATH)
-# /etc/pygeoapi-site-packages → site-packages dir containing pygeoapi (for PYTHONPATH)
-RUN gunicorn_bin=$(which gunicorn 2>/dev/null || \
-    find /usr /opt /pygeoapi /venv /home -maxdepth 6 -name gunicorn -type f 2>/dev/null | head -1) && \
-    dirname "$gunicorn_bin" > /etc/pygeoapi-venv-bin
+RUN gunicorn_bin=$(which gunicorn 2>/dev/null || find /usr /opt /pygeoapi /venv /home -maxdepth 6 -name gunicorn -type f 2>/dev/null | head -1) && dirname "$gunicorn_bin" > /etc/pygeoapi-venv-bin
 
 RUN for py in python3 /venv/bin/python3 /usr/bin/python3 /usr/local/bin/python3; do \
       site=$($py -c "import pygeoapi,os; print(os.path.dirname(os.path.dirname(pygeoapi.__file__)))" 2>/dev/null) && \
