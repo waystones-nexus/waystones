@@ -26,4 +26,20 @@ COPY docker/worker/*.py /app/worker/
 COPY docker/railway/railway-boot.sh /railway-boot.sh
 RUN chmod +x /railway-boot.sh
 
+# Bake in branded HTML templates
+COPY docker/pygeoapi/html-templates/ /pygeoapi/local-templates/
+
+# Sync configuration and data from the repo if they exist.
+# We bake data into /app/data-sync/ to avoid it being masked by a volume mount at /data/
+RUN --mount=type=bind,source=.,target=/build \
+    mkdir -p /data /app/data-sync && \
+    if [ -f /build/pygeoapi-config.yml ]; then \
+        cp /build/pygeoapi-config.yml /pygeoapi/local.config.yml; \
+        echo "[build] Config baked in from repo root"; \
+    fi && \
+    if [ -d /build/data ] && [ "$(ls -A /build/data 2>/dev/null)" ]; then \
+        cp -r /build/data/* /app/data-sync/ || true; \
+        echo "[build] Data baked into /app/data-sync/"; \
+    fi
+
 ENTRYPOINT ["/railway-boot.sh"]

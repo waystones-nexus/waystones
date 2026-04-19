@@ -9,8 +9,15 @@ set -euo pipefail
 mkdir -p /data || true
 
 echo "[railway-boot] Checking for existing data in /data..."
+
+# If /data/ is empty, check if we have baked-in data to sync
+if [ -z "$(ls -A /data 2>/dev/null)" ] && [ -d /app/data-sync ] && [ "$(ls -A /app/data-sync 2>/dev/null)" ]; then
+    echo "[railway-boot] Initializing /data volume from baked-in data..."
+    cp -r /app/data-sync/* /data/
+fi
+
 if [ -z "$(ls -A /data 2>/dev/null)" ]; then
-    echo "[railway-boot] Data directory is empty."
+    echo "[railway-boot] Data directory is empty or missing."
 
     # Check if we have the minimum environment required to run the worker
     if [ -n "${INPUT_URI:-}" ] || ( [ -n "${POSTGRES_HOST:-}" ] && [ -n "${POSTGRES_DB:-}" ] ); then

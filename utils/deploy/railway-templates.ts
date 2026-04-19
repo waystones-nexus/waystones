@@ -34,11 +34,8 @@ COPY docker/worker/*.py /app/worker/
 COPY docker/railway/railway-boot.sh /railway-boot.sh
 RUN chmod +x /railway-boot.sh
 
-# Bake in the generated pygeoapi config
-COPY pygeoapi-config.yml /pygeoapi/local.config.yml
-
 # Bake in branded HTML templates
-COPY docker/pygeoapi/local-templates/ /pygeoapi/local-templates/
+COPY docker/pygeoapi/html-templates/ /pygeoapi/local-templates/
 `;
 
   if (isGpkg && gpkgFilename) {
@@ -58,6 +55,19 @@ RUN --mount=type=bind,source=.,target=/build \\
   }
 
   df += `
+# Sync configuration and any other data from the repo if they exist.
+# We bake data into /app/data-sync/ to avoid it being masked by a volume mount at /data/
+RUN --mount=type=bind,source=.,target=/build \\
+    mkdir -p /data /app/data-sync && \\
+    if [ -f /build/pygeoapi-config.yml ]; then \\
+        cp /build/pygeoapi-config.yml /pygeoapi/local.config.yml; \\
+        echo "[build] Config baked in from repo root"; \\
+    fi && \\
+    if [ -d /build/data ] && [ "$(ls -A /build/data 2>/dev/null)" ]; then \\
+        cp -r /build/data/* /app/data-sync/ || true; \\
+        echo "[build] Data baked into /app/data-sync/"; \\
+    fi
+
 ENTRYPOINT ["/railway-boot.sh"]
 `;
 
@@ -108,6 +118,13 @@ set -euo pipefail
 mkdir -p /data || true
 
 echo "[railway-boot] Checking for existing data in /data..."
+
+# If /data/ is empty, check if we have baked-in data to sync
+if [ -z "$(ls -A /data 2>/dev/null)" ] && [ -d /app/data-sync ] && [ "$(ls -A /app/data-sync 2>/dev/null)" ]; then
+    echo "[railway-boot] Initializing /data volume from baked-in data..."
+    cp -r /app/data-sync/* /data/
+fi
+
 if [ -z "$(ls -A /data 2>/dev/null)" ]; then
     echo "[railway-boot] Data directory is empty or missing."
     
