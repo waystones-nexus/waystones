@@ -43,12 +43,19 @@ if OUTPUT_TYPE == "s3":
             raise
 
 else:
-    cached = "/data/openapi.yml"
+    # Respect the Universal Contract by using OUTPUT_URI
+    cached = os.path.join(OUTPUT_URI.rstrip("/"), "openapi.yml")
+    cached_dir = os.path.dirname(cached)
+
     if os.path.exists(cached):
         shutil.copy(cached, DEST)
-        print("[cache_openapi] Copied openapi.yml from local cache.", flush=True)
+        print(f"[cache_openapi] Copied openapi.yml from local cache ({cached}).", flush=True)
     else:
         generate()
-        os.makedirs("/data", exist_ok=True)
-        shutil.copy(DEST, cached)
-        print("[cache_openapi] Saved openapi.yml to local cache.", flush=True)
+        try:
+            # Dynamically create whatever directory the URI specifies
+            os.makedirs(cached_dir, exist_ok=True)
+            shutil.copy(DEST, cached)
+            print(f"[cache_openapi] Saved openapi.yml to local cache ({cached}).", flush=True)
+        except PermissionError:
+            print(f"[cache_openapi] Warning: Could not write to {cached_dir} due to permissions. Skipping local cache.", flush=True)
