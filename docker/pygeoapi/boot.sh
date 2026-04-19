@@ -73,7 +73,7 @@ paths: {}
 EOF
 
     # 1. Cache-aware OpenAPI (Downloads from S3 or Generates) - delayed (Human > Warmup > OpenAPI)
-    (sleep 60 && python3 /cache_openapi.py) &
+    (sleep 5 && nice -n 19 python3 /cache_openapi.py) &
 
     # 2. AsyncAPI generation (Lightweight)
     (pygeoapi asyncapi generate "$PYGEOAPI_CONFIG" --output-file /pygeoapi/local.asyncapi.yml 2>/dev/null || true) &
