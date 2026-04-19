@@ -38,7 +38,9 @@ if OUTPUT_TYPE == "s3":
     bucket       = parsed.netloc
     prefix       = parsed.path.lstrip("/")
     key          = f"{prefix}openapi.yml".lstrip("/")
-    endpoint_url = os.environ.get("S3_ENDPOINT") or None
+    endpoint_url = os.environ.get("S3_ENDPOINT") or os.environ.get("AWS_S3_ENDPOINT") or None
+    if endpoint_url and not endpoint_url.startswith(("http://", "https://")):
+        endpoint_url = f"https://{endpoint_url}"
 
     s3 = boto3.client("s3", endpoint_url=endpoint_url)
     try:
