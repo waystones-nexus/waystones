@@ -136,7 +136,10 @@ const renderDataSourceConfig = (ctx: RenderContext): string => {
   md += `| \`INPUT_URI\` | \`s3://my-bucket/data.gpkg\` | External S3/R2 storage URI |\n`;
   md += `| \`AWS_ACCESS_KEY_ID\` | \`AKIA...\` | Your S3 access key |\n`;
   md += `| \`AWS_SECRET_ACCESS_KEY\` | \`wJal...\` | Your S3 secret key |\n`;
-  md += `| \`AWS_ENDPOINT_URL\` | \`https://r2.com\` | Custom endpoint (R2/Tigris) |\n\n`;
+  md += `| \`S3_BUCKET_NAME\` | \`my-bucket\` | Name of the bucket |\n`;
+  md += `| \`AWS_ENDPOINT_URL\` | \`https://<id>.r2.cloudflarestorage.com\` | Custom endpoint (Required for R2/Tigris/MinIO) |\n\n`;
+  md += `> [!TIP]\n`;
+  md += `> Standard AWS S3 does not require \`AWS_ENDPOINT_URL\`. For other providers like Cloudflare R2, Tigris, or MinIO, you must specify the full endpoint URL.\n\n`;
 
   // Scenario C: PostGIS
   md += `### ${s.dataSourceScenarioPg}\n`;
@@ -198,10 +201,11 @@ const renderEnvironmentVariables = (ctx: RenderContext): string => {
     md += `### 📦 S3 / Cloud Storage\n\n`;
     md += `${s.envDesc_S3}\n\n`;
     md += `| Variable | Description |\n`;
-    md += `|---|---|---|\n`;
+    md += `|---|---|\n`;
     md += `| \`AWS_ACCESS_KEY_ID\` | Access key for your bucket |\n`;
     md += `| \`AWS_SECRET_ACCESS_KEY\` | Secret key (keep secure) |\n`;
     md += `| \`S3_BUCKET_NAME\` | Name of the bucket |\n`;
+    md += `| \`AWS_ENDPOINT_URL\` | Custom endpoint (e.g. for R2/Tigris) |\n`;
     md += `| \`S3_OBJECT_KEY\` | Path to the file in the bucket |\n\n`;
   }
   

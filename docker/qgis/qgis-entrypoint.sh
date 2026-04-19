@@ -47,7 +47,7 @@ for file in /etc/nginx/fastcgi_params /etc/nginx/fastcgi.conf; do
     if [ -f "$file" ]; then
         echo "fastcgi_param AWS_ACCESS_KEY_ID \"${AWS_ACCESS_KEY_ID:-}\";" >> "$file"
         echo "fastcgi_param AWS_SECRET_ACCESS_KEY \"${AWS_SECRET_ACCESS_KEY:-}\";" >> "$file"
-        echo "fastcgi_param AWS_S3_ENDPOINT \"${AWS_S3_ENDPOINT:-}\";" >> "$file"
+        echo "fastcgi_param AWS_S3_ENDPOINT \"${AWS_ENDPOINT_URL:-${AWS_S3_ENDPOINT:-}}\";" >> "$file"
         echo "fastcgi_param AWS_VIRTUAL_HOSTING \"FALSE\";" >> "$file"
         echo "fastcgi_param AWS_HTTPS \"YES\";" >> "$file"
         echo "fastcgi_param CPL_VSIL_CURL_USE_HEAD \"FALSE\";" >> "$file"

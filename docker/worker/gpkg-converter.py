@@ -62,9 +62,9 @@ def force_ipv4_for_endpoint(endpoint_url: str):
 # ---------------------------------------------------------------------------
 
 def get_endpoint_url() -> str:
-    url = os.environ.get("S3_ENDPOINT", "")
+    url = os.environ.get("AWS_ENDPOINT_URL") or os.environ.get("S3_ENDPOINT", "")
     if not url:
-        raise RuntimeError("S3_ENDPOINT environment variable is not set")
+        raise RuntimeError("Neither AWS_ENDPOINT_URL nor S3_ENDPOINT environment variable is set")
     return url
 
 def s3_cp(src: str, dst: str) -> None:
@@ -179,9 +179,9 @@ def main() -> None:
         except Exception as e:
             print(f"[converter] Warning: Failed DNS override: {e}", flush=True)
 
-    bucket = os.environ.get("R2_BUCKET", "")
+    bucket = os.environ.get("S3_BUCKET_NAME") or os.environ.get("R2_BUCKET", "")
     if is_s3_output and not bucket:
-        raise RuntimeError("R2_BUCKET environment variable is not set")
+        raise RuntimeError("Neither S3_BUCKET_NAME nor R2_BUCKET environment variable is set")
 
     with tempfile.TemporaryDirectory() as work_dir:
 
