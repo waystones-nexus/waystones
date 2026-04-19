@@ -15,14 +15,17 @@ import urllib.error
 from concurrent.futures import ThreadPoolExecutor
 
 CONFIG_PATH = os.getenv('PYGEOAPI_CONFIG', '/pygeoapi/local.config.yml')
-PORT = int(os.getenv('CONTAINER_PORT', os.getenv('PORT', 5001)))
+# Internal target for warmup (always localhost:5001 to avoid load balancer hairpinsing)
+BASE_URL = 'http://127.0.0.1:5001'
 WORKERS = int(os.getenv('CONTAINER_WORKERS', 2))
 
 
 def wait_for_ready(timeout=60):
+    """Wait for pygeoapi to start responding on the internal port."""
     for _ in range(timeout):
         try:
-            urllib.request.urlopen(f'http://localhost:{PORT}/', timeout=3)
+            # specifically target 127.0.0.1 to avoid IPv6 issues or public URL routing
+            urllib.request.urlopen(f'{BASE_URL}/', timeout=3)
             return True
         except Exception:
             time.sleep(1)
@@ -30,7 +33,7 @@ def wait_for_ready(timeout=60):
 
 
 def warm_collection(name: str):
-    url = f'http://localhost:{PORT}/collections/{name}/items?limit=1'
+    url = f'{BASE_URL}/collections/{name}/items?limit=1'
     try:
         urllib.request.urlopen(url, timeout=120)
         print(f'[warmup] {name} OK', flush=True)

@@ -77,9 +77,8 @@ if [ ! -f "$PYGEOAPI_CONFIG" ]; then
     echo "[boot] Warning: No pygeoapi config found at $PYGEOAPI_CONFIG"
 else
     # Regenerate OpenAPI docs in the background so gunicorn starts immediately.
-    (pygeoapi openapi generate "$PYGEOAPI_CONFIG" \
-        --output-file "$PYGEOAPI_OPENAPI" 2>/dev/null; \
-     echo "[boot] OpenAPI docs generated") &
+    pygeoapi openapi generate -c "$PYGEOAPI_CONFIG" > "$PYGEOAPI_OPENAPI" &
+    echo "[boot] OpenAPI docs generating in background..."
 
     # Launch GeoParquet warmup if script exists
     if [ -f "/warmup.py" ]; then
