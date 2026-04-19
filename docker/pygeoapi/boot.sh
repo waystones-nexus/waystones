@@ -60,10 +60,13 @@ fi
 
 # ─── Background Tasks ─────────────────────────────────────────────────────
 if [ -f "$PYGEOAPI_CONFIG" ]; then
-    echo "[startup] Launching background workers..."
-
-    # Initialize placeholder OpenAPI doc to prevent errors during the background build
-    cat <<EOF > "$PYGEOAPI_OPENAPI"
+    # 1. Fast Path: Synchronous download of pre-baked doc
+    python3 /cache_openapi.py --download-only || true
+    
+    if [ ! -f "$PYGEOAPI_OPENAPI" ]; then
+        # Initialize placeholder if download failed (Slow Path / Local dev)
+        echo "[startup] Cache miss - initializing placeholder OpenAPI..."
+        cat <<EOF > "$PYGEOAPI_OPENAPI"
 openapi: 3.0.0
 info:
   title: Waystones API (Initializing)
@@ -71,9 +74,9 @@ info:
   version: 1.0.0
 paths: {}
 EOF
-
-    # 1. Cache-aware OpenAPI (Downloads from S3 or Generates) - delayed (Human > Warmup > OpenAPI)
-    (sleep 5 && nice -n 19 python3 /cache_openapi.py) &
+        # Background generation & hot-reload
+        (sleep 5 && nice -n 19 python3 /cache_openapi.py --generate-and-reload) &
+    fi
 
     # 2. AsyncAPI generation (Lightweight)
     (pygeoapi asyncapi generate "$PYGEOAPI_CONFIG" --output-file /pygeoapi/local.asyncapi.yml 2>/dev/null || true) &
