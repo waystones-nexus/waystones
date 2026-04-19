@@ -36,6 +36,9 @@ RUN chmod +x /railway-boot.sh
 
 # Bake in branded HTML templates
 COPY docker/pygeoapi/html-templates/ /pygeoapi/local-templates/
+
+# We use a temporary directory for syncing instead of a bind mount to support all builders
+COPY . /tmp/build-context
 `;
 
   if (isGpkg && gpkgFilename) {
@@ -43,10 +46,9 @@ COPY docker/pygeoapi/html-templates/ /pygeoapi/local-templates/
 # Copy GeoPackage into the image if present at data/${gpkgFilename}.
 # Build succeeds even when absent — in that case mount a Railway Volume
 # at /input/ containing ${gpkgFilename} so railway-boot.sh can find it.
-RUN --mount=type=bind,source=.,target=/build \\
-    mkdir -p /input && \\
-    if [ -f /build/data/${gpkgFilename} ]; then \\
-        cp /build/data/${gpkgFilename} /input/data.gpkg && \\
+RUN mkdir -p /input && \\
+    if [ -f /tmp/build-context/data/${gpkgFilename} ]; then \\
+        cp /tmp/build-context/data/${gpkgFilename} /input/data.gpkg && \\
         echo "[build] GeoPackage baked in from data/${gpkgFilename}"; \\
     else \\
         echo "[build] data/${gpkgFilename} not in repo — provide via Railway Volume at /input/"; \\
@@ -57,16 +59,22 @@ RUN --mount=type=bind,source=.,target=/build \\
   df += `
 # Sync configuration and any other data from the repo if they exist.
 # We bake data into /app/data-sync/ to avoid it being masked by a volume mount at /data/
-RUN --mount=type=bind,source=.,target=/build \\
-    mkdir -p /data /app/data-sync && \\
-    if [ -f /build/pygeoapi-config.yml ]; then \\
-        cp /build/pygeoapi-config.yml /pygeoapi/local.config.yml; \\
-        echo "[build] Config baked in from repo root"; \\
-    fi && \\
-    if [ -d /build/data ] && [ "$(ls -A /build/data 2>/dev/null)" ]; then \\
-        cp -r /build/data/* /app/data-sync/ || true; \\
-        echo "[build] Data baked into /app/data-sync/"; \\
-    fi
+RUN mkdir -p /data /app/data-sync && \
+    if [ -f /tmp/build-context/pygeoapi-config.yml ]; then \
+        cp /tmp/build-context/pygeoapi-config.yml /pygeoapi/local.config.yml; \
+        echo "[build] Config baked in from repo root"; \
+    fi && \
+    if [ -d /tmp/build-context/data ] && [ "$(ls -A /tmp/build-context/data 2>/dev/null)" ]; then \
+        cp -r /tmp/build-context/data/* /app/data-sync/ || true; \
+        echo "[build] Data baked into /app/data-sync/"; \
+    fi && \
+    rm -rf /tmp/build-context
+
+# Default env vars so the container starts correctly when no .env is present.
+# PORT is overridden automatically by Railway. PYGEOAPI_SERVER_URL should be set
+# manually to the public HTTPS URL in the Railway dashboard after first deploy.
+ENV PORT=80
+ENV PYGEOAPI_SERVER_URL=http://localhost:5000
 
 ENTRYPOINT ["/railway-boot.sh"]
 `;

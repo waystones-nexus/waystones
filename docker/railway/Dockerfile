@@ -31,15 +31,17 @@ COPY docker/pygeoapi/html-templates/ /pygeoapi/local-templates/
 
 # Sync configuration and data from the repo if they exist.
 # We bake data into /app/data-sync/ to avoid it being masked by a volume mount at /data/
-RUN --mount=type=bind,source=.,target=/build \
-    mkdir -p /data /app/data-sync && \
-    if [ -f /build/pygeoapi-config.yml ]; then \
-        cp /build/pygeoapi-config.yml /pygeoapi/local.config.yml; \
+# We use a temporary directory for syncing instead of a bind mount to support all builders
+COPY . /tmp/build-context
+RUN mkdir -p /data /app/data-sync && \
+    if [ -f /tmp/build-context/pygeoapi-config.yml ]; then \
+        cp /tmp/build-context/pygeoapi-config.yml /pygeoapi/local.config.yml; \
         echo "[build] Config baked in from repo root"; \
     fi && \
-    if [ -d /build/data ] && [ "$(ls -A /build/data 2>/dev/null)" ]; then \
-        cp -r /build/data/* /app/data-sync/ || true; \
+    if [ -d /tmp/build-context/data ] && [ "$(ls -A /tmp/build-context/data 2>/dev/null)" ]; then \
+        cp -r /tmp/build-context/data/* /app/data-sync/ || true; \
         echo "[build] Data baked into /app/data-sync/"; \
-    fi
+    fi && \
+    rm -rf /tmp/build-context
 
 ENTRYPOINT ["/railway-boot.sh"]
