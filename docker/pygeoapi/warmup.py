@@ -56,7 +56,7 @@ def main():
 
     # Grace period: pygeoapi just became ready and Fly.io is now dispatching the
     # first queued user request. Wait before warming so warmup doesn't race it.
-    warmup_delay = float(os.getenv('WARMUP_DELAY', 15))
+    warmup_delay = float(os.getenv('WARMUP_DELAY', 5))
     if warmup_delay > 0:
         print(f'[warmup] pygeoapi ready — waiting {warmup_delay}s for first request to clear...', flush=True)
         time.sleep(warmup_delay)
