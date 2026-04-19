@@ -28,7 +28,7 @@ export const no = {
     existingModels: "Eller fortsett med en eksisterende modell:",
     parsing: "Leser fil…",
     heroTagline: "Fra geodata til live-API.",
-    heroSubtitle: "Design, publiser og skaler din geografiske datainfrastruktur. Din stack, dine regler",
+    heroSubtitle: "Design, publiser og skaler din geografiske datainfrastruktur.\nDin stack, dine regler",
     heroOutputLabel: "Du får",
     whatCanIDoTitle: "Hva kan jeg bruke dette til?",
     whatCanIDo1: "Dataene dine blir tilgjengelige i kartapper — QGIS, ArcGIS, webkart og mer.",

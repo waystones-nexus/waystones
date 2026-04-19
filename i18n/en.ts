@@ -28,7 +28,7 @@ export const en = {
     existingModels: "Or continue with an existing model:",
     parsing: "Reading file…",
     heroTagline: "From geodata to live API.",
-    heroSubtitle: "Design, publish, and scale your spatial data infrastructure. Your stack, your rules",
+    heroSubtitle: "Design, publish, and scale your spatial data infrastructure.\nYour stack, your rules",
     heroOutputLabel: "What you get",
     whatCanIDoTitle: "What can I do with this?",
     whatCanIDo1: "Your data becomes accessible to mapping apps — QGIS, ArcGIS, web maps, and more.",
