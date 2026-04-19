@@ -80,7 +80,7 @@ EOF
 
     # 3. DuckDB / Parquet Warmup
     if [ -f "/warmup.py" ]; then
-        (sleep 5 && python3 /warmup.py) &
+        (sleep 5 && nice -n 19 python3 /warmup.py) &
     fi
 else
     echo "[startup] Warning: No pygeoapi config found at $PYGEOAPI_CONFIG"
