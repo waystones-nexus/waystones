@@ -73,7 +73,7 @@ ENTRYPOINT ["/qgis-boot.sh"]
 export const railwayBoot = `#!/bin/bash
 set -euo pipefail
 
-# This script handles the "Activation Ritual".
+# This script handles the initialization process.
 # If /data/ is empty and INPUT_URI is present, it executes the worker script (saving outputs to /data/).
 # Once the data exists, it hands over to the standard API boot process
 
@@ -85,7 +85,7 @@ if [ -z "$(ls -A /data 2>/dev/null)" ]; then
     
     # Check if we have the minimum environment required to run the worker
     if [ -n "\${INPUT_URI:-}" ] || ( [ -n "\${POSTGRES_HOST:-}" ] && [ -n "\${POSTGRES_DB:-}" ] ); then
-        echo "[railway-boot] Activation Ritual starting (Snapshotting)..."
+        echo "[railway-boot] Initialization starting (Snapshotting)..."
         
         # Inject Universal Contract defaults if not provided
         export INPUT_TYPE="\${INPUT_TYPE:-postgis}"
@@ -101,10 +101,10 @@ if [ -z "$(ls -A /data 2>/dev/null)" ]; then
             export INPUT_URI="/input/data.gpkg"
         fi
         
-        echo "[railway-boot] Running Peon Worker..."
+        echo "[railway-boot] Running Conversion Worker..."
         python3 /app/worker/main.py
         
-        echo "[railway-boot] Activation Ritual complete. Data prepared."
+        echo "[railway-boot] Initialization complete. Data prepared."
     else
         echo "[railway-boot] No source connection details found (INPUT_URI or POSTGRES_HOST). Skipping initial snapshot."
         echo "[railway-boot] Warning: The pygeoapi server may fail to start if it expects GeoParquet data."
@@ -135,7 +135,7 @@ if [ -z "$(ls -A /data/*.fgb 2>/dev/null)" ]; then
     echo "[railway-qgis-boot] Data directory lacks .fgb files."
     
     if [ -n "\${INPUT_URI:-}" ] || ( [ -n "\${POSTGRES_HOST:-}" ] && [ -n "\${POSTGRES_DB:-}" ] ); then
-        echo "[railway-qgis-boot] Activation Ritual starting (Snapshotting FlatGeobufs)..."
+        echo "[railway-qgis-boot] Initialization starting (Snapshotting FlatGeobufs)..."
         
         export INPUT_TYPE="\${INPUT_TYPE:-postgis}"
         export OUTPUT_TYPE="\${OUTPUT_TYPE:-local}"
@@ -149,10 +149,10 @@ if [ -z "$(ls -A /data/*.fgb 2>/dev/null)" ]; then
             export INPUT_URI="/input/data.gpkg"
         fi
         
-        echo "[railway-qgis-boot] Running Peon Worker..."
+        echo "[railway-qgis-boot] Running Conversion Worker..."
         python3 /app/worker/main.py
         
-        echo "[railway-qgis-boot] Activation Ritual complete."
+        echo "[railway-qgis-boot] Initialization complete."
     else
         echo "[railway-qgis-boot] No source connection details found. Skipping initial snapshot."
     fi

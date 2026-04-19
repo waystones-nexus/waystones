@@ -149,7 +149,7 @@ export const generateDockerCompose = (
 
   // --- pygeoapi ---
   compose += `
-  # --- Acolyte Gateway / OGC API (pygeoapi) ---
+  # --- API Gateway / OGC API (pygeoapi) ---
   pygeoapi:
     image: ghcr.io/henrik716/waystones:pygeoapi-latest
     ports:

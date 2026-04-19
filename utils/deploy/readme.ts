@@ -3,144 +3,323 @@ import {
 } from '../../types';
 import { i18n } from '../../i18n';
 import { getGpkgFilename, hasS3Config } from './_helpers';
-import { generateEnvFile } from './infra';
+
+interface RenderContext {
+  model: DataModel;
+  source: SourceConnection;
+  target: DeployTarget;
+  s: any; // Localized readme strings
+  isPg: boolean;
+  isGpkg: boolean;
+  hasWms: boolean;
+  useS3: boolean;
+}
 
 // ============================================================
-// Generate README for the deploy kit
+// Section: Header (Centered)
 // ============================================================
-export const generateReadme = (model: DataModel, source: SourceConnection, lang: string = 'en'): string => {
-  const s = (i18n[lang as keyof typeof i18n] ?? i18n.no).readme;
-  const isPg = source.type === 'postgis' || source.type === 'supabase';
-  const isGpkg = source.type === 'geopackage';
-  const hasWms = model.layers.some(l => l.geometryType !== 'None');
-  const useS3 = hasS3Config(source);
+const renderHeader = (ctx: RenderContext): string => {
+  const { model, target, s } = ctx;
+  const targetLabel = target === 'railway' ? 'Railway' : 'Docker Compose';
+  
+  let md = `<div align="center">\n`;
+  md += `<h1>${model.name}</h1>\n\n`;
+  md += `**${s.deployKit} — ${targetLabel}**\n\n`;
+  md += `[![Waystones](https://img.shields.io/badge/Powered%20by-Waystones-blueviolet)](https://github.com/henrik716/waystones)\n`;
+  md += `[![OGC](https://img.shields.io/badge/Standards-OGC%20API-blue)](https://ogcapi.ogc.org)\n`;
+  md += `[![Docker](https://img.shields.io/badge/Container-Docker-2496ed?logo=docker)](https://www.docker.com)\n`;
+  md += `</div>\n\n---\n\n`;
+  md += `${s.generatedByTarget} **${target}**\n\n`;
+  return md;
+};
 
-  let md = `# \${model.name} — \${s.deployKit}\n\n`;
-  md = md.replace('\${model.name}', model.name).replace('\${s.deployKit}', s.deployKit);
-  md += s.generatedBy + '\n\n';
-  md += '## ' + s.dataSource + ': ' + source.type + '\n\n';
-  md += '## ' + s.services + '\n\n';
-  md += '| ' + s.service + ' | ' + s.port + ' | ' + s.url + ' |\n';
-  md += '|----------|------|-----|\n';
-  md += '| OGC API - Features (pygeoapi) | 5000 | http://localhost:5000 |\n';
-  if (hasWms) {
-    md += '| ' + s.wmsService + ' | 5000 | http://localhost:5000/ows/?SERVICE=WMS&REQUEST=GetCapabilities |\n';
-  }
-  md += '| ' + s.workerService + ' | - | *(' + s.internal + ')* |\n\n';
-
-  md += '## ' + s.snapshotArchTitle + '\n\n';
-  md += s.snapshotArchDesc + '\n\n';
-
-  // Build plain-text architecture flow
+// ============================================================
+// Section: Architecture (Text Diagram)
+// ============================================================
+const renderArchitecture = (ctx: RenderContext): string => {
+  const { model, source, s, isGpkg, hasWms } = ctx;
+  
   const layerNames = model.layers
     .filter(l => l.geometryType !== 'None')
     .map(l => l.name.toLowerCase().replace(/\s+/g, '_'));
-  const sourceName = isGpkg ? getGpkgFilename(model, source) : 'source data';
-  const indent = ' '.repeat(sourceName.length + ' → [worker] → '.length);
-
-  md += '```\n';
+  
+  const sourceName = isGpkg ? getGpkgFilename(model, source) : (source.type === 'supabase' ? 'Supabase' : 'PostGIS');
+  
+  let md = `## 🏗 ${s.snapshotArchTitle}\n\n`;
+  md += `${s.snapshotArchDesc}\n\n`;
+  
+  md += '```text\n';
+  md += `[ 1. CONVERSION ]\n`;
+  md += `${sourceName} → [ Worker ] → GeoParquet & FlatGeobuf (Storage)\n\n`;
+  
+  md += `[ 2. STARTUP (boot.sh) ]\n`;
+  md += `Container Start ──┬──> [ Fast Path ] ─> Download pre-baked OpenAPI cache\n`;
+  md += `                  ├──> [ Slow Path ] ─> Serve placeholder + Background generation\n`;
+  md += `                  ├──> [ Gunicorn  ] ─> EXECs pygeoapi (Internal Port 5001)\n`;
+  md += `                  └──> [ Warmup    ] ─> Background DuckDB/Parquet pre-warming (5s delay)\n\n`;
+  
+  md += `[ 3. SERVING ]\n`;
   if (layerNames.length > 0) {
-    md += sourceName + ' → [worker] → ' + layerNames[0] + '.parquet  → pygeoapi (DuckDB) → OGC API Features\n';
-    md += indent + '→ ' + layerNames[0] + '.fgb      → QGIS Server        → WMS\n';
-    for (let i = 1; i < layerNames.length; i++) {
-      md += indent + '→ ' + layerNames[i] + '.parquet\n';
-      md += indent + '→ ' + layerNames[i] + '.fgb\n';
+    const firstLayer = layerNames[0];
+    md += `pygeoapi (DuckDB) ───> [ GeoParquet ] ───> OGC API Features (${firstLayer})\n`;
+    if (hasWms) {
+      md += `QGIS Server       ───> [ FlatGeobuf ] ───> WMS (${firstLayer})\n`;
     }
   } else {
-    md += sourceName + ' → [worker] → layer.parquet  → pygeoapi (DuckDB) → OGC API Features\n';
+    md += `pygeoapi (DuckDB) ───> [ GeoParquet ] ───> OGC API Features\n`;
+    if (hasWms) {
+      md += `QGIS Server       ───> [ FlatGeobuf ] ───> WMS\n`;
+    }
   }
   md += '```\n\n';
 
-  md += '### ' + s.workingUnits + '\n\n';
-  md += '| ' + s.service + ' | ' + s.description + ' |\n';
-  md += '|----------|-------------|\n';
-  md += '| `worker` | ' + s.workerDesc + ' |\n';
-  md += '| `pygeoapi` | ' + s.workerAcolyte + ' |\n';
+  md += `### 🚀 ${s.workingUnits}\n\n`;
+  md += `| Component | Role | Description |\n`;
+  md += `|---|---|---|\n`;
+  md += `| **${s.workerService}** | \`worker\` | ${s.workerDesc} |\n`;
+  md += `| **${s.apiService}** | \`pygeoapi\` | ${s.apiDesc} |\n`;
   if (hasWms) {
-    md += '| `qgis-server` | WMS rendering from FlatGeobuf. Accessible at `/ows/`. |\n';
+    md += `| **${s.wmsService}** | \`qgis-server\` | ${s.wmsDesc} |\n`;
+  }
+  if (!isGpkg) {
+    md += `| **${s.deltaService}** | \`delta-worker\` | ${s.deltaWorkerDesc} |\n`;
+  }
+  md += '\n---\n\n';
+  
+  return md;
+};
+
+// ============================================================
+// Section: ServicesTable
+// ============================================================
+const renderServices = (ctx: RenderContext): string => {
+  const { s, target, hasWms } = ctx;
+  const baseUrl = target === 'docker-compose' ? 'http://localhost:5000' : 'https://<your-app>.up.railway.app';
+  
+  let md = `## ${s.services}\n\n`;
+  md += `Once deployed, the following services will be available:\n\n`;
+  md += `| ${s.service} | ${s.description} | ${s.url} |\n`;
+  md += `|---|---|---|\n`;
+  md += `| **OGC API Features** | JSON/HTML data access | [${baseUrl}](${baseUrl}) |\n`;
+  if (hasWms) {
+    const wmsUrl = target === 'docker-compose' ? 'http://localhost:5000/ows/' : 'https://<your-deployment-url>/ows/';
+    md += `| **WMS Service** | Styled map layers | [${wmsUrl}](${wmsUrl}) |\n`;
+  }
+  if (target === 'docker-compose') {
+    md += `| **STAC / Downloads** | Data snapshots | [http://localhost:8081](http://localhost:8081) |\n`;
   }
   md += '\n';
+  return md;
+};
 
-  md += '## ' + s.gettingStarted + '\n\n';
-  md += '```bash\n';
-  md += s.step1CopyEnv + '\n';
-  md += 'cp .env.template .env\n';
-  md += 'nano .env\n\n';
+// ============================================================
+// Section: Data Source Configuration
+// ============================================================
+const renderDataSourceConfig = (ctx: RenderContext): string => {
+  const { s, target, useS3, isPg } = ctx;
+  
+  let md = `## ${s.dataSourceConfigTitle}\n\n`;
+  md += `${s.dataSourceConfigDesc}\n\n`;
+  
+  // Scenario A: Local
+  md += `### ${s.dataSourceScenarioLocal}\n`;
+  md += `${s.dataSourceScenarioLocalDesc}\n\n`;
+  md += `| Variable | Value | Description |\n`;
+  md += `|---|---|---|\n`;
+  md += `| \`INPUT_TYPE\` | \`gpkg\` | Defines source as GeoPackage |\n`;
+  md += `| \`INPUT_URI\` | \`/input/data.gpkg\` | Path inside the container |\n\n`;
+  
+  // Scenario B: S3
+  md += `### ${s.dataSourceScenarioS3}\n`;
+  md += `${s.dataSourceScenarioS3Desc}\n\n`;
+  md += `| Variable | Example Value | Description |\n`;
+  md += `|---|---|---|\n`;
+  md += `| \`INPUT_TYPE\` | \`gpkg\` | Defines source as GeoPackage |\n`;
+  md += `| \`INPUT_URI\` | \`s3://my-bucket/data.gpkg\` | External S3/R2 storage URI |\n`;
+  md += `| \`AWS_ACCESS_KEY_ID\` | \`AKIA...\` | Your S3 access key |\n`;
+  md += `| \`AWS_SECRET_ACCESS_KEY\` | \`wJal...\` | Your S3 secret key |\n`;
+  md += `| \`AWS_ENDPOINT_URL\` | \`https://r2.com\` | Custom endpoint (R2/Tigris) |\n\n`;
 
-  if (isGpkg) {
-    const gpkgName = getGpkgFilename(model, source);
-    if (useS3 && source.s3) {
-      const endpointFlag = source.s3.endpointUrl ? ' \\\n  --endpoint-url ' + source.s3.endpointUrl : '';
-      md += s.step2UploadToS3 + '\n';
-      md += 'aws s3 cp ./' + gpkgName + ' s3://' + source.s3.bucketName + '/' + source.s3.objectKey + endpointFlag + '\n\n';
-      md += s.step3SetS3Creds + '\n\n';
-      md += s.step4Start + '\n';
-    } else {
-      md += s.step2AddData + '\n';
-      md += s.addDataHint.replace('{filename}', gpkgName) + '\n\n';
-      md += s.step3Start + '\n';
-    }
-  } else if (source.type === 'databricks') {
-    md += s.step2Databricks + '\n';
-    md += 'pip install databricks-sql-connector geopandas\n';
-    md += 'docker compose --profile setup run --rm initial-export\n\n';
-    md += s.step3Start + '\n';
-  } else {
-    md += s.step2Start + '\n';
-  }
-
-  md += 'docker compose up -d\n\n';
-  md += s.stepWaitingForWorker + '\n';
-  md += 'docker compose logs -f worker\n';
-  md += '```\n\n';
-
-  if (!isGpkg) {
-    md += '## ' + s.deltaExport + '\n\n';
-    md += s.deltaDesc + '\n';
-    md += s.deltaInterval + '\n\n';
-    md += s.deltaDownloadHint + '\n\n';
-    md += s.stacAvailable + '\n\n';
-
-    md += '### ' + s.deltaContents + '\n\n';
-    md += '| ' + s.changeType + ' | ' + s.description + ' |\n';
-    md += '|---------------|-------------|\n';
-    md += '| `insert` | ' + s.insertDesc + ' |\n';
-    md += '| `update` | ' + s.updateDesc + ' |\n';
-    md += '| `delete` | ' + s.deleteDesc + ' |\n\n';
-    md += s.deletesStoredHint + '\n\n';
-
-    md += '### ' + s.deltaHowItWorksTitle + '\n\n';
-    md += s.deltaHowItWorks1 + '\n\n';
-    md += s.deltaHowItWorks2 + '\n\n';
-    md += '> **Note:** ' + s.deltaTimestampNote + '\n\n';
-    md += s.deltaManualTrigger + '\n';
-    md += '```bash\n';
-    md += s.deltaManualFull + '\n';
-    md += s.deltaManualDelta + '\n';
-    md += s.deltaManualDate + '\n';
-    md += '```\n\n';
-  }
-
-  md += '## ' + s.files + '\n\n';
-  md += '| ' + s.file + ' | ' + s.description + ' |\n';
-  md += '|-----|-------------|\n';
-  md += '| `docker-compose.yml` | ' + s.dockerComposeFile + ' |\n';
-  md += '| `pygeoapi-config.yml` | ' + (isPg ? s.pygeoapiPgFile : s.pygeoapiGpkgFile) + ' |\n';
-  if (hasWms) {
-    md += '| `project.qgs` | ' + s.qgisProjectFile + ' |\n';
-  }
-  if (!isGpkg) {
-    md += '| `delta_export.py` | ' + s.deltaScriptFile + ' |\n';
-  }
-  md += '| `worker` | ' + s.workerDesc + ' |\n';
-  md += '| `.env.template` | ' + s.envTemplateFile + ' |\n';
+  // Scenario C: PostGIS
+  md += `### ${s.dataSourceScenarioPg}\n`;
+  md += `${s.dataSourceScenarioPgDesc}\n\n`;
+  md += `| Variable | Example Value | Description |\n`;
+  md += `|---|---|---|\n`;
+  md += `| \`INPUT_TYPE\` | \`postgis\` | Defines source as PostGIS |\n`;
+  md += `| \`INPUT_URI\` | \`postgresql://u:p@h:5432/d\` | Full connection string |\n\n`;
 
   return md;
 };
 
 // ============================================================
-// Generate GitHub Actions workflow for CI/CD deployment
+// Section: Railway Persistence
 // ============================================================
+const renderRailwayPersistence = (ctx: RenderContext): string => {
+  const { s, target } = ctx;
+  if (target !== 'railway') return '';
+  
+  let md = `## ${s.railwayPersistenceTitle}\n\n`;
+  md += `${s.railwayPersistenceDesc}\n\n`;
+  md += `${s.railwayVolumeStep1}\n`;
+  md += `${s.railwayVolumeStep2}\n`;
+  md += `${s.railwayVolumeStep3}\n\n`;
+  
+  return md;
+};
+
+// ============================================================
+// Section: Environment Variables
+// ============================================================
+const renderEnvironmentVariables = (ctx: RenderContext): string => {
+  const { s, isPg, useS3 } = ctx;
+  
+  let md = `## ${s.envVars}\n\n`;
+  md += `These variables must be configured in your \`.env\` file (local) or service dashboard (cloud).\n\n`;
+  
+  md += `### 🌐 Server Configuration\n\n`;
+  md += `| Variable | Description | Example |\n`;
+  md += `|---|---|---|\n`;
+  md += `| \`PYGEOAPI_SERVER_URL\` | ${s.envDesc_PYGEOAPI_SERVER_URL} | \`https://api.example.com\` |\n`;
+  md += `| \`QGIS_SERVER_PUBLIC_URL\` | ${s.envDesc_QGIS_SERVER_PUBLIC_URL} | \`https://api.example.com/ows/\` |\n`;
+  md += `| \`PORT\` | ${s.envDesc_PORT} | \`5000\` |\n`;
+  md += `| \`SYNC_INTERVAL_SECONDS\` | ${s.envDesc_SYNC_INTERVAL_SECONDS} | \`86400\` |\n\n`;
+
+  if (isPg) {
+    md += `### 🗄️ Database Connection (Source)\n\n`;
+    md += `${s.envDesc_POSTGRES}\n\n`;
+    md += `| Variable | Default | Description |\n`;
+    md += `|---|---|---|\n`;
+    md += `| \`POSTGRES_HOST\` | - | Database host address |\n`;
+    md += `| \`POSTGRES_PORT\` | \`5432\` | Port number |\n`;
+    md += `| \`POSTGRES_DB\` | - | Database name |\n`;
+    md += `| \`POSTGRES_USER\` | - | Username |\n`;
+    md += `| \`POSTGRES_PASSWORD\` | - | Password (keep secure) |\n\n`;
+  }
+
+  if (useS3) {
+    md += `### 📦 S3 / Cloud Storage\n\n`;
+    md += `${s.envDesc_S3}\n\n`;
+    md += `| Variable | Description |\n`;
+    md += `|---|---|---|\n`;
+    md += `| \`AWS_ACCESS_KEY_ID\` | Access key for your bucket |\n`;
+    md += `| \`AWS_SECRET_ACCESS_KEY\` | Secret key (keep secure) |\n`;
+    md += `| \`S3_BUCKET_NAME\` | Name of the bucket |\n`;
+    md += `| \`S3_OBJECT_KEY\` | Path to the file in the bucket |\n\n`;
+  }
+  
+  return md;
+};
+
+// ============================================================
+// Section: Getting Started
+// ============================================================
+const renderGettingStarted = (ctx: RenderContext): string => {
+  const { model, source, s, target, isGpkg, useS3 } = ctx;
+  
+  if (target === 'railway') {
+    let md = `## ${s.gettingStartedRailway}\n\n`;
+    md += `1. **${s.railwayStep1}**\n`;
+    md += `2. **${s.railwayStep2}**\n`;
+    md += `3. **${s.railwayStep3}**\n`;
+    if (ctx.hasWms) {
+      md += `4. **${s.railwayStep4}**\n`;
+    }
+    md += `\n${s.railwayNote}\n\n`;
+    return md;
+  }
+
+  // Docker Compose
+  let md = `## ${s.gettingStarted}\n\n`;
+  md += '```bash\n';
+  md += `${s.step1CopyEnv}\n`;
+  md += `cp .env.template .env\n`;
+  md += `nano .env\n\n`;
+
+  if (isGpkg) {
+    const gpkgName = getGpkgFilename(model, source);
+    if (useS3) {
+      md += `${s.step2UploadToS3}\n`;
+      md += `aws s3 cp ./${gpkgName} s3://\${S3_BUCKET_NAME}/\${S3_OBJECT_KEY}\n\n`;
+      md += `${s.step4Start}\n`;
+    } else {
+      md += `${s.step2AddData}\n`;
+      md += `${s.addDataHint.replace('{filename}', gpkgName)}\n\n`;
+      md += `${s.step3Start}\n`;
+    }
+  } else {
+    md += `${s.step2Start}\n`;
+  }
+
+  md += `docker compose up -d\n`;
+  md += '```\n\n';
+  return md;
+};
+
+// ============================================================
+// Section: Files
+// ============================================================
+const renderFiles = (ctx: RenderContext): string => {
+  const { s, isPg, hasWms, isGpkg, target } = ctx;
+  
+  let md = `## ${s.files}\n\n`;
+  md += `| ${s.file} | ${s.description} |\n`;
+  md += `|---|---|\n`;
+  if (target === 'docker-compose') {
+    md += `| \`docker-compose.yml\` | ${s.dockerComposeFile} |\n`;
+  } else {
+    md += `| \`railway.json\` | ${s.railwayJsonFile} |\n`;
+    if (hasWms) md += `| \`railway.qgis.json\` | ${s.railwayQgisJsonFile} |\n`;
+  }
+  md += `| \`pygeoapi-config.yml\` | ${isPg ? s.pygeoapiPgFile : s.pygeoapiGpkgFile} |\n`;
+  if (hasWms) md += `| \`project.qgs\` | ${s.qgisProjectFile} |\n`;
+  if (!isGpkg) md += `| \`delta_export.py\` | ${s.deltaScriptFile} |\n`;
+  md += `| \`.env.template\` | ${s.envTemplateFile} |\n`;
+  md += `| \`model.json\` | ${s.modelJsonFile} |\n`;
+  
+  return md;
+};
+
+// ============================================================
+// Main Entry Points
+// ============================================================
+
+export const generateReadmeForTarget = (
+  model: DataModel,
+  source: SourceConnection,
+  target: DeployTarget,
+  lang: string = 'en'
+): string => {
+  const s = (i18n[lang as keyof typeof i18n] ?? i18n.no).readme;
+  const ctx: RenderContext = {
+    model,
+    source,
+    target,
+    s,
+    isPg: source.type === 'postgis' || source.type === 'supabase',
+    isGpkg: source.type === 'geopackage',
+    hasWms: model.layers.some(l => l.geometryType !== 'None'),
+    useS3: hasS3Config(source)
+  };
+
+  let md = '';
+  md += renderHeader(ctx);
+  md += renderArchitecture(ctx);
+  md += renderServices(ctx);
+  md += renderDataSourceConfig(ctx);
+  md += renderRailwayPersistence(ctx);
+  md += renderEnvironmentVariables(ctx);
+  md += renderGettingStarted(ctx);
+  md += renderFiles(ctx);
+
+  return md;
+};
+
+// Legacy fallback
+export const generateReadme = (model: DataModel, source: SourceConnection, lang: string = 'en'): string => {
+  return generateReadmeForTarget(model, source, 'docker-compose', lang);
+};
+
+// Workflow generators (keeping them as is for now)
 export const generateGithubActionsWorkflow = (
   model: DataModel,
   _source: SourceConnection
@@ -157,9 +336,6 @@ export const generateGithubActionsWorkflow = (
   return workflow;
 };
 
-// ============================================================
-// Generate GitHub Actions workflow — target-aware
-// ============================================================
 export const generateWorkflowForTarget = (
   model: DataModel,
   source: SourceConnection,
@@ -176,121 +352,4 @@ export const generateWorkflowForTarget = (
     return workflow;
   }
   return generateGithubActionsWorkflow(model, source);
-};
-
-// ============================================================
-// Generate README — target-aware
-// ============================================================
-export const generateReadmeForTarget = (
-  model: DataModel,
-  source: SourceConnection,
-  target: DeployTarget,
-  lang: string = 'en'
-): string => {
-  const s = (i18n[lang as keyof typeof i18n] ?? i18n.no).readme;
-  const isGpkg = source.type === 'geopackage';
-  const hasWms = model.layers.some(l => l.geometryType !== 'None');
-
-  let md = `# ${model.name} — ${s.deployKit}\n\n`;
-  md += s.generatedByTarget + ' **' + target + '**\n\n';
-
-  // --- Snapshot Architecture Section (Unified) ---
-  md += '## ' + s.snapshotArchTitle + '\n\n';
-  md += s.snapshotArchDesc + '\n\n';
-
-  // Build plain-text architecture flow
-  const layerNames = model.layers
-    .filter(l => l.geometryType !== 'None')
-    .map(l => l.name.toLowerCase().replace(/\s+/g, '_'));
-  const sourceName = source.type === 'geopackage' ? getGpkgFilename(model, source) : 'source data';
-  const indent = ' '.repeat(sourceName.length + ' → [worker] → '.length);
-
-  md += '```\n';
-  if (layerNames.length > 0) {
-    md += sourceName + ' → [worker] → ' + layerNames[0] + '.parquet  → pygeoapi (DuckDB) → OGC API Features\n';
-    md += indent + '→ ' + layerNames[0] + '.fgb      → QGIS Server        → WMS\n';
-    for (let i = 1; i < layerNames.length; i++) {
-      md += indent + '→ ' + layerNames[i] + '.parquet\n';
-      md += indent + '→ ' + layerNames[i] + '.fgb\n';
-    }
-  } else {
-    md += sourceName + ' → [worker] → layer.parquet  → pygeoapi (DuckDB) → OGC API Features\n';
-  }
-  md += '```\n\n';
-
-  md += '### ' + s.workingUnits + '\n\n';
-  md += '| ' + s.service + ' | ' + s.description + ' |\n';
-  md += '|----------|-------------|\n';
-  md += '| `worker` | ' + s.workerDesc + ' |\n';
-  md += '| `pygeoapi` | ' + s.workerAcolyte + ' |\n';
-  if (hasWms) {
-    md += '| `qgis-server` | WMS rendering from FlatGeobuf. Accessible at `/ows/`. |\n';
-  }
-  md += '\n';
-
-  // --- Services Table ---
-  md += '## ' + s.services + '\n\n';
-  md += '| ' + s.service + ' | ' + s.description + ' | ' + s.url + ' |\n';
-  md += '|----------|-------------|-----|\n';
-  md += '| pygeoapi | OGC API – Features | ' + (target === 'docker-compose' ? 'http://localhost:5000' : 'https://<your-deployment>') + ' |\n';
-  if (hasWms) {
-    md += '| QGIS Server | ' + s.wmsLayers + ' | ' + (target === 'docker-compose' ? 'http://localhost:5000/ows/' : 'https://<your-deployment>/ows/') + ' |\n';
-  }
-  md += '\n';
-
-  // --- Target-Specific Getting Started ---
-  if (target === 'docker-compose') {
-    const readmeFull = generateReadme(model, source, lang);
-    const anchor = '## ' + s.gettingStarted;
-    const idx = readmeFull.indexOf(anchor);
-    if (idx !== -1) md += readmeFull.substring(idx);
-    return md;
-  }
-
-  if (target === 'railway') {
-    md += '## ' + s.gettingStartedRailway + '\n\n';
-    md += s.railwayStep1 + '\n';
-    md += s.railwayStep2 + '\n';
-    md += s.railwayStep3 + '\n';
-    if (hasWms) {
-      md += s.railwayStep4 + '\n';
-    }
-    md += '\n';
-
-    md += '### ' + s.envVars + '\n\n';
-    md += s.railwayEnvDesc + '\n\n';
-    md += '| ' + s.variable + ' | ' + s.description + ' | ' + s.value + ' |\n';
-    md += '|----------|-------------|-------|\n';
-    md += '| `PYGEOAPI_SERVER_URL` | ' + s.railwayPygeoapiDesc + ' | ' + s.yourValue + ' |\n';
-    if (hasWms) {
-      md += '| `QGIS_SERVER_PUBLIC_URL` | ' + s.railwayQgisPublicDesc + ' | ' + s.yourValue + ' |\n';
-      md += '| `QGIS_WAKEUP_URL` | ' + s.railwayWakeupDesc + ' | ' + s.yourValue + ' |\n';
-    }
-    md += '\n' + s.railwayNote + '\n\n';
-
-    if (hasWms) {
-      md += '### ' + s.qgisServerSection + '\n\n';
-      md += s.railwayQgisDesc + '\n\n';
-    }
-
-    md += '### ' + s.dataSection + '\n\n';
-    md += s.gpkgDataDesc + ' ' + s.gpkgUpdateHint + '\n\n';
-    md += s.autoDeployRailway + '\n\n';
-
-    md += '## ' + s.files + '\n\n';
-    md += '| ' + s.file + ' | ' + s.description + ' |\n';
-    md += '|-----|-------------|\n';
-    md += '| `railway.json` | ' + s.railwayJsonFile + ' |\n';
-    if (hasWms) {
-      md += '| `railway.qgis.json` | ' + s.railwayQgisJsonFile + ' |\n';
-    }
-    md += '| `pygeoapi-config.yml` | ' + (source.type === 'postgis' ? s.pygeoapiPgFile : s.pygeoapiGpkgFile) + ' |\n';
-    md += '| `model.json` | ' + s.modelJsonFile + ' |\n';
-    md += '| `README.md` | ' + s.instructionsFile + ' |\n';
-
-    return md;
-  }
-
-  // Fallback
-  return md + '## ' + s.gettingStarted + '\nRefer to the Waystones documentation for deployment instructions.';
 };
