@@ -20,7 +20,7 @@ RUN for py in python3 /venv/bin/python3 /usr/bin/python3 /usr/local/bin/python3;
 
 # Install DuckDB and pre-fetch extensions at build time.
 # Prevents runtime internet access; extensions available to any user.
-RUN pip install --no-cache-dir --break-system-packages duckdb
+RUN pip install --no-cache-dir --break-system-packages duckdb boto3
 
 ENV DUCKDB_EXTENSION_DIRECTORY=/duckdb-extensions
 RUN mkdir -p /duckdb-extensions && chmod 777 /duckdb-extensions
@@ -41,6 +41,7 @@ ENV PYTHONPATH=/opt
 # Overwritten at machine creation time by the SaaS via the Fly files API.
 COPY boot.sh /boot.sh
 COPY warmup.py /warmup.py
+COPY cache_openapi.py /cache_openapi.py
 RUN chmod +x /boot.sh
 
 # Copy Caddy configuration
