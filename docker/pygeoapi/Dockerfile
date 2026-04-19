@@ -3,6 +3,11 @@ FROM geopython/pygeoapi:latest
 # Install Caddy from official image (available for SaaS injection; unused in community mode)
 COPY --from=caddy:latest /usr/bin/caddy /usr/bin/caddy
 
+# Install system dependencies
+USER root
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+USER nobody
+
 # Bake runtime paths at build time while the base image's ENV/PATH is active.
 # /etc/pygeoapi-venv-bin  → directory containing gunicorn (for PATH)
 # /etc/pygeoapi-site-packages → site-packages dir containing pygeoapi (for PYTHONPATH)
