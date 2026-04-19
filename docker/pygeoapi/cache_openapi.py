@@ -56,8 +56,13 @@ def main():
         parsed       = urlparse(OUTPUT_URI)
         bucket       = parsed.netloc
         prefix       = parsed.path.lstrip("/")
-        key          = f"{prefix}openapi.yml".lstrip("/")
-        endpoint_url = os.environ.get("AWS_ENDPOINT_URL") or os.environ.get("S3_ENDPOINT") or os.environ.get("AWS_S3_ENDPOINT") or None
+        key = f"{prefix}openapi.yml".lstrip("/")
+        endpoint_url = (
+            os.environ.get("AWS_ENDPOINT_URL") or 
+            os.environ.get("S3_ENDPOINT") or 
+            os.environ.get("AWS_S3_ENDPOINT") or 
+            None
+        )
         if endpoint_url and not endpoint_url.startswith(("http://", "https://")):
             endpoint_url = f"https://{endpoint_url}"
 

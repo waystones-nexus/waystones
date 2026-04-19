@@ -69,8 +69,14 @@ class GeoParquetDuckDBProvider(BaseProvider):
             conn.execute("LOAD spatial")
 
             if self.data.startswith('s3://'):
-                endpoint = options.get('r2_endpoint') or os.environ.get('AWS_ENDPOINT_URL') or os.environ.get('AWS_S3_ENDPOINT', '')
-                key    = options.get('r2_access_key_id')    or os.environ.get('AWS_ACCESS_KEY_ID', '')
+                # Prefer standard AWS_ENDPOINT_URL, fallback to S3_ENDPOINT or AWS_S3_ENDPOINT
+                endpoint = (
+                    options.get('r2_endpoint') or 
+                    os.environ.get('AWS_ENDPOINT_URL') or 
+                    os.environ.get('S3_ENDPOINT') or
+                    os.environ.get('AWS_S3_ENDPOINT', '')
+                )
+                key = options.get('r2_access_key_id') or os.environ.get('AWS_ACCESS_KEY_ID', '')
                 secret = options.get('r2_secret_access_key') or os.environ.get('AWS_SECRET_ACCESS_KEY', '')
                 conn.execute(f"SET s3_endpoint='{endpoint}'")
                 conn.execute(f"SET s3_access_key_id='{key}'")

@@ -62,7 +62,10 @@ def force_ipv4_for_endpoint(endpoint_url: str):
 # ---------------------------------------------------------------------------
 
 def get_endpoint_url() -> str:
-    url = os.environ.get("AWS_ENDPOINT_URL") or os.environ.get("S3_ENDPOINT", "")
+    url = (
+        os.environ.get("AWS_ENDPOINT_URL") or 
+        os.environ.get("S3_ENDPOINT", "")
+    )
     if not url:
         raise RuntimeError("Neither AWS_ENDPOINT_URL nor S3_ENDPOINT environment variable is set")
     return url
