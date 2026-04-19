@@ -65,7 +65,7 @@ const LandingScreen: React.FC<LandingScreenProps> = ({
               {l.heroTagline}
             </h1>
             <p className="text-lg md:text-xl text-slate-500 font-medium max-w-2xl mx-auto leading-relaxed">
-              Design, publish, and scale your spatial data infrastructure with zero friction.
+              {l.heroSubtitle}
             </p>
           </div>
 

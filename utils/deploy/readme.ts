@@ -167,7 +167,7 @@ export const generateWorkflowForTarget = (
   source: SourceConnection,
   target: DeployTarget
 ): string => {
-  if (target === 'railway' || target === 'waystones-cloud') {
+  if (target === 'railway') {
     return 'name: Validate ' + model.name + '\non:\n  push:\n    branches: [main]\njobs:\n  validate:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n      - name: Validate\n        run: echo "Validating..."\n';
   }
   return generateGithubActionsWorkflow(model, source);
@@ -186,9 +186,46 @@ export const generateReadmeForTarget = (
   const isGpkg = source.type === 'geopackage';
   const hasWms = model.layers.some(l => l.geometryType !== 'None');
 
-  let md = '# ' + model.name + ' — ' + s.deployKit + '\n\n';
+  let md = `# ${model.name} — ${s.deployKit}\n\n`;
   md += s.generatedByTarget + ' **' + target + '**\n\n';
 
+  // --- Snapshot Architecture Section (Unified) ---
+  md += '## ' + s.snapshotArchTitle + '\n\n';
+  md += s.snapshotArchDesc + '\n\n';
+
+  md += '```mermaid\n';
+  md += 'graph TD\n';
+  md += '    subgraph P1[Phase 1: Conversion]\n';
+  md += '        Source[(Input Data)] --> Peasant[Peasant: Binder]\n';
+  md += '        Peasant --> Peon[Peon: Transformer]\n';
+  md += '        Peon --> Parquet[(GeoParquet)]\n';
+  md += '        Peon --> FGB[(FlatGeobuf)]\n';
+  md += '    end\n\n';
+  md += '    subgraph P2[Phase 2 & 3: Serving & Gateway]\n';
+  md += '        Parquet --> pygeoapi[pygeoapi Engine]\n';
+  md += '        FGB --> QGIS[QGIS Engine]\n';
+  md += '        pygeoapi --> Acolyte[Acolyte: Caddy Gateway]\n';
+  md += '        QGIS -.-> Acolyte\n';
+  md += '    end\n\n';
+  md += '    Acolyte --> API[OGC API / WMS]\n';
+  md += '    API --> User((Architect))\n';
+  md += '```\n\n';
+
+  md += '- ' + s.snapshotArchStep1 + '\n';
+  md += '- ' + s.snapshotArchStep2 + '\n';
+  md += '- ' + s.snapshotArchStep3 + '\n\n';
+
+  md += '### ' + s.workingUnits + '\n\n';
+  md += '| ' + s.service + ' | ' + s.role + ' | ' + s.lore + ' |\n';
+  md += '|----------|------|------|\n';
+  md += '| `worker` | ' + s.workerPeon + ' | ' + s.workerDesc + ' |\n';
+  md += '| `pygeoapi` | ' + s.workerAcolyte + ' | ' + s.pygeoapiConfigFile + ' |\n';
+  if (hasWms) {
+    md += '| `qgis-server` | ' + s.workerPeon + ' | ' + s.qgisProjectFile + ' |\n';
+  }
+  md += '\n';
+
+  // --- Services Table ---
   md += '## ' + s.services + '\n\n';
   md += '| ' + s.service + ' | ' + s.description + ' | ' + s.url + ' |\n';
   md += '|----------|-------------|-----|\n';
@@ -198,12 +235,59 @@ export const generateReadmeForTarget = (
   }
   md += '\n';
 
+  // --- Target-Specific Getting Started ---
   if (target === 'docker-compose') {
     const readmeFull = generateReadme(model, source, lang);
     const anchor = '## ' + s.gettingStarted;
     const idx = readmeFull.indexOf(anchor);
-    if (idx !== -1) return md + readmeFull.substring(idx);
+    if (idx !== -1) md += readmeFull.substring(idx);
+    return md;
   }
 
-  return md + '## ' + s.gettingStarted + '\nRefer to the Waystones documentation for ' + target + ' deployment.';
+  if (target === 'railway') {
+    md += '## ' + s.gettingStartedRailway + '\n\n';
+    md += s.railwayStep1 + '\n';
+    md += s.railwayStep2 + '\n';
+    md += s.railwayStep3 + '\n';
+    if (hasWms) {
+      md += s.railwayStep4 + '\n';
+    }
+    md += '\n';
+
+    md += '### ' + s.envVars + '\n\n';
+    md += s.railwayEnvDesc + '\n\n';
+    md += '| ' + s.variable + ' | ' + s.description + ' | ' + s.value + ' |\n';
+    md += '|----------|-------------|-------|\n';
+    md += '| `PYGEOAPI_SERVER_URL` | ' + s.railwayPygeoapiDesc + ' | ' + s.yourValue + ' |\n';
+    if (hasWms) {
+      md += '| `QGIS_SERVER_PUBLIC_URL` | ' + s.railwayQgisPublicDesc + ' | ' + s.yourValue + ' |\n';
+      md += '| `QGIS_WAKEUP_URL` | ' + s.railwayWakeupDesc + ' | ' + s.yourValue + ' |\n';
+    }
+    md += '\n' + s.railwayNote + '\n\n';
+
+    if (hasWms) {
+      md += '### ' + s.qgisServerSection + '\n\n';
+      md += s.railwayQgisDesc + '\n\n';
+    }
+
+    md += '### ' + s.dataSection + '\n\n';
+    md += s.gpkgDataDesc + ' ' + s.gpkgUpdateHint + '\n\n';
+    md += s.autoDeployRailway + '\n\n';
+
+    md += '## ' + s.files + '\n\n';
+    md += '| ' + s.file + ' | ' + s.description + ' |\n';
+    md += '|-----|-------------|\n';
+    md += '| `railway.json` | ' + s.railwayJsonFile + ' |\n';
+    if (hasWms) {
+      md += '| `railway.qgis.json` | ' + s.railwayQgisJsonFile + ' |\n';
+    }
+    md += '| `pygeoapi-config.yml` | ' + (source.type === 'postgis' ? s.pygeoapiPgFile : s.pygeoapiGpkgFile) + ' |\n';
+    md += '| `model.json` | ' + s.modelJsonFile + ' |\n';
+    md += '| `README.md` | ' + s.instructionsFile + ' |\n';
+
+    return md;
+  }
+
+  // Fallback
+  return md + '## ' + s.gettingStarted + '\nRefer to the Waystones documentation for deployment instructions.';
 };

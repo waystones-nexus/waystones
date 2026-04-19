@@ -6,6 +6,7 @@ import { generateQgisProject, generateRailwayQgisJson } from './qgis';
 import { generateEnvFile, generateDockerCompose, generateRailwayJson } from './infra';
 import { generateReadmeForTarget, generateWorkflowForTarget } from './readme';
 import { scrubModelForExport } from '../modelUtils';
+import * as railwayTemplates from './railway-templates';
 
 
 // ============================================================
@@ -45,9 +46,22 @@ export const generateDeployFiles = async (
     if (hasWms) {
       files['railway.qgis.json'] = generateRailwayQgisJson(model, source);
     }
+
+    // Include Docker/Railway infra for a self-contained kit
+    files['docker/railway/Dockerfile'] = railwayTemplates.dockerfile;
+    files['docker/railway/railway-boot.sh'] = railwayTemplates.railwayBoot;
+    
+    if (hasWms) {
+      files['docker/railway/Dockerfile.qgis'] = railwayTemplates.dockerfileQgis;
+      files['docker/railway/qgis-boot.sh'] = railwayTemplates.qgisBoot;
+    }
+
+    // Include worker scripts needed by the Dockerfiles
+    files['docker/worker/main.py'] = railwayTemplates.workerMain;
+    files['docker/worker/gpkg-converter.py'] = railwayTemplates.workerGpkgConverter;
+    files['docker/worker/postgis-snapshot.py'] = railwayTemplates.workerPostgisSnapshot;
   }
 
-  // waystones-cloud: nothing to generate — handled by the SaaS platform
   return files;
 };
 

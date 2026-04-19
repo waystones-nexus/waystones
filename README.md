@@ -1,7 +1,7 @@
 <div align="center">
 <h1>Waystones</h1>
 
-**The fastest way to design, model, and deploy world-class geospatial services.**
+**Design, publish, and scale your spatial data infrastructure. Your stack, your rules.**
 
 [![React](https://img.shields.io/badge/React-19-61dafb?logo=react)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?logo=typescript)](https://www.typescriptlang.org)
@@ -11,7 +11,7 @@
 
 ---
 
-Waystones is a modern, web-native platform that bridges the gap between raw spatial data and production-ready geospatial infrastructure. With a focus on developer experience and standards-compliance, it allows you to build OGC API – Features and WMS services in minutes, not days.
+Waystones is a modern, web-native platform that bridges the gap between raw spatial data and production-ready geospatial infrastructure. Built on a high-performance **Snapshot Architecture**, it translates complex data models into standards-compliant OGC API – Features and WMS services in minutes.
 
 
 ## ✨ Key Features
@@ -28,12 +28,13 @@ Build complex geospatial schemas with ease:
 - **Real-time Validation**: Interactive feedback ensures your model is always standards-compliant before you deploy.
 - **Dynamic Styling**: Built-in Layer Style Editor for consistent cartography across WMS and OGC API services.
 
-### 🍱 One-Click Cloud Deployment
+### 🍱 Portable Cloud Deployment
 **Production-ready infrastructure as code.**
-Deploy your services to your favorite cloud with pre-configured kits:
-- **Cloud Native**: Support for **Waystones Cloud**, **Railway**, and **Docker** environments.
+Deploy your services to your favorite cloud with pre-configured, self-contained kits:
+- **Cloud Native**: Support for **Railway** and **Docker** environments.
 - **Modern Standards**: Automatically generates `pygeoapi` (REST) and **QGIS Server** (WMS) configurations.
-- **Live Data Sync**: Integrated **Delta Sync Engine** for keeping live PostGIS and Supabase sources in sync.
+- **Self-Contained**: Deployment kits include all necessary Dockerfiles and boot scripts for one-click deployment.
+- **Live Data Sync**: Integrated **Delta Sync Engine** (The Shade) for keeping live PostGIS and Supabase sources in sync.
 - **Advanced Metadata**: Built-in support for **STAC** (SpatioTemporal Asset Catalog) catalogs.
 
 ### 🔍 GitHub-First Workflow
@@ -57,7 +58,7 @@ Connect Claude or Gemini to auto-generate metadata, field descriptions, and even
 | **Icons** | Lucide React |
 | **Sources** | PostGIS (pg), Supabase, GeoPackage |
 | **Engines** | pygeoapi, QGIS Server |
-| **Deployment** | Docker, Waystones Cloud, Railway, GitHub Actions |
+| **Deployment** | Docker, Railway, GitHub Actions |
 
 ## 🚀 Getting Started
 
@@ -92,17 +93,45 @@ The app includes a small Express server (`server.js`) that proxies GitHub OAuth 
 
 ---
 
-## 🏗 Deployment Architecture
+## 🏗 Snapshot Architecture
 
-A Waystones project generates a complete deployment ecosystem:
-- **OGC API – Features**: RESTful access to your data via pygeoapi.
-- **WMS**: Styled map rendering via QGIS Server.
+Waystones projects are powered by a high-performance **Snapshot Architecture**. Instead of connecting directly to slow databases or GeoPackages at runtime, a fleet of **Working Units** collaborate to convert and serve data in optimized cloud-native formats.
+
+```mermaid
+graph TD
+    subgraph P1[Phase 1: Conversion]
+        Source[(Input Data)] --> Peasant[Peasant: Binder]
+        Peasant --> Peon[Peon: Transformer]
+        Peon --> Parquet[(GeoParquet)]
+        Peon --> FGB[(FlatGeobuf)]
+    end
+
+    subgraph P2[Phase 2 & 3: Serving & Gateway]
+        Parquet --> pygeoapi[pygeoapi Engine]
+        FGB --> QGIS[QGIS Engine]
+        pygeoapi --> Acolyte[Acolyte: Caddy Gateway]
+        QGIS -.-> Acolyte
+    end
+
+    Acolyte --> API[OGC API / WMS]
+    API --> User((Architect))
+```
+
+### 👷 The Working Units
+
+| Unit | Role | Lore |
+|---|---|---|
+| **Peon** | **GIS Engine** | The heavy-lifter. Handles raw GDAL/OGR transformations and snapshots. |
+| **Peasant** | **Data Binder** | The coordinator. Fetches data from sources and binds it for the Peon. |
+| **Acolyte** | **Gateway Portal** | The protector. A Caddy-based sidecar that orchestrates traffic and ensures health. |
+| **Shade** | **STAC Chronicler** | The observer. Manages the STAC catalog and incremental delta exports. |
+
+### 🚀 Key Components
+- **OGC API – Features**: RESTful access to your data via **pygeoapi** serving **GeoParquet**.
+- **WMS**: Lightning-fast map rendering via **QGIS Server** serving **FlatGeobuf**.
 - **CI/CD**: GitHub Actions workflows for automated builds and cloud pushes.
-- **Sync Engine**: Python-based delta-transfer for high-performance live updates.
-- **Unified Docker Images**: A high-performance, SaaS-ready container stack with:
-    - **Caddy Sidecar**: Optional integrated gateway for security and health-check management.
-    - **Automated Warming**: Background pre-warming of GeoParquet/DuckDB collections.
-    - **Instant Boot**: Non-blocking OpenAPI generation for immediate service availability.
+- **Automated Warming**: Background pre-warming of DuckDB collections for instant cold boots.
+- **Instant Boot**: Non-blocking OpenAPI generation for immediate service availability.
 
 ### 🐳 Docker Configuration
 The Waystones Docker images support advanced configuration via environment variables:
