@@ -2,6 +2,7 @@
 import os
 import shutil
 import subprocess
+import tempfile
 from urllib.parse import urlparse
 
 OUTPUT_TYPE = os.environ.get("OUTPUT_TYPE", "local").strip().lower()
@@ -12,12 +13,21 @@ DEST        = "/pygeoapi/local.openapi.yml"
 
 def generate():
     print("[cache_openapi] Generating openapi.yml...", flush=True)
-    with open(DEST, "w") as fh:
-        subprocess.run(
-            ["pygeoapi", "openapi", "generate", CONFIG],
-            stdout=fh,
-            check=True,
-        )
+    dest_dir = os.path.dirname(DEST)
+    with tempfile.NamedTemporaryFile(mode="w", dir=dest_dir, delete=False) as tmp:
+        tmp_path = tmp.name
+        try:
+            subprocess.run(
+                ["pygeoapi", "openapi", "generate", CONFIG],
+                stdout=tmp,
+                check=True,
+            )
+            tmp.flush()
+            os.fsync(tmp.fileno())
+        except Exception:
+            os.unlink(tmp_path)
+            raise
+    shutil.move(tmp_path, DEST)
 
 
 if OUTPUT_TYPE == "s3":
