@@ -9,6 +9,7 @@ Two connection modes based on the `data` URL scheme:
 import json
 import logging
 import os
+import threading
 
 from pygeoapi.provider.base import BaseProvider, ProviderItemNotFoundError
 
@@ -23,8 +24,9 @@ _DUCK_TO_OGC = {
 
 # Module-level caches — shared across all requests within the same gunicorn worker process.
 # Keyed on the Parquet data URL.
-_CONN_CACHE: dict = {}   # data_url → duckdb connection (extensions loaded once per process)
+_CONN_CACHE: dict = {}   # data_url → duckdb connection
 _META_CACHE: dict = {}   # data_url → {geom_col, geom_is_native, source_crs, fields_cache, count_cache}
+_LOCK = threading.Lock()
 
 
 def _ogc_type(duckdb_type: str) -> str:
@@ -56,11 +58,13 @@ class GeoParquetDuckDBProvider(BaseProvider):
         super().__init__(provider_def)
         options = self.options or {}
 
-        if self.data in _CONN_CACHE:
-            # Reuse existing connection — extensions already loaded, footer already cached.
-            self._conn = _CONN_CACHE[self.data]
-            meta = _META_CACHE[self.data]
-        else:
+        with _LOCK:
+            if self.data in _CONN_CACHE and self.data in _META_CACHE:
+                # Reuse existing connection — extensions already loaded, footer already cached.
+                self._conn = _CONN_CACHE[self.data]
+                self._apply_metadata(_META_CACHE[self.data])
+                return
+
             import duckdb
             conn = duckdb.connect(':memory:')
             ext_dir = os.environ.get('DUCKDB_EXTENSION_DIRECTORY', '/duckdb-extensions')
@@ -86,11 +90,15 @@ class GeoParquetDuckDBProvider(BaseProvider):
                 conn.execute("SET s3_use_ssl=true")
 
             self._conn = conn
-            _CONN_CACHE[self.data] = conn
-
+            # Fetch metadata via DuckDB (runs queries over S3)
             meta = self._init_metadata()
-            _META_CACHE[self.data] = meta
 
+            # Atomically populate caches only after successful initialization
+            _CONN_CACHE[self.data] = conn
+            _META_CACHE[self.data] = meta
+            self._apply_metadata(meta)
+
+    def _apply_metadata(self, meta: dict):
         self._geom_col       = meta['geom_col']
         self._geom_is_native = meta['geom_is_native']
         self._source_crs     = meta['source_crs']
