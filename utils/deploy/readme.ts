@@ -94,19 +94,17 @@ const renderArchitecture = (ctx: RenderContext): string => {
 // ============================================================
 const renderServices = (ctx: RenderContext): string => {
   const { s, target, hasWms } = ctx;
-  const baseUrl = target === 'docker-compose' ? 'http://localhost:5000' : 'https://<your-app>.up.railway.app';
   
   let md = `## ${s.services}\n\n`;
   md += `Once deployed, the following services will be available:\n\n`;
-  md += `| ${s.service} | ${s.description} | ${s.url} |\n`;
-  md += `|---|---|---|\n`;
-  md += `| **OGC API Features** | JSON/HTML data access | [${baseUrl}](${baseUrl}) |\n`;
+  md += `| ${s.service} | ${s.description} |\n`;
+  md += `|---|---|\n`;
+  md += `| **OGC API Features** | JSON/HTML data access |\n`;
   if (hasWms) {
-    const wmsUrl = target === 'docker-compose' ? 'http://localhost:5000/ows/' : 'https://<your-deployment-url>/ows/';
-    md += `| **WMS Service** | Styled map layers | [${wmsUrl}](${wmsUrl}) |\n`;
+    md += `| **WMS Service** | Styled map layers |\n`;
   }
   if (target === 'docker-compose') {
-    md += `| **STAC / Downloads** | Data snapshots | [http://localhost:8081](http://localhost:8081) |\n`;
+    md += `| **STAC / Downloads** | Data snapshots |\n`;
   }
   md += '\n';
   return md;
