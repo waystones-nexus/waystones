@@ -1,0 +1,259 @@
+#!/usr/bin/env python3
+"""
+gpkg-converter.py — GeoPackage → FlatGeobuf + GeoParquet conversion worker.
+
+Accepts both S3 and local-filesystem I/O:
+
+  --source        s3://bucket/path/file.gpkg  OR  /input/data.gpkg
+  --output-prefix s3://bucket/prefix          OR  /data/
+
+When --output-prefix starts with s3://, files are uploaded via `aws s3 sync`
+and a manifest is written to S3.  Otherwise files are copied directly to the
+local directory and a manifest is written there.
+
+Required environment variables (S3 mode only):
+    AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_DEFAULT_REGION
+    S3_ENDPOINT   (full URL, e.g. https://abc123.r2.cloudflarestorage.com)
+    R2_BUCKET     (bucket name, used for manifest key derivation)
+"""
+
+import argparse
+import json
+import os
+import re
+import shutil
+import socket
+import subprocess
+import sys
+import tempfile
+from urllib.parse import urlparse
+
+# ---------------------------------------------------------------------------
+# Argument parsing
+# ---------------------------------------------------------------------------
+
+def parse_args():
+    p = argparse.ArgumentParser(description="Convert a GeoPackage to per-layer FlatGeobuf + GeoParquet files")
+    p.add_argument("--source",        required=True,  help="Source .gpkg: local path or s3:// URI")
+    p.add_argument("--output-prefix", required=True,  help="Output destination: local dir or s3:// prefix")
+    p.add_argument("--user-id",       required=True,  help="User ID (for logging)")
+    p.add_argument("--deployment-id", required=False, default=None, help="Deployment ID (for S3 manifest path)")
+    p.add_argument("--target-crs",    required=False, default=None, help="Target CRS (e.g. EPSG:4326) for reprojection")
+    return p.parse_args()
+
+# ---------------------------------------------------------------------------
+# DNS Fix (IPv6 TCP Blackhole) — only needed when talking to S3
+# ---------------------------------------------------------------------------
+
+def force_ipv4_for_endpoint(endpoint_url: str):
+    domain = urlparse(endpoint_url).hostname
+    if not domain:
+        return
+    try:
+        ipv4_addr = socket.gethostbyname(domain)
+        with open("/etc/hosts", "a") as f:
+            f.write(f"\n{ipv4_addr} {domain}\n")
+        print(f"[converter] Fixed IPv6 timeout: Forced {domain} to {ipv4_addr} in /etc/hosts", flush=True)
+    except Exception as e:
+        print(f"[converter] Warning: Could not override DNS for IPv4: {e}", flush=True)
+
+# ---------------------------------------------------------------------------
+# S3 helpers
+# ---------------------------------------------------------------------------
+
+def get_endpoint_url() -> str:
+    url = os.environ.get("S3_ENDPOINT", "")
+    if not url:
+        raise RuntimeError("S3_ENDPOINT environment variable is not set")
+    return url
+
+def s3_cp(src: str, dst: str) -> None:
+    cmd = ["aws", "s3", "cp", src, dst, "--endpoint-url", get_endpoint_url(), "--no-progress"]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"aws s3 cp failed: {result.stderr.strip()}")
+
+def s3_put_json(bucket: str, key: str, data: dict) -> None:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+        json.dump(data, f)
+        tmp_path = f.name
+    try:
+        s3_cp(tmp_path, f"s3://{bucket}/{key}")
+    finally:
+        os.unlink(tmp_path)
+
+# ---------------------------------------------------------------------------
+# Layer enumeration
+# ---------------------------------------------------------------------------
+
+def list_layers(gpkg_path: str) -> list[str]:
+    result = subprocess.run(["ogrinfo", "-so", "-al", gpkg_path], capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"ogrinfo failed: {result.stderr.strip()}")
+    layers = []
+    for line in result.stdout.splitlines():
+        if line.startswith("Layer name:"):
+            layers.append(line.split(":", 1)[1].strip())
+    return layers
+
+# ---------------------------------------------------------------------------
+# Name sanitization — MUST match TypeScript toTableName() in nameSanitizer.ts:
+#   name.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_').replace(/^_|_$/g, '')
+# ---------------------------------------------------------------------------
+
+def to_safe_name(name: str) -> str:
+    safe = re.sub(r"[^a-z0-9]", "_", name.lower())
+    safe = re.sub(r"_+", "_", safe)
+    safe = safe.strip("_")
+    return safe or "layer"
+
+# ---------------------------------------------------------------------------
+# Conversion (unchanged — no S3 logic here)
+# ---------------------------------------------------------------------------
+
+def convert_layer(gpkg_path: str, layer_name: str, safe_name: str, out_dir: str, target_crs: str = None) -> str:
+    """Convert a single GeoPackage layer to FlatGeobuf. Returns local .fgb path."""
+    out_path = os.path.join(out_dir, f"{safe_name}.fgb")
+    cmd = [
+        "ogr2ogr",
+        "-f", "FlatGeobuf",
+        out_path,
+        gpkg_path,
+        layer_name,
+        "-nln", safe_name,
+        "-nlt", "PROMOTE_TO_MULTI",
+    ]
+    if target_crs:
+        cmd += ["-t_srs", target_crs]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"ogr2ogr failed for layer '{layer_name}': {result.stderr.strip()}")
+    return out_path
+
+
+def convert_layer_to_parquet(fgb_path: str, safe_name: str, out_dir: str) -> str | None:
+    """Convert FlatGeobuf to GeoParquet via DuckDB spatial. Non-fatal on failure."""
+    import duckdb
+    out_path = os.path.join(out_dir, f"{safe_name}.parquet")
+    try:
+        ext_dir = os.environ.get("DUCKDB_EXTENSION_DIRECTORY", "/duckdb-extensions")
+        conn = duckdb.connect(":memory:")
+        conn.execute(f"SET extension_directory='{ext_dir}'")
+        conn.execute("LOAD spatial")
+        # Normalise FID: GeoPackage FIDs come through ogr2ogr as "ogc_fid".
+        # Rename to "fid" so the GeoParquetDuckDBProvider can use id_field=fid.
+        schema = conn.execute(f"DESCRIBE SELECT * FROM st_read('{fgb_path}')").fetchall()
+        col_names = [r[0].lower() for r in schema]
+        if "fid" in col_names:
+            select = "*"
+        elif "ogc_fid" in col_names:
+            other = ", ".join(f'"{r[0]}"' for r in schema if r[0].lower() != "ogc_fid")
+            select = f"ogc_fid AS fid, {other}"
+        else:
+            select = "row_number() OVER () AS fid, *"
+        conn.execute(f"""
+            COPY (SELECT {select} FROM st_read('{fgb_path}'))
+            TO '{out_path}'
+            (FORMAT PARQUET, CODEC 'snappy', ROW_GROUP_SIZE 1000)
+        """)
+        return out_path
+    except Exception as e:
+        print(f"[converter] Warning: GeoParquet conversion failed for '{safe_name}': {e}", flush=True)
+        return None
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+def main() -> None:
+    args = parse_args()
+
+    output_prefix = args.output_prefix
+    is_s3_output  = output_prefix.startswith("s3://")
+    is_s3_source  = args.source.startswith("s3://")
+
+    # DNS fix is only relevant when communicating with S3
+    if is_s3_source or is_s3_output:
+        try:
+            force_ipv4_for_endpoint(get_endpoint_url())
+        except Exception as e:
+            print(f"[converter] Warning: Failed DNS override: {e}", flush=True)
+
+    bucket = os.environ.get("R2_BUCKET", "")
+    if is_s3_output and not bucket:
+        raise RuntimeError("R2_BUCKET environment variable is not set")
+
+    with tempfile.TemporaryDirectory() as work_dir:
+
+        # ── 1. Obtain GPKG ───────────────────────────────────────────────────
+        if is_s3_source:
+            gpkg_path = os.path.join(work_dir, "source.gpkg")
+            print(f"[converter] Downloading GeoPackage from {args.source} ...", flush=True)
+            s3_cp(args.source, gpkg_path)
+            print(f"[converter] Download complete ({os.path.getsize(gpkg_path) / 1024 / 1024:.1f} MB)", flush=True)
+        else:
+            gpkg_path = args.source
+            print(f"[converter] Using local GeoPackage: {gpkg_path} ({os.path.getsize(gpkg_path) / 1024 / 1024:.1f} MB)", flush=True)
+
+        # ── 2. Enumerate layers ──────────────────────────────────────────────
+        layer_names = list_layers(gpkg_path)
+        if not layer_names:
+            raise RuntimeError("No layers found in the GeoPackage")
+        print(f"[converter] Found {len(layer_names)} layer(s): {', '.join(layer_names)}", flush=True)
+
+        # ── 3. Convert each layer to FlatGeobuf + GeoParquet ────────────────
+        fgb_dir = os.path.join(work_dir, "fgb")
+        os.makedirs(fgb_dir, exist_ok=True)
+
+        manifest_layers = []
+        for layer_name in layer_names:
+            safe_name = to_safe_name(layer_name)
+            print(f"[converter] Converting '{layer_name}' → {safe_name}.fgb ...", flush=True)
+            try:
+                fgb_path = convert_layer(gpkg_path, layer_name, safe_name, fgb_dir, args.target_crs)
+            except RuntimeError as e:
+                print(f"[converter] ERROR: {e}", file=sys.stderr, flush=True)
+                sys.exit(1)
+
+            print(f"[converter] Converting '{layer_name}' → {safe_name}.parquet ...", flush=True)
+            convert_layer_to_parquet(fgb_path, safe_name, fgb_dir)
+
+            manifest_layers.append({"name": layer_name, "safe_name": safe_name})
+            print(f"[converter] Layer '{layer_name}' done.", flush=True)
+
+        # ── 4. Deliver output ────────────────────────────────────────────────
+        manifest = {"layers": manifest_layers}
+
+        if is_s3_output:
+            prefix_key = output_prefix.replace(f"s3://{bucket}/", "", 1)
+            for entry in manifest_layers:
+                entry["fgb_key"] = f"{prefix_key}/{entry['safe_name']}.fgb"
+
+            print(f"[converter] Uploading all layers to {output_prefix} via s3 sync ...", flush=True)
+            sync_cmd = [
+                "aws", "s3", "sync", fgb_dir + "/", output_prefix + "/",
+                "--endpoint-url", get_endpoint_url(),
+                "--no-progress",
+            ]
+            sync_res = subprocess.run(sync_cmd, capture_output=True, text=True)
+            if sync_res.returncode != 0:
+                raise RuntimeError(f"aws s3 sync failed: {sync_res.stderr.strip()}")
+
+            manifest_key = f"{prefix_key}/.manifest.json"
+            print(f"[converter] Writing manifest to s3://{bucket}/{manifest_key} ...", flush=True)
+            s3_put_json(bucket, manifest_key, manifest)
+        else:
+            os.makedirs(output_prefix, exist_ok=True)
+            print(f"[converter] Copying output files to {output_prefix} ...", flush=True)
+            for fname in os.listdir(fgb_dir):
+                shutil.copy2(os.path.join(fgb_dir, fname), os.path.join(output_prefix, fname))
+            manifest_path = os.path.join(output_prefix, ".manifest.json")
+            with open(manifest_path, "w") as f:
+                json.dump(manifest, f)
+
+        print(f"[converter] Done. {len(manifest_layers)} layer(s) converted.", flush=True)
+        print(json.dumps(manifest), flush=True)
+
+
+if __name__ == "__main__":
+    main()

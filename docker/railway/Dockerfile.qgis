@@ -1,0 +1,32 @@
+FROM ghcr.io/henrik716/waystones:qgis-latest
+
+USER root
+
+# Install dependencies for the worker
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gdal-bin \
+    libgdal-dev \
+    libpq5 \
+    curl \
+    unzip \
+    python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip3 install --no-cache-dir --break-system-packages duckdb
+
+# Install AWS CLI
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip \
+    && unzip /tmp/awscliv2.zip -d /tmp \
+    && /tmp/aws/install \
+    && rm -rf /tmp/awscliv2.zip /tmp/aws
+
+WORKDIR /app
+
+# COPY the worker scripts from docker/worker/ into this image.
+COPY docker/worker/*.py /app/worker/
+
+# COPY a new qgis-boot.sh into the image
+COPY docker/railway/qgis-boot.sh /qgis-boot.sh
+RUN chmod +x /qgis-boot.sh
+
+ENTRYPOINT ["/qgis-boot.sh"]

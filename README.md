@@ -31,7 +31,7 @@ Build complex geospatial schemas with ease:
 ### 🍱 One-Click Cloud Deployment
 **Production-ready infrastructure as code.**
 Deploy your services to your favorite cloud with pre-configured kits:
-- **Cloud Native**: Support for **Railway**, **Fly.io**, and **GitHub Container Registry (GHCR)**.
+- **Cloud Native**: Support for **Waystones Cloud**, **Railway**, and **Docker** environments.
 - **Modern Standards**: Automatically generates `pygeoapi` (REST) and **QGIS Server** (WMS) configurations.
 - **Live Data Sync**: Integrated **Delta Sync Engine** for keeping live PostGIS and Supabase sources in sync.
 - **Advanced Metadata**: Built-in support for **STAC** (SpatioTemporal Asset Catalog) catalogs.
@@ -57,7 +57,7 @@ Connect Claude or Gemini to auto-generate metadata, field descriptions, and even
 | **Icons** | Lucide React |
 | **Sources** | PostGIS (pg), Supabase, GeoPackage |
 | **Engines** | pygeoapi, QGIS Server |
-| **Deployment** | Docker, Fly.io, Railway, GitHub Actions |
+| **Deployment** | Docker, Waystones Cloud, Railway, GitHub Actions |
 
 ## 🚀 Getting Started
 
@@ -99,6 +99,21 @@ A Waystones project generates a complete deployment ecosystem:
 - **WMS**: Styled map rendering via QGIS Server.
 - **CI/CD**: GitHub Actions workflows for automated builds and cloud pushes.
 - **Sync Engine**: Python-based delta-transfer for high-performance live updates.
+- **Unified Docker Images**: A high-performance, SaaS-ready container stack with:
+    - **Caddy Sidecar**: Optional integrated gateway for security and health-check management.
+    - **Automated Warming**: Background pre-warming of GeoParquet/DuckDB collections.
+    - **Instant Boot**: Non-blocking OpenAPI generation for immediate service availability.
+
+### 🐳 Docker Configuration
+The Waystones Docker images support advanced configuration via environment variables:
+
+| Variable | Default | Description |
+|---|---|---|
+| `PORT` | `5000` | The public port for the service. |
+| `DEPLOY_PYGEOAPI` | `1` | Set to `0` to run in Gateway-only mode (Caddy only). |
+| `DEPLOY_SIDE_GATEWAY` | `0` | Set to `1` to enable the Caddy sidecar (proxies to pygeoapi on 5001). |
+| `CONTAINER_WORKERS` | `2` | Number of Gunicorn worker processes. |
+| `WARMUP_DELAY` | `15` | Seconds to wait before background GeoParquet warming. |
 
 ## 🌍 Supported Standards
 - **OGC API – Features** (Full Part 1 & 2 support)

@@ -115,14 +115,10 @@ export const generateQgisProject = (
       const geomCol = layer.geometryColumnName || 'geom';
       const pkCol = mapping?.primaryKeyColumn || 'fid';
 
-      let datasource: string;
-      if (pgEnv) {
-        datasource = `dbname='${pgEnv.POSTGRES_DB}' host=${pgEnv.POSTGRES_HOST} port=${pgEnv.POSTGRES_PORT} user='${pgEnv.POSTGRES_USER}' password='YOUR_DATABASE_PASSWORD_HERE' sslmode=require key='${pkCol}' srid=${srid} type=${layer.geometryType} table="${pgEnv.POSTGRES_SCHEMA}"."${sourceTable}" (${geomCol})`;
-      } else {
-        datasource = `/data/${gpkgFilename}|layername=${sourceTable}`;
-      }
-
-      const providerKey = pgEnv ? 'postgres' : 'ogr';
+      // Snapshot Architecture: Ensure QGIS reads the processed FlatGeobuf dataset
+      const safeLayerName = layer.name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      const datasource = `/data/${safeLayerName}.fgb|layername=${safeLayerName}`;
+      const providerKey = 'ogr';
 
       const opacity = layer.style.fillOpacity !== undefined ? layer.style.fillOpacity : 1;
       const rgb = hexToRgb(layer.style.simpleColor || '#3b82f6');
@@ -287,80 +283,25 @@ ${wmsCrsList}
 };
 
 // ============================================================
-// Generate QGIS Dockerfile
-// ============================================================
-export const generateQgisDockerfile = (
-  model: DataModel,
-  source: SourceConnection
-): string => {
-  const isGpkg = source.type === 'geopackage';
-  return `FROM qgis/qgis-server:ltr
-
-COPY project.qgs /data/project.qgs
-${isGpkg ? 'COPY data/ /data/' : ''}
-RUN chmod -R 777 /data
-
-ENV QGIS_PROJECT_FILE=/data/project.qgs
-
-# QGIS_SERVER_SERVICE_URL is set at runtime via .env / Railway / Fly variables
-ENV QGIS_SERVER_SERVICE_URL=
-EXPOSE 80
-`;
-};
-
-// ============================================================
-// Generate QGIS Fly.io configuration
-// ============================================================
-export const generateFlyQgisToml = (
-  model: DataModel,
-  source: SourceConnection
-): string => {
-  const slug = model.name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-  return `app = "${slug}-qgis"
-primary_region = "ams"
-
-[build]
-  dockerfile = "Dockerfile.qgis"
-
-[env]
-  QGIS_SERVER_SERVICE_URL = "https://${slug}-qgis.fly.dev/ows/"
-
-[http_service]
-  internal_port = 80
-  force_https = true
-  auto_stop_machines = "stop"
-  auto_start_machines = true
-  min_machines_running = 0
-
-[[vm]]
-  memory = "1024mb"
-  cpu_kind = "shared"
-  cpus = 1
-${source.type === 'geopackage' ? `
-[mounts]
-  source = "geodata"
-  destination = "/data"
-` : ''}`;
-};
-
-// ============================================================
 // Generate QGIS Railway configuration
+// Deploys from the pre-built GHCR image — no Dockerfile needed.
 // ============================================================
 export const generateRailwayQgisJson = (
-  model: DataModel,
-  source: SourceConnection
+  _model: DataModel,
+  _source: SourceConnection
 ): string => {
-  const config: any = {
+  const config = {
     "$schema": "https://railway.com/railway.schema.json",
-    build: { builder: "DOCKERFILE", dockerfilePath: "Dockerfile.qgis" },
+    build: {
+      builder: "DOCKERFILE",
+      dockerfilePath: "docker/railway/Dockerfile.qgis",
+    },
     deploy: {
-      // QGIS Server 3.x serves at /ows/ — use that for the health check.
-      // Long timeout needed because QGIS loads the full project on first request.
       healthcheckPath: "/ows/?SERVICE=WMS&REQUEST=GetCapabilities",
       healthcheckTimeout: 300,
       restartPolicyType: "ON_FAILURE",
-      restartPolicyMaxRetries: 10
-    }
+      restartPolicyMaxRetries: 10,
+    },
   };
 
   return JSON.stringify(config, null, 2);

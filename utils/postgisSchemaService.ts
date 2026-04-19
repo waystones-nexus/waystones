@@ -186,6 +186,7 @@ export const processPostgisSchemaToModel = async (
     model.metadata = {
       ...(model.metadata || {
         title: '', abstract: '', keywords: [], theme: '', license: 'CC-BY-4.0',
+        contactName: '', contactEmail: '', contactOrganization: '',
         accessRights: 'public', purpose: '', accrualPeriodicity: 'unknown',
         temporalExtentFrom: '', temporalExtentTo: '',
         spatialExtent: { westBoundLongitude: '', eastBoundLongitude: '', southBoundLatitude: '', northBoundLatitude: '' },

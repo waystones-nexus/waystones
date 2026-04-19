@@ -139,7 +139,7 @@ async function handlePostgisSchema(req, res) {
     const { Pool } = await import('pg');
     const targetSchema = schema || 'public';
 
-    // Disable SSL certificate verification for hosted DBs (Railway, Render, Fly.io etc.)
+    // Disable SSL certificate verification for hosted DBs (Railway, Render, etc.)
     // which use self-signed/auto-generated certs. Still encrypts the connection.
     let sslOptions = false;
     try {

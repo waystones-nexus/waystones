@@ -1146,7 +1146,7 @@ export const QUEST_CELEBRATIONS: Record<string, Whisper[]> = {
     { unit: "void-entity", text: "Bridged. The manifestation is now universal.", rare: true },
     { unit: "peasant", text: "Delivered to the cloud! Good trade, Master." },
     { unit: "acolyte", text: "Praise the Caddy! The Quick Publish alignment is fulfilled." },
-    { unit: "wisp", text: "It's gone to the sky! Fly high, little manifest!" }
+    { unit: "wisp", text: "It's gone to the sky! Sail high, little manifest!" }
   ],
 
   // Deploy Panel celebrations
@@ -1217,7 +1217,7 @@ export const QUEST_CELEBRATIONS: Record<string, Whisper[]> = {
 };
 
 const PEASANT_QUOTES = [
-  "Provisioning Fly machines to the edge of the world...",
+  "Provisioning Waystones nodes to the edge of the world...",
   "Allocating block storage (the digital kind)...",
   "More bandwidth? I'll see what I can do, Master.",
   "Infrastructure ready to work!",
@@ -1287,7 +1287,7 @@ const PEASANT_QUOTES = [
   "Surveying the digital terrain... everything is level and ready for building.",
   "Stake in the ground. I take pride in a clean host allocation.",
   "The foundations are anchored. Your manifest has a sturdy home, Master.",
-  "Right-o! I'll have this fly machine humming in a jiffy.",
+  "Right-o! I'll have this cloud engine humming in a jiffy.",
   "More lumber? No wait, more CPU! Master's will be done.",
   "Found another Waystone in the dirt. Heavy thing, but it'll hold the host.",
   "The peon will complain about the projection anyway. At least my foundations are square.",

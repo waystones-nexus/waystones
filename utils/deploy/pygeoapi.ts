@@ -3,39 +3,29 @@ import {
 } from '../../types';
 import { reprojectCoordinates } from '../gdalService';
 import { toTableName } from '../nameSanitizer';
-import { getGpkgFilename, getPgConnectionEnv } from './_helpers';
 
 // ============================================================
-// Generate source-aware pygeoapi config
-// PostGIS/Supabase → PostgreSQL provider (live query)
-// Databricks/GeoPackage → SQLiteGPKG provider
+// Generate pygeoapi config
+//
+// The worker has already converted all data to per-layer Parquet files
+// at /data/{collectionId}.parquet. pygeoapi always uses
+// GeoParquetDuckDBProvider — no live database or GeoPackage reads.
 // ============================================================
 export const generatePygeoapiConfig = async (
   model: DataModel,
   source?: SourceConnection,
   lang: string = 'en'
 ): Promise<string> => {
-  const gpkgFilename = getGpkgFilename(model, source);
-  const pgEnv = source ? getPgConnectionEnv(source) : null;
-  const usePg = pgEnv !== null;
-
   let yaml = `# pygeoapi configuration for ${model.name}\n`;
   yaml += `# Generated: ${new Date().toISOString()}\n`;
-  yaml += `# Source: ${source?.type || 'geopackage (no live connection)'}\n\n`;
+  yaml += `# Provider: GeoParquetDuckDBProvider (reads /data/{layer}.parquet)\n\n`;
 
-  // FIX: Use env vars for both port and public URL so Railway/Fly/etc work correctly.
-  // PORT is injected automatically by Railway; PYGEOAPI_SERVER_URL must be set manually
-  // to the public-facing HTTPS URL after first deploy.
   yaml += `server:\n  bind:\n    host: 0.0.0.0\n    port: \${PORT:-80}\n`;
   yaml += `  url: \${PYGEOAPI_SERVER_URL}\n`;
   yaml += `  mimetype: application/json; charset=UTF-8\n  encoding: utf-8\n  languages:\n    - ${lang === 'no' ? 'nb-NO' : 'en-US'}\n`;
-  // Required by pygeoapi's collection.html template — without this the page throws
-  // "dict object has no attribute 'map'" when rendering the HTML view of a collection.
   yaml += `  map:\n`;
   yaml += `    url: https://tile.openstreetmap.org/{z}/{x}/{y}.png\n`;
   yaml += `    attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap contributors</a>'\n`;
-  // Required by pygeoapi items/index.html — reads limits.default_items for the
-  // items-per-page dropdown. Must be present or page throws UndefinedError.
   yaml += `  limits:\n`;
   yaml += `    default_items: 10\n`;
   yaml += `    max_items: 10000\n`;
@@ -43,7 +33,6 @@ export const generatePygeoapiConfig = async (
   yaml += `    path: /pygeoapi/local-templates\n\n`;
   yaml += `logging:\n  level: INFO\n\n`;
 
-  // Metadata — enriched from model.metadata if available
   const meta = model.metadata || ({} as Partial<ModelMetadata>);
   const keywords = meta?.keywords?.length ? meta.keywords : ['geospatial', model.namespace || 'data'];
   const licenseName = meta?.license || 'CC-BY-4.0';
@@ -86,15 +75,11 @@ export const generatePygeoapiConfig = async (
   for (const layer of model.layers) {
     const collectionId = toTableName(layer.name);
     const mapping = source?.layerMappings?.[layer.id];
-    const sourceTable = mapping?.sourceTable || collectionId;
 
-    // pygeoapi requires a keywords list on every collection resource — not just
-    // in top-level metadata. Missing keywords causes a KeyError on /collections.
     const layerKeywords = layer.keywords?.length
       ? layer.keywords
       : [model.namespace || 'data', (layer.name || 'layer').toLowerCase().replace(/[^a-z0-9]/g, '-')];
 
-    // OGC API Features Part 2 — advertise native CRS + common CRSes
     const nativeCrsUri = toCrsUri(model.crs);
 
     const crsList = [
@@ -102,28 +87,27 @@ export const generatePygeoapiConfig = async (
       ...(nativeCrsUri ? [nativeCrsUri] : []),
       ...COMMON_CRS_URIS,
     ].filter((v, i, arr) => arr.indexOf(v) === i);
+
+    yaml += `  ${collectionId}:\n`;
+    yaml += `    type: collection\n`;
+    yaml += `    title: ${layer.title || layer.name}\n`;
+    yaml += `    description: ${layer.description || layer.name}\n`;
+    yaml += `    keywords:\n`;
+    layerKeywords.forEach(kw => { yaml += `      - ${kw}\n`; });
+    yaml += `    links: []\n`;
     yaml += `    crs:\n`;
     crsList.forEach(uri => { yaml += `      - ${uri}\n`; });
-
-    // storageCrs tells pygeoapi what CRS the provider returns, so it can transform
-    // to whatever CRS the client requests.
-    // - GeoPackage (file): GDAL/pygeoapi handles reprojection, use native CRS.
-    // - PostGIS: storageCrs causes double-transformation, skip entirely.
-    if (!usePg && nativeCrsUri && !isWgs84(model.crs)) {
-      yaml += `    storageCrs: ${nativeCrsUri}\n`;
-    }
 
     if (layer.geometryType !== 'None') {
       const ext = model.metadata?.spatialExtent;
       const hasBbox = ext?.westBoundLongitude && ext?.southBoundLatitude && ext?.eastBoundLongitude && ext?.northBoundLatitude;
 
-      let bbox = '[-180, -90, 180, 90]'; // default to world extent in WGS84
+      let bbox = '[-180, -90, 180, 90]';
 
       if (hasBbox && model.crs) {
-        // Transform bbox from model CRS to WGS84
         const coords: [number, number][] = [
-          [Number(ext!.westBoundLongitude), Number(ext!.southBoundLatitude)], // SW corner
-          [Number(ext!.eastBoundLongitude), Number(ext!.northBoundLatitude)]  // NE corner
+          [Number(ext!.westBoundLongitude), Number(ext!.southBoundLatitude)],
+          [Number(ext!.eastBoundLongitude), Number(ext!.northBoundLatitude)]
         ];
 
         try {
@@ -134,7 +118,6 @@ export const generatePygeoapiConfig = async (
           bbox = `[${ext!.westBoundLongitude}, ${ext!.southBoundLatitude}, ${ext!.eastBoundLongitude}, ${ext!.northBoundLatitude}]`;
         }
       } else if (hasBbox) {
-        // Use original bbox if no CRS transformation needed
         bbox = `[${ext!.westBoundLongitude}, ${ext!.southBoundLatitude}, ${ext!.eastBoundLongitude}, ${ext!.northBoundLatitude}]`;
       }
 
@@ -144,41 +127,14 @@ export const generatePygeoapiConfig = async (
       yaml += `        crs: http://www.opengis.net/def/crs/OGC/1.3/CRS84\n`;
     }
 
-    if (usePg) {
-      yaml += `    providers:\n`;
-      // Live connection to PostGIS / Supabase
-      yaml += `      - type: feature\n`;
-      yaml += `        name: PostgreSQL\n`;
-      yaml += `        data:\n`;
-      yaml += `          host: \${POSTGRES_HOST}\n`;
-      yaml += `          port: \${POSTGRES_PORT}\n`;
-      yaml += `          dbname: \${POSTGRES_DB}\n`;
-      yaml += `          user: \${POSTGRES_USER}\n`;
-      yaml += `          password: \${POSTGRES_PASSWORD}\n`;
-      yaml += `          search_path:\n`;
-      yaml += `            - \${POSTGRES_SCHEMA}\n`;
-      yaml += `        id_field: ${mapping?.primaryKeyColumn || 'fid'}\n`;
-      yaml += `        table: ${sourceTable}\n`;
-      yaml += `        geom_field: ${layer.geometryColumnName || 'geom'}\n`;
-      yaml += getCQL2Extensions();
-    } else {
-      // GeoPackage file provider (Databricks, direct GeoPackage, or no source)
-      const storageCrsUri = toCrsUri(model.crs);
-      yaml += `    providers:\n`;
-      yaml += `      - type: feature\n`;
-      yaml += `        name: SQLiteGPKG\n`;
-      yaml += `        data: /data/${gpkgFilename}\n`;
-      yaml += `        table: ${sourceTable}\n`;
-      yaml += `        id_field: ${mapping?.primaryKeyColumn || 'fid'}\n`;
-      yaml += `        geom_field: ${layer.geometryColumnName || 'geom'}\n`;
-      if (storageCrsUri) {
-        yaml += `        storage_crs: ${storageCrsUri}\n`;
-      }
-      yaml += getCQL2Extensions();
-    }
+    // GeoParquetDuckDBProvider — always. The worker outputs /data/{collectionId}.parquet.
+    yaml += `    providers:\n`;
+    yaml += `      - type: feature\n`;
+    yaml += `        name: waystones.providers.geoparquet.GeoParquetDuckDBProvider\n`;
+    yaml += `        data: /data/${collectionId}.parquet\n`;
+    yaml += `        id_field: ${mapping?.primaryKeyColumn || 'fid'}\n`;
+    yaml += getCQL2Extensions();
 
-    // Explicitly define schema to ensure all fields are available as queryables.
-    // We resolve inheritance to include properties from parent layers.
     const allProperties = resolveLayerProperties(layer, model.layers);
 
     yaml += `    schema:\n`;
@@ -192,7 +148,6 @@ export const generatePygeoapiConfig = async (
     yaml += `          type: string\n`;
     allProperties.forEach(prop => {
       const typeInfo = mapFieldToSchemaType(prop);
-      // Quote property names to avoid YAML parsing issues with reserved words or types
       const pName = prop.name || 'untitled_property';
       yaml += `        "${pName}":\n`;
       yaml += `          title: "${prop.title || pName}"\n`;
@@ -209,18 +164,12 @@ export const generatePygeoapiConfig = async (
   return yaml;
 };
 
-// OGC URIs for commonly used CRSes advertised alongside the native model CRS.
-// Mirrors the hardcoded list used in the QGIS WMS config generator.
 const COMMON_CRS_URIS = [
   'http://www.opengis.net/def/crs/EPSG/0/4326',
   'http://www.opengis.net/def/crs/EPSG/0/4258',
   'http://www.opengis.net/def/crs/EPSG/0/3857',
 ];
 
-/**
- * Returns the standard OGC API CQL2 extensions block for pygeoapi providers.
- * Activating both cql2-text and cql2-json ensures broad client compatibility.
- */
 function getCQL2Extensions(): string {
   let s = `        extensions:\n`;
   s += `          filters:\n`;
@@ -230,30 +179,12 @@ function getCQL2Extensions(): string {
   return s;
 }
 
-/**
- * Converts a CRS identifier to an OGC URI.
- * Accepts an existing URI (passed through as-is) or "EPSG:XXXX" format.
- */
 function toCrsUri(crs: string | null | undefined): string | null {
   if (!crs) return null;
   if (crs.startsWith('http')) return crs;
   return `http://www.opengis.net/def/crs/EPSG/0/${crs.split(':')[1]}`;
 }
 
-/**
- * Returns true when the given CRS is WGS84 / CRS84 in any common encoding.
- */
-function isWgs84(crs: string | null | undefined): boolean {
-  if (!crs) return true;
-  return (
-    crs === 'EPSG:4326' || crs === '4326' || crs === 'CRS84' ||
-    crs.includes('CRS84') || crs.includes('EPSG/0/4326')
-  );
-}
-
-/**
- * Resolves all properties for a layer, including inherited ones.
- */
 function resolveLayerProperties(layer: any, allLayers: any[]): any[] {
   const propertyMap = new Map<string, any>();
   const visitedIds = new Set<string>();
@@ -261,30 +192,22 @@ function resolveLayerProperties(layer: any, allLayers: any[]): any[] {
 
   const layersToProcess: any[] = [];
   while (current) {
-    layersToProcess.unshift(current); // Base layers (top-most parent) first
-
+    layersToProcess.unshift(current);
     const parentRef = current.extends;
     if (!parentRef || visitedIds.has(parentRef)) break;
-
     visitedIds.add(parentRef);
-    // Try lookup by ID first, then by name as fallback
     current = allLayers.find(l => l.id === parentRef || l.name === parentRef);
   }
 
   layersToProcess.forEach(l => {
     if (l.properties && Array.isArray(l.properties)) {
-      l.properties.forEach(p => {
-        propertyMap.set(p.name, p);
-      });
+      l.properties.forEach((p: any) => { propertyMap.set(p.name, p); });
     }
   });
 
   return Array.from(propertyMap.values());
 }
 
-/**
- * Maps a Geoforge Field/FieldType to a standard JSON Schema type for pygeoapi
- */
 function mapFieldToSchemaType(field: any): { type: string; format?: string; enum?: string[] } {
   const ft = field.fieldType;
   if (!ft) return { type: 'string' };
@@ -303,7 +226,6 @@ function mapFieldToSchemaType(field: any): { type: string; format?: string; enum
       case 'short':
       case 'smallint':
       case 'tinyint':
-        // Pygeoapi/OGC Queryables often prefer 'number' for general numeric compatibility
         return { type: 'number' };
       case 'number':
       case 'float':

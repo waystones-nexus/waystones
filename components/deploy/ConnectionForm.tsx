@@ -6,6 +6,7 @@ import {
   S3StorageConfig, S3Provider
 } from '../../types';
 import { SOURCE_META } from './SourceTypePicker';
+import S3ConfigForm from './S3ConfigForm';
 
 // ============================================================
 // Reusable Field Component
@@ -226,8 +227,13 @@ const ConnectionForm: React.FC<ConnectionFormProps> = ({
             onChange={e => {
               if (e.target.checked) {
                 const defaultProvider: S3Provider = 'r2';
-                const preset = S3_PROVIDER_PRESETS[defaultProvider];
-                onS3Change({ provider: defaultProvider, endpointUrl: preset.endpoint, bucketName: '', objectKey: isGpkg ? (gpkgConfig.filename || 'datasets/mydata.gpkg') : 'outputs/', region: preset.region });
+                onS3Change({ 
+                  provider: defaultProvider, 
+                  endpointUrl: 'https://<account-id>.r2.cloudflarestorage.com', 
+                  bucketName: '', 
+                  objectKey: isGpkg ? (gpkgConfig.filename || 'datasets/mydata.gpkg') : 'outputs/', 
+                  region: 'auto' 
+                });
               } else {
                 onS3Change(null);
               }
@@ -241,58 +247,14 @@ const ConnectionForm: React.FC<ConnectionFormProps> = ({
         </label>
 
         {s3Config && (
-          <div className="px-6 pb-6 space-y-4 border-t border-slate-100">
-            {/* Provider selector */}
-            <div className="pt-4 space-y-1.5">
-              <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">{d.s3Provider}</label>
-              <select
-                value={s3Config.provider}
-                onChange={e => {
-                  const p = e.target.value as S3Provider;
-                  const preset = S3_PROVIDER_PRESETS[p];
-                  onS3Change({ ...s3Config, provider: p, endpointUrl: preset.endpoint, region: preset.region });
-                }}
-                className="w-full bg-slate-50 border border-slate-200 rounded-2xl px-5 py-4 text-xs font-bold text-slate-800 outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 transition-all"
-              >
-                <option value="r2">{d.s3ProviderR2}</option>
-                <option value="tigris">{d.s3ProviderTigris}</option>
-                <option value="aws">{d.s3ProviderAws}</option>
-                <option value="custom">{d.s3ProviderCustom}</option>
-              </select>
-              {s3Config?.provider === 'tigris' && (
-                <p className="text-[10px] text-indigo-600 font-medium px-1 leading-relaxed">{d.s3TigrisNote}</p>
-              )}
-            </div>
-            <Field
-              label={d.s3Endpoint}
-              value={s3Config?.endpointUrl || ''}
-              onChange={v => onS3Change({ ...s3Config!, endpointUrl: v, provider: 'custom' })}
-              placeholder="https://..."
+          <div className="px-6 pb-6">
+            <S3ConfigForm 
+              s3Config={s3Config} 
+              onS3Change={onS3Change} 
+              isGpkg={isGpkg} 
+              gpkgFilename={gpkgConfig.filename} 
+              t={t} 
             />
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Field
-                label={d.s3BucketName}
-                value={s3Config?.bucketName || ''}
-                onChange={v => onS3Change({ ...s3Config!, bucketName: v })}
-                placeholder="my-geodata"
-              />
-              <Field
-                label={d.s3Region}
-                value={s3Config?.region || ''}
-                onChange={v => onS3Change({ ...s3Config!, region: v })}
-                placeholder="auto"
-              />
-            </div>
-            <Field
-              label={d.s3ObjectKey}
-              value={s3Config?.objectKey || ''}
-              onChange={v => onS3Change({ ...s3Config!, objectKey: v })}
-              placeholder={isGpkg ? 'datasets/mydata.gpkg' : 'outputs/mymodel/'}
-              hint={d.s3ObjectKeyHint}
-            />
-            <p className="text-[10px] text-amber-700 font-medium bg-amber-50 px-4 py-3 rounded-xl border border-amber-100 leading-relaxed">
-              {d.s3CredentialsNote}
-            </p>
           </div>
         )}
       </div>

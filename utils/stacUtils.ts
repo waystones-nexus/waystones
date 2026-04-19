@@ -289,7 +289,7 @@ def _s3_asset_href(filename):
     """Build an absolute S3 URL for an asset, or fall back to relative path.
     Set S3_PUBLIC_BASE_URL in env to enable absolute URLs (recommended for STAC clients).
     Examples:
-      Tigris:  https://fly.storage.tigris.dev/<bucket>/<prefix>
+      S3:      https://<endpoint>/<bucket>/<prefix>
       R2:      https://pub-xxx.r2.dev/<prefix>  (or custom domain)
       AWS S3:  https://<bucket>.s3.<region>.amazonaws.com/<prefix>
     """

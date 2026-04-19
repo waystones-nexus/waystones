@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAmbient } from '../contexts/AmbientContext';
 import type { Translations } from '../i18n/index';
 import {
-  ChevronLeft, ChevronDown, ChevronRight, Check, Database, Tag, Github, ArrowRight, Paintbrush, GripVertical, RotateCcw
+  ChevronLeft, ChevronDown, ChevronRight, Check, Database, Tag, Github, ArrowRight, Paintbrush, GripVertical, RotateCcw, Cloud, HardDrive
 } from 'lucide-react';
-import { DataModel, LayerStyle, ImportValidationResult } from '../types';
+import { DataModel, LayerStyle, ImportValidationResult, S3StorageConfig, SourceConnection } from '../types';
+import S3ConfigForm from './deploy/S3ConfigForm';
 import { InferredDataSummary } from '../utils/importUtils';
 import { useDragAndDropReorder } from '../hooks/useDragAndDropReorder';
 import { useRenderingOrder } from '../hooks/useRenderingOrder';
@@ -46,6 +47,7 @@ const QuickPublish: React.FC<QuickPublishProps> = ({
   const [collapsedPreviews, setCollapsedPreviews] = useState<Set<string>>(
     new Set((model.renderingOrder || model.layers.map(l => l.id)).slice(1).map(id => id)) // All but first layer in custom order collapsed
   );
+  const [s3Config, setS3Config] = useState<S3StorageConfig | null>(null);
 
   // Use custom hooks for rendering order and drag-and-drop
   const { layerOrder, resetOrder, handleReorder } = useRenderingOrder({ model, onUpdateModel: onUpdateModel });
@@ -284,6 +286,54 @@ const QuickPublish: React.FC<QuickPublishProps> = ({
             </div>
           </div>
 
+          {/* Storage Selection Switch */}
+          <div className="bg-white rounded-2xl border-2 border-slate-200 p-6 space-y-4 shadow-sm hover:border-slate-300 transition-all">
+            <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <h3 className="text-lg font-black text-slate-900">{t.deploy.storageLocation}</h3>
+                <p className="text-sm text-slate-400 font-medium">{t.deploy.storageSubtitle}</p>
+              </div>
+              <div className="flex p-1 bg-slate-100 rounded-xl">
+                <button
+                  onClick={() => setS3Config(null)}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black transition-all ${
+                    !s3Config ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  <HardDrive size={14} />
+                  <span>{t.deploy.sources?.geopackageLocal || 'Local'}</span>
+                </button>
+                <button
+                  onClick={() => setS3Config({
+                    provider: 'r2',
+                    endpointUrl: 'https://<account-id>.r2.cloudflarestorage.com',
+                    bucketName: '',
+                    objectKey: `datasets/${summary?.filename || 'data.gpkg'}`,
+                    region: 'auto'
+                  })}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-black transition-all ${
+                    s3Config ? 'bg-white text-violet-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  <Cloud size={14} />
+                  <span>{t.deploy.sources?.geopackageS3 || 'Cloud'}</span>
+                </button>
+              </div>
+            </div>
+
+            {s3Config && (
+              <div className="mt-4 border-t border-slate-100 pt-2">
+                <S3ConfigForm
+                  s3Config={s3Config}
+                  onS3Change={setS3Config}
+                  isGpkg={true}
+                  gpkgFilename={summary?.filename}
+                  t={t}
+                />
+              </div>
+            )}
+          </div>
+
           <div className="flex items-center justify-between pt-4">
             <span className="text-xs text-slate-400 font-bold">{selectedLayers.size} {q.selectedLayers}</span>
             <button 
@@ -447,6 +497,12 @@ const QuickPublish: React.FC<QuickPublishProps> = ({
           t={t}
           onBack={() => setStep(2)}
           idPrefix="qp"
+          sourceOverride={s3Config ? {
+            type: 'geopackage',
+            config: { filename: summary?.filename || 'data.gpkg' },
+            layerMappings: {}, // Will be populated in PublishStep
+            s3: s3Config
+          } : undefined}
         />
       )}
     </div>

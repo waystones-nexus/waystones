@@ -2,7 +2,7 @@ import React, { useState, useCallback, useRef } from 'react';
 import type { Translations } from '../../i18n/index';
 import {
   Check, Github, Layers, RefreshCw, ExternalLink, Info,
-  GitPullRequest, Download, Cloud, Server, Package, AlertTriangle, ShieldAlert
+  GitPullRequest, Download, Cloud, Server, AlertTriangle, ShieldAlert
 } from 'lucide-react';
 import { DataModel, ModelMetadata, DeployTarget, SourceConnection, LayerSourceMapping } from '../../types';
 import { InferredDataSummary } from '../../utils/importUtils';
@@ -38,7 +38,7 @@ const PublishStep: React.FC<PublishStepProps> = ({ model, summary, selectedLayer
   const meta: ModelMetadata = model.metadata || {} as ModelMetadata;
 
   // GitHub publish state
-  const [deployTarget, setDeployTarget] = useState<DeployTarget>('railway');
+  const [deployTarget, setDeployTarget] = useState<DeployTarget>('docker-compose');
   const [ghRepo, setGhRepo] = useState(model.githubMeta?.repo || '');
   const [ghBranch, setGhBranch] = useState(model.githubMeta?.branch || 'main');
   const [ghToken, setGhToken] = useState('');
@@ -237,12 +237,10 @@ const PublishStep: React.FC<PublishStepProps> = ({ model, summary, selectedLayer
       <div className="space-y-3">
         <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{d.targetTitle}</label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {(['railway', 'fly', 'ghcr', 'docker-compose'] as DeployTarget[]).map(tgt => {
-            const icons: Record<DeployTarget, React.ReactNode> = {
-              'railway': <Cloud size={20} />,
-              'fly': <Cloud size={20} />,
-              'ghcr': <Package size={20} />,
+          {(['docker-compose', 'railway'] as DeployTarget[]).map(tgt => {
+            const icons: Record<string, React.ReactNode> = {
               'docker-compose': <Server size={20} />,
+              'railway': <Cloud size={20} />,
             };
             const isActive = deployTarget === tgt;
             return (
@@ -272,6 +270,7 @@ const PublishStep: React.FC<PublishStepProps> = ({ model, summary, selectedLayer
               </button>
             );
           })}
+
         </div>
       </div>
 

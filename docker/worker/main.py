@@ -1,0 +1,126 @@
+#!/usr/bin/env python3
+"""
+main.py — Universal worker entrypoint.
+
+Reads 4 environment variables and routes to the appropriate conversion script:
+
+  INPUT_TYPE   "gpkg" | "postgis"
+  INPUT_URI    Source: local path (/input/data.gpkg), s3://bucket/key.gpkg,
+               or postgresql://user:pass@host:5432/dbname
+  OUTPUT_TYPE  "local" | "s3"
+  OUTPUT_URI   Destination: local dir (/data/) or s3://bucket/prefix
+
+For INPUT_TYPE=postgis the URI is parsed and individual PG_* env vars are
+injected so postgis-snapshot.py's build_pg_connection_string() works unchanged.
+"""
+
+import os
+import sys
+import subprocess
+from urllib.parse import urlparse
+
+SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+def parse_pg_uri(uri: str) -> dict:
+    """Parse postgresql://user:pass@host:port/dbname → PG_* env vars."""
+    parsed = urlparse(uri)
+    if parsed.scheme not in ("postgresql", "postgres"):
+        raise ValueError(f"Expected a postgresql:// URI, got scheme {parsed.scheme!r}")
+    return {
+        "PG_HOST":     parsed.hostname or "localhost",
+        "PG_PORT":     str(parsed.port or 5432),
+        "PG_DB":       (parsed.path or "").lstrip("/"),
+        "PG_USER":     parsed.username or "",
+        "PG_PASSWORD": parsed.password or "",
+    }
+
+
+def main() -> None:
+    input_type  = os.environ.get("INPUT_TYPE",  "").strip().lower()
+    input_uri   = os.environ.get("INPUT_URI",   "").strip()
+    output_type = os.environ.get("OUTPUT_TYPE", "").strip().lower()
+    output_uri  = os.environ.get("OUTPUT_URI",  "").strip()
+
+    missing = [name for name, val in [
+        ("INPUT_TYPE",  input_type),
+        ("INPUT_URI",   input_uri),
+        ("OUTPUT_TYPE", output_type),
+        ("OUTPUT_URI",  output_uri),
+    ] if not val]
+    if missing:
+        print(
+            f"[main] ERROR: Missing required environment variable(s): {', '.join(missing)}",
+            file=sys.stderr, flush=True,
+        )
+        sys.exit(1)
+
+    if input_type not in ("gpkg", "postgis"):
+        print(
+            f"[main] ERROR: Unsupported INPUT_TYPE={input_type!r}. Must be 'gpkg' or 'postgis'.",
+            file=sys.stderr, flush=True,
+        )
+        sys.exit(1)
+
+    if output_type not in ("local", "s3"):
+        print(
+            f"[main] ERROR: Unsupported OUTPUT_TYPE={output_type!r}. Must be 'local' or 's3'.",
+            file=sys.stderr, flush=True,
+        )
+        sys.exit(1)
+
+    print(f"[main] INPUT_TYPE={input_type}   INPUT_URI={input_uri}",  flush=True)
+    print(f"[main] OUTPUT_TYPE={output_type}  OUTPUT_URI={output_uri}", flush=True)
+
+    env = os.environ.copy()
+
+    if input_type == "gpkg":
+        script = os.path.join(SCRIPTS_DIR, "gpkg-converter.py")
+        cmd = [
+            sys.executable, script,
+            f"--source={input_uri}",
+            f"--output-prefix={output_uri}",
+            "--user-id=local",
+        ]
+
+    else:  # postgis
+        try:
+            pg_vars = parse_pg_uri(input_uri)
+        except (ValueError, Exception) as exc:
+            print(
+                f"[main] ERROR: Cannot parse INPUT_URI as a PostgreSQL URI: {exc}",
+                file=sys.stderr, flush=True,
+            )
+            sys.exit(1)
+
+        env.update(pg_vars)
+        print(
+            f"[main] Resolved PostGIS connection: "
+            f"{pg_vars['PG_USER']}@{pg_vars['PG_HOST']}:{pg_vars['PG_PORT']}/{pg_vars['PG_DB']}",
+            flush=True,
+        )
+
+        script = os.path.join(SCRIPTS_DIR, "postgis-snapshot.py")
+        cmd = [
+            sys.executable, script,
+            f"--output-prefix={output_uri}",
+            "--user-id=local",
+        ]
+
+    print(f"[main] Executing: {' '.join(cmd)}", flush=True)
+
+    # Stream the sub-script's output directly — no capture so logs flow to container stdout.
+    result = subprocess.run(cmd, env=env)
+
+    if result.returncode != 0:
+        print(
+            f"[main] ERROR: Worker script exited with code {result.returncode}.",
+            file=sys.stderr, flush=True,
+        )
+        sys.exit(result.returncode)
+
+    print("[main] Worker completed successfully.", flush=True)
+
+
+if __name__ == "__main__":
+    main()

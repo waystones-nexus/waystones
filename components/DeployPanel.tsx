@@ -333,7 +333,20 @@ const DeployPanel: React.FC<DeployPanelProps> = ({ model, t, lang, onUpdateModel
       {/* STEP 0: Source selection */}
       {step === 0 && (
         <div id="dp-source-picker">
-          <SourceTypePicker sourceType={sourceType} onSelect={(type) => { setSourceType(type); setStep(1); }} t={t} />
+          <SourceTypePicker
+              sourceType={sourceType}
+              s3Enabled={!!s3Config}
+              onSelect={(type, enableS3) => {
+                setSourceType(type);
+                if (enableS3) {
+                  setS3Config({ provider: 'aws', endpointUrl: '', bucketName: '', objectKey: '', region: 'us-east-1' });
+                } else {
+                  setS3Config(null);
+                }
+                setStep(1);
+              }}
+              t={t}
+            />
         </div>
       )}
 
