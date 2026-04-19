@@ -80,6 +80,11 @@ class GeoParquetDuckDBProvider(BaseProvider):
                     os.environ.get('S3_ENDPOINT') or
                     os.environ.get('AWS_S3_ENDPOINT', '')
                 )
+                # DuckDB s3_endpoint requires hostname only (no protocol)
+                if '://' in endpoint:
+                    endpoint = endpoint.split('://')[-1]
+                endpoint = endpoint.rstrip('/')
+
                 key = options.get('r2_access_key_id') or os.environ.get('AWS_ACCESS_KEY_ID', '')
                 secret = options.get('r2_secret_access_key') or os.environ.get('AWS_SECRET_ACCESS_KEY', '')
                 conn.execute(f"SET s3_endpoint='{endpoint}'")

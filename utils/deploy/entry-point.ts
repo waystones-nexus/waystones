@@ -38,6 +38,7 @@ export const generateDeployFiles = async (
     'pygeoapi-config.yml': pygeoapiYaml,
     '.env.template': generateEnvFile(source),
     '.gitignore': '.env\n__pycache__/\n',
+    '.dockerignore': 'node_modules\ndist\n.git\n.venv\nvenv\ntmp\n*.local\n.env\n.env.*\n!.env.example\n',
     'README.md': generateReadmeForTarget(model, source, target, lang),
     '.github/workflows/deploy.yml': generateWorkflowForTarget(model, source, target),
   };
@@ -57,12 +58,12 @@ export const generateDeployFiles = async (
     }
 
     // Branded HTML templates baked into the deploy kit
-    files['docker/pygeoapi/local-templates/_base.html'] = generatePygeoapiTheme(model);
-    files['docker/pygeoapi/local-templates/landing_page.html'] = generateIndexHtml(model);
-    files['docker/pygeoapi/local-templates/collections/index.html'] = generateCollectionsHtml(model);
-    files['docker/pygeoapi/local-templates/collections/collection.html'] = generateCollectionHtml(model);
-    files['docker/pygeoapi/local-templates/collections/items/index.html'] = generateItemsHtml(model);
-    files['docker/pygeoapi/local-templates/collections/items/item.html'] = generateItemHtml(model);
+    files['docker/pygeoapi/html-templates/_base.html'] = generatePygeoapiTheme(model);
+    files['docker/pygeoapi/html-templates/landing_page.html'] = generateIndexHtml(model);
+    files['docker/pygeoapi/html-templates/collections/index.html'] = generateCollectionsHtml(model);
+    files['docker/pygeoapi/html-templates/collections/collection.html'] = generateCollectionHtml(model);
+    files['docker/pygeoapi/html-templates/collections/items/index.html'] = generateItemsHtml(model);
+    files['docker/pygeoapi/html-templates/collections/items/item.html'] = generateItemHtml(model);
 
     // Include Docker/Railway infra for a self-contained kit
     const isLocalGpkg = source.type === 'geopackage' && !hasS3Config(source);
