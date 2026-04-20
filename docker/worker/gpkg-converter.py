@@ -261,7 +261,6 @@ def main() -> None:
 
         # ── 4. Deliver output ────────────────────────────────────────────────
         manifest = {"layers": manifest_layers}
-
         if is_s3_output:
             prefix_key = output_prefix.replace(f"s3://{bucket}/", "", 1)
             for entry in manifest_layers:

@@ -59,7 +59,8 @@ if [ -z "$HAS_PARQUET" ]; then
         echo "[railway-boot] Running Conversion Worker..."
         python3 /app/worker/main.py
 
-        echo "[railway-boot] Worker complete. Data ready in /data/."
+        echo "[railway-boot] Worker complete. Final volume contents:"
+        ls -R /data
     else
         echo "[railway-boot] No source data found (GeoPackage, S3, or PostGIS). Skipping initial snapshot."
         echo "[railway-boot] Warning: The pygeoapi server may fail to start if it expects GeoParquet data."
