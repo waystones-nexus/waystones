@@ -100,6 +100,9 @@ COPY docker/worker/*.py /app/worker/
 COPY docker/railway/qgis-boot.sh /qgis-boot.sh
 RUN chmod +x /qgis-boot.sh
 
+# Configuration
+COPY model.json /app/model.json
+
 # Build context sync for optional data only
 COPY . /tmp/build-context
 RUN mkdir -p /data && \\
@@ -216,10 +219,17 @@ if [ -z "$(ls -A /data/*.fgb 2>/dev/null)" ]; then
             export INPUT_URI="/input/data.gpkg"
         fi
         
+        # Model awareness
+        export MODEL_PATH=""
+        if [ -f "/app/model.json" ]; then
+            export MODEL_PATH="/app/model.json"
+        fi
+
         echo "[railway-qgis-boot] Running Conversion Worker..."
         python3 /app/worker/main.py
         
-        echo "[railway-qgis-boot] Initialization complete."
+        echo "[railway-qgis-boot] Worker complete. Final volume contents:"
+        ls -R /data
     else
         echo "[railway-qgis-boot] No source connection details found. Skipping initial snapshot."
     fi

@@ -27,10 +27,17 @@ if [ -z "$(ls -A /data/*.fgb 2>/dev/null)" ]; then
             export INPUT_URI="/input/data.gpkg"
         fi
 
+        # Model awareness
+        export MODEL_PATH=""
+        if [ -f "/app/model.json" ]; then
+            export MODEL_PATH="/app/model.json"
+        fi
+
         echo "[railway-qgis-boot] Running worker..."
         python3 /app/worker/main.py
-
-        echo "[railway-qgis-boot] Worker complete. FlatGeobuf data ready in /data/."
+        
+        echo "[railway-qgis-boot] Worker complete. Final volume contents:"
+        ls -R /data
     else
         echo "[railway-qgis-boot] No source connection details found. Skipping worker (subsequent boot)."
     fi
