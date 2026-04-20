@@ -170,7 +170,8 @@ if [ -z "$HAS_PARQUET" ]; then
         echo "[railway-boot] Running Conversion Worker..."
         python3 /app/worker/main.py
         
-        echo "[railway-boot] Worker complete. Data ready in /data/."
+        echo "[railway-boot] Worker complete. Final volume contents:"
+        ls -R /data
     else
         echo "[railway-boot] No source data found (GeoPackage, S3, or PostGIS). Skipping initial snapshot."
         echo "[railway-boot] Warning: The pygeoapi server may fail to start if it expects GeoParquet data."
@@ -576,7 +577,7 @@ def main() -> None:
                 print(f"[converter] ERROR: {e}", file=sys.stderr, flush=True)
                 sys.exit(1)
 
-                manifest = {"layers": manifest_layers}
+        manifest = {"layers": manifest_layers}
         if is_s3_output:
             prefix_key = output_prefix.replace(f"s3://{bucket}/", "", 1)
             sync_cmd = ["aws", "s3", "sync", fgb_dir + "/", output_prefix + "/", "--endpoint-url", get_endpoint_url(), "--no-progress"]
@@ -839,7 +840,7 @@ def main() -> None:
             except Exception as e:
                 print(f"[snapshot] Skipping '{full_name}': {e}", flush=True)
 
-                manifest = {"layers": manifest_layers}
+        manifest = {"layers": manifest_layers}
         if is_s3_output:
             prefix_key = output_prefix.replace(f"s3://{bucket}/", "", 1)
             sync_cmd = ["aws", "s3", "sync", fgb_dir + "/", output_prefix + "/", "--endpoint-url", get_endpoint_url(), "--no-progress"]
