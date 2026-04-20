@@ -75,11 +75,6 @@ export const generatePygeoapiConfig = async (
   for (const layer of model.layers) {
     const collectionId = toTableName(layer.name);
     const mapping = source?.layerMappings?.[layer.id];
-
-    const layerKeywords = layer.keywords?.length
-      ? [...layer.keywords, `geometry:${layer.geometryType}`]
-      : [model.namespace || 'data', (layer.name || 'layer').toLowerCase().replace(/[^a-z0-9]/g, '-'), `geometry:${layer.geometryType}`];
-
     const nativeCrsUri = toCrsUri(model.crs);
 
     const crsList = [
@@ -87,6 +82,15 @@ export const generatePygeoapiConfig = async (
       ...(nativeCrsUri ? [nativeCrsUri] : []),
       ...COMMON_CRS_URIS,
     ].filter((v, i, arr) => arr.indexOf(v) === i);
+
+    const crsKeywords = crsList.map(uri => {
+      const parts = uri.split('/');
+      return `crs:${parts[parts.length - 1]}`;
+    });
+
+    const layerKeywords = layer.keywords?.length
+      ? [...layer.keywords, `geometry:${layer.geometryType}`, ...crsKeywords]
+      : [model.namespace || 'data', (layer.name || 'layer').toLowerCase().replace(/[^a-z0-9]/g, '-'), `geometry:${layer.geometryType}`, ...crsKeywords];
 
     yaml += `  ${collectionId}:\n`;
     yaml += `    type: collection\n`;
