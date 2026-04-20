@@ -85,18 +85,18 @@
 {% for col in data.collections %}
 <div class="col-row">
   <div class="col-icon">
-    {% set gtype = 'Unknown' %}
+    {% set ns = namespace(gtype='Unknown') %}
     {% for kw in col.keywords %}
       {% if kw.startswith('geometry:') %}
-        {% set gtype = kw.split(':')[1] %}
+        {% set ns.gtype = kw.split(':')[1] %}
       {% endif %}
     {% endfor %}
     
-    {% if gtype == 'Point' or gtype == 'MultiPoint' %}
+    {% if ns.gtype == 'Point' or ns.gtype == 'MultiPoint' %}
       <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-    {% elif 'Line' in gtype %}
+    {% elif 'Line' in ns.gtype %}
       <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-    {% elif gtype == 'Polygon' or gtype == 'MultiPolygon' or 'Polygon' in gtype %}
+    {% elif ns.gtype == 'Polygon' or ns.gtype == 'MultiPolygon' or 'Polygon' in ns.gtype %}
       <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
     {% elif col.itemType == 'record' %}
       <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
@@ -110,13 +110,23 @@
     </div>
     <p class="col-desc">{{ col.description }}</p>
     <div class="col-tags">
-      {% for kw in col.keywords %}<span class="col-tag">{{ kw }}</span>{% endfor %}
+      {% for kw in col.keywords %}
+        {% if not kw.startswith('geometry:') %}
+          <span class="col-tag">{{ kw }}</span>
+        {% endif %}
+      {% endfor %}
     </div>
   </div>
   <div class="col-meta">
     <div class="col-meta-label">CRS</div>
     <div class="col-meta-value" style="display:flex;flex-direction:column;gap:0.2rem;">
-      <span style="font-size:0.78rem;font-family:monospace;">CRS84</span>
+      {% if col.crs %}
+        {% for c in col.crs %}
+          <span style="font-size:0.78rem;font-family:monospace;">{{ c | replace('http://www.opengis.net/def/crs/EPSG/0/', 'EPSG:') | replace('http://www.opengis.net/def/crs/OGC/1.3/CRS84', 'CRS84') }}</span>
+        {% endfor %}
+      {% else %}
+        <span style="font-size:0.78rem;font-family:monospace;">CRS84</span>
+      {% endif %}
     </div>
   </div>
   <div class="col-cta">

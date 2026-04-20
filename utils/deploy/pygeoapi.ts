@@ -183,7 +183,9 @@ function getCQL2Extensions(): string {
 function toCrsUri(crs: string | null | undefined): string | null {
   if (!crs) return null;
   if (crs.startsWith('http')) return crs;
-  return `http://www.opengis.net/def/crs/EPSG/0/${crs.split(':')[1]}`;
+  const parts = crs.split(':');
+  const srid = parts.length > 1 ? parts[1] : parts[0];
+  return `http://www.opengis.net/def/crs/EPSG/0/${srid}`;
 }
 
 function resolveLayerProperties(layer: any, allLayers: any[]): any[] {
