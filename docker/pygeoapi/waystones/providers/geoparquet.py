@@ -30,6 +30,9 @@ _LOCK = threading.Lock()
 
 
 def _ogc_type(duckdb_type: str) -> str:
+    """Safely map DuckDB types to OGC types, handling None values from nested structs."""
+    if not duckdb_type:
+        return 'string'
     return _DUCK_TO_OGC.get(duckdb_type.upper().split('(')[0], 'string')
 
 
@@ -99,9 +102,11 @@ class GeoParquetDuckDBProvider(BaseProvider):
 
     def _init_metadata(self) -> dict:
         """Fetch all Parquet metadata in two S3 round trips."""
-        # OPTIMIZATION 3: Use parquet_schema() instead of DESCRIBE SELECT *
+        
+        # REVERTED OPTIMIZATION 3: Use DESCRIBE to get logical schema columns 
+        # (This prevents None type errors from physical struct/group nodes)
         schema = self._conn.execute(
-            f"SELECT name, type FROM parquet_schema('{self.data}')"
+            f"DESCRIBE SELECT * FROM read_parquet('{self.data}')"
         ).fetchall()
 
         # Round trip 2: GeoParquet geo metadata (primary column + CRS)
@@ -121,7 +126,7 @@ class GeoParquetDuckDBProvider(BaseProvider):
             geom_col = primary_col
         else:
             geom_col = next(
-                (name for name, dtype, *_ in schema if dtype.upper().startswith('GEOMETRY')),
+                (name for name, dtype, *_ in schema if dtype and dtype.upper().startswith('GEOMETRY')),
                 None,
             ) or next(
                 (name for name, *_ in schema if name.lower() in ('geometry', 'geom', 'wkb_geometry')),
@@ -130,7 +135,7 @@ class GeoParquetDuckDBProvider(BaseProvider):
 
         # Is geometry a native DuckDB GEOMETRY (decoded from GeoParquet), or raw WKB BLOB?
         geom_is_native = any(
-            name == geom_col and dtype.upper().startswith('GEOMETRY')
+            name == geom_col and dtype and dtype.upper().startswith('GEOMETRY')
             for name, dtype, *_ in schema
         )
 
