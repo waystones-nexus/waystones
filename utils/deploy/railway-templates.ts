@@ -56,7 +56,7 @@ RUN mkdir -p /data /app/data-sync && \\
     # 1. Sync Data
     if [ -d /tmp/build-context/data ] && [ "$(ls -A /tmp/build-context/data 2>/dev/null)" ]; then \\
         cp -r /tmp/build-context/data/* /app/data-sync/ || true; \\
-    fi\${gpkgSync} && \\
+    fi${gpkgSync} && \\
     rm -rf /tmp/build-context
 
 # Default env vars
