@@ -260,7 +260,7 @@ def main() -> None:
                     l_id   = layer.get("id")
                     target = layer.get("name")
                     m_info = mappings_cfg.get(l_id)
-                    source = m_info.get("sourceLayer") if m_info else None
+                    source = m_info.get("sourceTable") if m_info else None
                     
                     if source and source in catalog:
                         # Use target name from model exactly as provided
@@ -290,7 +290,7 @@ def main() -> None:
                     mappings_cfg = model.get("sourceConnection", {}).get("layerMappings", {})
                     for l in layers:
                         m = mappings_cfg.get(l.get("id"))
-                        if m and m.get("sourceLayer") == full_name:
+                        if m and m.get("sourceTable") == full_name:
                             # Use target name from model exactly as provided
                             safe_name = l.get("name").lower()
                             break

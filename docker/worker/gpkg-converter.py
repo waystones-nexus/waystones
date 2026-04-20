@@ -224,7 +224,7 @@ def main() -> None:
                     l_id   = layer.get("id")
                     target = layer.get("name")
                     m_info = mappings_cfg.get(l_id)
-                    source = m_info.get("sourceLayer") if m_info else None
+                    source = m_info.get("sourceTable") if m_info else None
                     
                     if source and source in all_gpkg_layers:
                         # Use target name from model exactly as provided
