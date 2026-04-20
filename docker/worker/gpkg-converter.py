@@ -37,6 +37,7 @@ def parse_args():
     p.add_argument("--source",        required=True,  help="Source .gpkg: local path or s3:// URI")
     p.add_argument("--output-prefix", required=True,  help="Output destination: local dir or s3:// prefix")
     p.add_argument("--user-id",       required=True,  help="User ID (for logging)")
+    p.add_argument("--model",         required=False, default=None, help="Path to model.json for layer mapping")
     p.add_argument("--deployment-id", required=False, default=None, help="Deployment ID (for S3 manifest path)")
     p.add_argument("--target-crs",    required=False, default=None, help="Target CRS (e.g. EPSG:4326) for reprojection")
     return p.parse_args()
@@ -198,19 +199,53 @@ def main() -> None:
             gpkg_path = args.source
             print(f"[converter] Using local GeoPackage: {gpkg_path} ({os.path.getsize(gpkg_path) / 1024 / 1024:.1f} MB)", flush=True)
 
-        # ── 2. Enumerate layers ──────────────────────────────────────────────
-        layer_names = list_layers(gpkg_path)
-        if not layer_names:
+        # ── 2. Determine layers to convert ────────────────────────────────────
+        # Default mapping: everything in the GPKG
+        all_gpkg_layers = list_layers(gpkg_path)
+        if not all_gpkg_layers:
             raise RuntimeError("No layers found in the GeoPackage")
-        print(f"[converter] Found {len(layer_names)} layer(s): {', '.join(layer_names)}", flush=True)
+        
+        # Mapping: { "source_layer_name": "target_safe_name" }
+        mapping = {}
+        
+        if args.model and os.path.exists(args.model):
+            print(f"[converter] Loading model from {args.model} for layer mapping...", flush=True)
+            try:
+                with open(args.model, "r") as f:
+                    model = json.load(f)
+                
+                # In Waystones model:
+                # model["layers"] is list of { "id": "uuid", "name": "Technical Name" }
+                # model["sourceConnection"]["layerMappings"] is { "layer_uuid": { "sourceLayer": "GPKG Layer Name" } }
+                layers = model.get("layers", [])
+                mappings_cfg = model.get("sourceConnection", {}).get("layerMappings", {})
+                
+                for layer in layers:
+                    l_id   = layer.get("id")
+                    target = layer.get("name")
+                    m_info = mappings_cfg.get(l_id)
+                    source = m_info.get("sourceLayer") if m_info else None
+                    
+                    if source and source in all_gpkg_layers:
+                        # Use target name from model exactly as provided
+                        mapping[source] = target.lower()
+                        print(f"[converter] Mapping: GPKG '{source}' → '{mapping[source]}'", flush=True)
+            except Exception as e:
+                print(f"[converter] Warning: Failed to parse model.json: {e}. Falling back to default names.", flush=True)
+
+        if not mapping:
+            print("[converter] Using default layer names (no model or no valid mappings).", flush=True)
+            for l in all_gpkg_layers:
+                mapping[l] = to_safe_name(l)
+
+        print(f"[converter] Processing {len(mapping)} layer(s)...", flush=True)
 
         # ── 3. Convert each layer to FlatGeobuf + GeoParquet ────────────────
         fgb_dir = os.path.join(work_dir, "fgb")
         os.makedirs(fgb_dir, exist_ok=True)
 
         manifest_layers = []
-        for layer_name in layer_names:
-            safe_name = to_safe_name(layer_name)
+        for layer_name, safe_name in mapping.items():
             print(f"[converter] Converting '{layer_name}' → {safe_name}.fgb ...", flush=True)
             try:
                 fgb_path = convert_layer(gpkg_path, layer_name, safe_name, fgb_dir, args.target_crs)

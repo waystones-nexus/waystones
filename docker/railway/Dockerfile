@@ -32,6 +32,7 @@ RUN chmod +x /railway-boot.sh
 COPY docker/pygeoapi/html-templates/ /pygeoapi/local-templates/
 
 # Configuration
+COPY model.json /app/model.json
 COPY pygeoapi-config.yml /pygeoapi/local.config.yml
 
 # We only use the build context sync for the optional data folder to keep it fast.

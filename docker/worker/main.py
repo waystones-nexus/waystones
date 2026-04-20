@@ -41,6 +41,7 @@ def main() -> None:
     input_uri   = os.environ.get("INPUT_URI",   "").strip()
     output_type = os.environ.get("OUTPUT_TYPE", "").strip().lower()
     output_uri  = os.environ.get("OUTPUT_URI",  "").strip()
+    model_path  = os.environ.get("MODEL_PATH",  "").strip()
 
     missing = [name for name, val in [
         ("INPUT_TYPE",  input_type),
@@ -71,6 +72,8 @@ def main() -> None:
 
     print(f"[main] INPUT_TYPE={input_type}   INPUT_URI={input_uri}",  flush=True)
     print(f"[main] OUTPUT_TYPE={output_type}  OUTPUT_URI={output_uri}", flush=True)
+    if model_path:
+        print(f"[main] MODEL_PATH={model_path}", flush=True)
 
     env = os.environ.copy()
 
@@ -82,6 +85,8 @@ def main() -> None:
             f"--output-prefix={output_uri}",
             "--user-id=local",
         ]
+        if model_path:
+            cmd.append(f"--model={model_path}")
 
     else:  # postgis
         try:
@@ -106,6 +111,8 @@ def main() -> None:
             f"--output-prefix={output_uri}",
             "--user-id=local",
         ]
+        if model_path:
+            cmd.append(f"--model={model_path}")
 
     print(f"[main] Executing: {' '.join(cmd)}", flush=True)
 

@@ -39,6 +39,7 @@ def parse_args():
     p = argparse.ArgumentParser(description="Snapshot PostGIS tables to per-layer FlatGeobuf + GeoParquet files")
     p.add_argument("--output-prefix", required=True, help="Output destination: local dir or s3:// prefix")
     p.add_argument("--user-id",       required=True, help="User ID (for logging)")
+    p.add_argument("--model",         required=False, default=None, help="Path to model.json for layer mapping")
     return p.parse_args()
 
 # ---------------------------------------------------------------------------
@@ -242,17 +243,60 @@ def main() -> None:
     tables_to_process = []
 
     if not tables_raw:
+        # Default mapping logic
         catalog = get_layer_catalog(pg_conn)
-        print("[snapshot] TABLES not set — snapshotting all discovered layers...", flush=True)
-        for layer_name in catalog:
-            tables_to_process.append((layer_name, catalog[layer_name]["geom_col"], layer_name))
+        
+        # Mapping: [ (full_name, geom_col, safe_name) ]
+        if args.model and os.path.exists(args.model):
+            print(f"[snapshot] Loading model from {args.model} for layer mapping...", flush=True)
+            try:
+                with open(args.model, "r") as f:
+                    model = json.load(f)
+                
+                layers = model.get("layers", [])
+                mappings_cfg = model.get("sourceConnection", {}).get("layerMappings", {})
+                
+                for layer in layers:
+                    l_id   = layer.get("id")
+                    target = layer.get("name")
+                    m_info = mappings_cfg.get(l_id)
+                    source = m_info.get("sourceLayer") if m_info else None
+                    
+                    if source and source in catalog:
+                        # Use target name from model exactly as provided
+                        tables_to_process.append((source, catalog[source]["geom_col"], target.lower()))
+                        print(f"[snapshot] Map (Model): {source} → {target.lower()}.parquet", flush=True)
+            except Exception as e:
+                print(f"[snapshot] Warning: Failed to parse model.json: {e}", flush=True)
+
+        if not tables_to_process:
+            print("[snapshot] TABLES not set — snapshotting all discovered layers...", flush=True)
+            for layer_name in catalog:
+                tables_to_process.append((layer_name, catalog[layer_name]["geom_col"], to_safe_name(layer_name)))
     else:
         requested = [t.strip() for t in tables_raw.split(",") if t.strip()]
         for req in requested:
             full_name  = req
             table_only = req.rsplit(".", 1)[-1] if "." in req else req
             geom_col   = get_table_geom_col(pg_conn, req)
-            tables_to_process.append((full_name, geom_col, table_only))
+            
+            # Use model to find the safe name if possible
+            safe_name = to_safe_name(table_only)
+            if args.model and os.path.exists(args.model):
+                try:
+                    with open(args.model, "r") as f:
+                        model = json.load(f)
+                    layers = model.get("layers", [])
+                    mappings_cfg = model.get("sourceConnection", {}).get("layerMappings", {})
+                    for l in layers:
+                        m = mappings_cfg.get(l.get("id"))
+                        if m and m.get("sourceLayer") == full_name:
+                            # Use target name from model exactly as provided
+                            safe_name = l.get("name").lower()
+                            break
+                except: pass
+
+            tables_to_process.append((full_name, geom_col, safe_name))
 
     if not tables_to_process:
         raise RuntimeError("No valid tables found to process.")
@@ -264,9 +308,7 @@ def main() -> None:
         os.makedirs(fgb_dir, exist_ok=True)
 
         manifest_layers = []
-        for full_name, geom_col, original_req in tables_to_process:
-            table_part = original_req.rsplit(".", 1)[-1] if "." in original_req else original_req
-            safe_name  = to_safe_name(table_part)
+        for full_name, geom_col, safe_name in tables_to_process:
 
             print(f"[snapshot] Exporting '{full_name}' → {safe_name}.fgb ...", flush=True)
             try:
