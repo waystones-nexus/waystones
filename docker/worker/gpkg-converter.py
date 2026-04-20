@@ -147,14 +147,26 @@ def convert_layer_to_parquet(fgb_path: str, safe_name: str, out_dir: str) -> str
         # Normalise FID: GeoPackage FIDs come through ogr2ogr as "ogc_fid".
         # Rename to "fid" so the GeoParquetDuckDBProvider can use id_field=fid.
         schema = conn.execute(f"DESCRIBE SELECT * FROM st_read('{fgb_path}')").fetchall()
+        
+        # Find geometry column dynamically (usually 'geom' but find the GEOMETRY type)
+        # DuckDB DESCRIBE returns (column_name, column_type, null, key, default, extra)
+        geom_col = next((r[0] for r in schema if r[1].upper() == "GEOMETRY"), "geom")
+
+        bbox_cols = (
+            f', ST_XMin("{geom_col}") AS bbox_xmin'
+            f', ST_XMax("{geom_col}") AS bbox_xmax'
+            f', ST_YMin("{geom_col}") AS bbox_ymin'
+            f', ST_YMax("{geom_col}") AS bbox_ymax'
+        )
+
         col_names = [r[0].lower() for r in schema]
         if "fid" in col_names:
-            select = "*"
+            select = f"*{bbox_cols}"
         elif "ogc_fid" in col_names:
             other = ", ".join(f'"{r[0]}"' for r in schema if r[0].lower() != "ogc_fid")
-            select = f"ogc_fid AS fid, {other}"
+            select = f"ogc_fid AS fid, {other}{bbox_cols}"
         else:
-            select = "row_number() OVER () AS fid, *"
+            select = f"row_number() OVER () AS fid, *{bbox_cols}"
         conn.execute(f"""
             COPY (SELECT {select} FROM st_read('{fgb_path}'))
             TO '{out_path}'

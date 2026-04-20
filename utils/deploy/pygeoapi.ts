@@ -77,8 +77,8 @@ export const generatePygeoapiConfig = async (
     const mapping = source?.layerMappings?.[layer.id];
 
     const layerKeywords = layer.keywords?.length
-      ? layer.keywords
-      : [model.namespace || 'data', (layer.name || 'layer').toLowerCase().replace(/[^a-z0-9]/g, '-')];
+      ? [...layer.keywords, `geometry:${layer.geometryType}`]
+      : [model.namespace || 'data', (layer.name || 'layer').toLowerCase().replace(/[^a-z0-9]/g, '-'), `geometry:${layer.geometryType}`];
 
     const nativeCrsUri = toCrsUri(model.crs);
 
@@ -168,6 +168,7 @@ const COMMON_CRS_URIS = [
   'http://www.opengis.net/def/crs/EPSG/0/4326',
   'http://www.opengis.net/def/crs/EPSG/0/4258',
   'http://www.opengis.net/def/crs/EPSG/0/3857',
+  'http://www.opengis.net/def/crs/EPSG/0/4269',
 ];
 
 function getCQL2Extensions(): string {
