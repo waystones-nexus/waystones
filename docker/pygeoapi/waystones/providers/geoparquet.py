@@ -25,7 +25,7 @@ _DUCK_TO_OGC = {
 # Module-level caches — shared across all requests within the same gunicorn worker process.
 # Keyed on the Parquet data URL.
 _CONN_CACHE: dict = {}   # data_url → duckdb connection
-_META_CACHE: dict = {}   # data_url → {geom_col, geom_is_native, source_crs, fields_cache, count_cache}
+_META_CACHE: dict = {}   # data_url → {geom_col, geom_is_native, source_crs, fields_cache, count_cache, ...}
 _LOCK = threading.Lock()
 
 
@@ -34,26 +34,6 @@ def _ogc_type(duckdb_type: str) -> str:
 
 
 class GeoParquetDuckDBProvider(BaseProvider):
-    """
-    pygeoapi feature provider backed by DuckDB reading GeoParquet.
-
-    Config example (private R2 — credentials from env):
-        name: waystones.providers.geoparquet.GeoParquetDuckDBProvider
-        data: s3://my-bucket/users/x/projects/y/layers/layer.parquet
-        id_field: fid
-
-    Config example (public HTTPS via Cloudflare CDN):
-        name: waystones.providers.geoparquet.GeoParquetDuckDBProvider
-        data: https://data.example.com/layer.parquet
-        id_field: fid
-
-    Optional provider options (override env vars):
-        options:
-          r2_endpoint: <account_id>.r2.cloudflarestorage.com  # hostname only
-          r2_access_key_id: xxx
-          r2_secret_access_key: xxx
-    """
-
     def __init__(self, provider_def: dict):
         super().__init__(provider_def)
         options = self.options or {}
@@ -104,22 +84,24 @@ class GeoParquetDuckDBProvider(BaseProvider):
             self._apply_metadata(meta)
 
     def _apply_metadata(self, meta: dict):
-        self._geom_col       = meta['geom_col']
-        self._geom_is_native = meta['geom_is_native']
-        self._source_crs     = meta['source_crs']
-        self._fields_cache   = meta['fields_cache']
-        # count_cache is shared across requests for the same file (counts don't change)
-        self._count_cache    = meta['count_cache']
+        self._geom_col        = meta['geom_col']
+        self._geom_is_native  = meta['geom_is_native']
+        self._source_crs      = meta['source_crs']
+        self._fields_cache    = meta['fields_cache']
+        self._count_cache     = meta['count_cache']
+        # Metadata flags for spatial pushdown
+        self._has_bbox_struct = meta.get('has_bbox_struct', False)
+        self._has_bbox_cols   = meta.get('has_bbox_cols', False)
 
     # ------------------------------------------------------------------
     # Startup metadata — runs once per data URL per worker process
     # ------------------------------------------------------------------
 
     def _init_metadata(self) -> dict:
-        """Fetch all Parquet metadata in two S3 round trips: DESCRIBE + kv_metadata."""
-        # Round trip 1: schema (column names + types)
+        """Fetch all Parquet metadata in two S3 round trips."""
+        # OPTIMIZATION 3: Use parquet_schema() instead of DESCRIBE SELECT *
         schema = self._conn.execute(
-            f"DESCRIBE SELECT * FROM read_parquet('{self.data}')"
+            f"SELECT name, type FROM parquet_schema('{self.data}')"
         ).fetchall()
 
         # Round trip 2: GeoParquet geo metadata (primary column + CRS)
@@ -165,11 +147,17 @@ class GeoParquetDuckDBProvider(BaseProvider):
                 if tag not in ('EPSG:4326', 'OGC:CRS84'):
                     source_crs = tag
 
-        # Fields (exclude geometry + ogc_fid which is the GPKG FID under a legacy name)
+        # OPTIMIZATION 1: Safely check for bounding box columns
+        schema_names = [name.lower() for name, *_ in schema]
+        has_bbox_struct = 'bbox' in schema_names
+        has_bbox_cols = all(c in schema_names for c in ['bbox_xmin', 'bbox_ymin', 'bbox_xmax', 'bbox_ymax'])
+
+        # Fields (exclude geometry + ogc_fid + bounding box columns)
+        exclude_fields = {geom_col.lower(), 'ogc_fid', 'bbox', 'bbox_xmin', 'bbox_ymin', 'bbox_xmax', 'bbox_ymax'}
         fields_cache = {
             name: {'type': _ogc_type(dtype), 'title': name}
             for name, dtype, *_ in schema
-            if name != geom_col and name.lower() != 'ogc_fid'
+            if name.lower() not in exclude_fields
         }
 
         return {
@@ -178,6 +166,8 @@ class GeoParquetDuckDBProvider(BaseProvider):
             'source_crs':     source_crs,
             'fields_cache':   fields_cache,
             'count_cache':    {},
+            'has_bbox_struct': has_bbox_struct,
+            'has_bbox_cols':   has_bbox_cols
         }
 
     # ------------------------------------------------------------------
@@ -187,8 +177,6 @@ class GeoParquetDuckDBProvider(BaseProvider):
     def _geom_to_json(self) -> str:
         if self._geom_is_native:
             if self._source_crs:
-                # always_xy=true forces (longitude, latitude) output — PROJ 6+ respects the
-                # official EPSG:4326 axis order (lat, lon) which would invert coordinates.
                 return (f"ST_AsGeoJSON(ST_Transform(\"{self._geom_col}\","
                         f" '{self._source_crs}', 'EPSG:4326', true))")
             return f'ST_AsGeoJSON("{self._geom_col}")'
@@ -207,13 +195,26 @@ class GeoParquetDuckDBProvider(BaseProvider):
         clauses: list[str] = []
         params: list = []
         if len(bbox) == 4:
+            minx, miny, maxx, maxy = bbox
+            
+            # OPTIMIZATION 1: Conditional Spatial Pushdown
+            if self._has_bbox_struct:
+                clauses.append("bbox.xmin <= ? AND bbox.xmax >= ? AND bbox.ymin <= ? AND bbox.ymax >= ?")
+                params.extend([maxx, minx, maxy, miny])
+            elif self._has_bbox_cols:
+                clauses.append("bbox_xmin <= ? AND bbox_xmax >= ? AND bbox_ymin <= ? AND bbox_ymax >= ?")
+                params.extend([maxx, minx, maxy, miny])
+
+            # Exact spatial intersection
             clauses.append(
                 f'ST_Intersects({self._geom_for_filter()}, ST_MakeEnvelope(?, ?, ?, ?))'
             )
             params.extend(bbox)
+            
         for name, value in (properties or []):
             clauses.append(f'"{name}" = ?')
             params.append(value)
+            
         return ('WHERE ' + ' AND '.join(clauses)) if clauses else '', params
 
     def _count(self, where: str, params: list) -> int:
@@ -224,6 +225,13 @@ class GeoParquetDuckDBProvider(BaseProvider):
             ).fetchone()
             self._count_cache[cache_key] = int(row[0]) if row else 0
         return self._count_cache[cache_key]
+
+    def _get_select_clause(self) -> str:
+        """Helper to build a columnar projection string."""
+        col_names = [f'"{f}"' for f in self._fields_cache.keys()]
+        if f'"{self.id_field}"' not in col_names:
+            col_names.insert(0, f'"{self.id_field}"')
+        return ', '.join(col_names)
 
     def _row_to_feature(self, row: tuple) -> dict:
         cols = [d[0] for d in (self._conn.description or [])]
@@ -255,9 +263,10 @@ class GeoParquetDuckDBProvider(BaseProvider):
         return self._fields_cache
 
     def get(self, identifier, **kwargs):
+        # OPTIMIZATION 2: Replaced SELECT * with dynamic selection
         row = self._conn.execute(
             f"""
-            SELECT *, {self._geom_to_json()} AS __geom_json
+            SELECT {self._get_select_clause()}, {self._geom_to_json()} AS __geom_json
             FROM read_parquet('{self.data}')
             WHERE "{self.id_field}" = ?
             LIMIT 1
@@ -282,9 +291,11 @@ class GeoParquetDuckDBProvider(BaseProvider):
             }
 
         geom_expr = 'NULL AS __geom_json' if skip_geometry else f'{self._geom_to_json()} AS __geom_json'
+        
+        # OPTIMIZATION 2: Replaced SELECT * with dynamic selection
         rows = self._conn.execute(
             f"""
-            SELECT *, {geom_expr}
+            SELECT {self._get_select_clause()}, {geom_expr}
             FROM read_parquet('{self.data}')
             {where}
             ORDER BY "{self.id_field}"
