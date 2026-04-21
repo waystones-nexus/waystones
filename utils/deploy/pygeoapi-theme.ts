@@ -8,6 +8,7 @@ export { generateItemsHtml } from './templates/items';
 export { generateCollectionHtml } from './templates/collection';
 export { generateIndexHtml } from './templates/index';
 export { generateItemHtml } from './templates/item';
+export { generateQueryablesHtml } from './templates/queryables';
 
 /**
  * Toggle this to true to invert the colors of the Waystones logo and favicon 

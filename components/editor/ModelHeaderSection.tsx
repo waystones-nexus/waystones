@@ -1,5 +1,5 @@
 import React from 'react';
-import { Database, ChevronUp, ChevronDown, Globe, X } from 'lucide-react';
+import { Database, ChevronUp, ChevronDown, Globe, X, Plus } from 'lucide-react';
 import { COMMON_CRS } from '../../constants';
 import { sanitizeTechnicalName } from '../../utils/nameSanitizer';
 import DiffField from './DiffField';
@@ -172,61 +172,6 @@ const ModelHeaderSection: React.FC<ModelHeaderSectionProps> = ({
           </div>
 
           <DiffField
-            label={
-              <div className="flex items-center gap-2">
-                {t.additionalCrsLabel}
-                <span className="text-[10px] text-slate-400 font-medium lowercase">({t.additionalCrsHint})</span>
-              </div>
-            }
-            currentValue={(model.supportedCRS || []).join(', ')}
-            baselineValue={(baselineModel?.supportedCRS || []).join(', ')}
-            reviewMode={reviewMode}
-          >
-            <div className="space-y-3">
-              <div className="flex flex-wrap gap-2">
-                {(model.supportedCRS || []).map((crs, i) => (
-                  <span key={i} className="inline-flex items-center gap-1.5 bg-indigo-50 text-indigo-700 border border-indigo-100 px-2.5 py-1.5 rounded-xl text-[10px] md:text-xs font-bold">
-                    <Globe size={12} className="text-indigo-400" />
-                    {crs}
-                    <button 
-                      onClick={() => onUpdate({ ...model, supportedCRS: model.supportedCRS?.filter((_, idx) => idx !== i) })}
-                      className="text-indigo-300 hover:text-indigo-600 transition-colors"
-                    >
-                      <X size={14} />
-                    </button>
-                  </span>
-                ))}
-              </div>
-              <input
-                type="text"
-                list="crs-presets-additional"
-                placeholder={t.additionalCrsPlaceholder}
-                className="w-full bg-slate-50 border border-slate-200 rounded-[18px] md:rounded-[20px] px-4 py-3 text-sm md:text-base font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ',') {
-                    e.preventDefault();
-                    const val = (e.currentTarget.value).trim().toUpperCase();
-                    if (val && !(model.supportedCRS || []).includes(val)) {
-                      onUpdate({ 
-                        ...model, 
-                        supportedCRS: [...(model.supportedCRS || []), val] 
-                      });
-                    }
-                    e.currentTarget.value = '';
-                  }
-                }}
-              />
-              <datalist id="crs-presets-additional">
-                {COMMON_CRS.map((crs) => (
-                  <option key={crs.code} value={crs.code}>
-                    {crs.name}
-                  </option>
-                ))}
-              </datalist>
-            </div>
-          </DiffField>
-
-          <DiffField
             label={t.description}
             currentValue={model.description}
             baselineValue={baselineModel?.description}
@@ -249,6 +194,79 @@ const ModelHeaderSection: React.FC<ModelHeaderSectionProps> = ({
               onChange={(e) => onUpdate({ ...model, description: e.target.value })}
               className="w-full bg-slate-50 border border-slate-200 rounded-[18px] md:rounded-[20px] px-4 py-3 text-xs md:text-sm min-h-[60px] md:min-h-[80px] focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all resize-none leading-relaxed"
             />
+          </DiffField>
+
+          <DiffField
+            label={
+              <div className="flex items-center gap-2">
+                {t.additionalCrsLabel}
+                <span className="text-[10px] text-slate-400 font-medium lowercase">({t.additionalCrsHint})</span>
+              </div>
+            }
+            currentValue={(model.supportedCRS || []).join(', ')}
+            baselineValue={(baselineModel?.supportedCRS || []).join(', ')}
+            reviewMode={reviewMode}
+          >
+            <div className="space-y-2">
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-2 focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all flex flex-wrap gap-1.5 items-center">
+                {(model.supportedCRS || []).map((crs, i) => (
+                  <span key={i} className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 border border-indigo-100 px-1.5 py-0.5 rounded-lg text-[9px] font-bold">
+                    <Globe size={10} className="text-indigo-400" />
+                    {crs}
+                    <button 
+                      onClick={() => onUpdate({ ...model, supportedCRS: model.supportedCRS?.filter((_, idx) => idx !== i) })}
+                      className="text-indigo-300 hover:text-indigo-600 transition-colors ml-0.5"
+                    >
+                      <X size={10} />
+                    </button>
+                  </span>
+                ))}
+                <input
+                  type="text"
+                  id="crs-input-additional"
+                  list="crs-presets-additional"
+                  placeholder={t.additionalCrsPlaceholder}
+                  className="flex-1 min-w-[80px] bg-transparent text-[10px] font-bold outline-none placeholder:text-slate-300"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ',') {
+                      e.preventDefault();
+                      const val = (e.currentTarget.value).trim().toUpperCase();
+                      if (val && !(model.supportedCRS || []).includes(val)) {
+                        onUpdate({ 
+                          ...model, 
+                          supportedCRS: [...(model.supportedCRS || []), val] 
+                        });
+                      }
+                      e.currentTarget.value = '';
+                    }
+                  }}
+                />
+                <button
+                  onClick={() => {
+                    const input = document.getElementById('crs-input-additional') as HTMLInputElement;
+                    const val = input?.value.trim().toUpperCase();
+                    if (val && !(model.supportedCRS || []).includes(val)) {
+                      onUpdate({ 
+                        ...model, 
+                        supportedCRS: [...(model.supportedCRS || []), val] 
+                      });
+                      input.value = '';
+                    }
+                  }}
+                  className="p-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all shadow-sm active:scale-95 flex items-center justify-center shrink-0 ml-auto"
+                  title="Add CRS"
+                >
+                  <Plus size={12} />
+                </button>
+              </div>
+              <datalist id="crs-presets-additional">
+                {COMMON_CRS.map((crs) => (
+                  <option key={crs.code} value={crs.code}>
+                    {crs.name}
+                  </option>
+                ))}
+              </datalist>
+            </div>
           </DiffField>
         </div>
       </div>

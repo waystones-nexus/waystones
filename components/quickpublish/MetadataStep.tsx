@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { Translations } from '../../i18n/index';
-import { X, ArrowRight, ChevronDown, ChevronUp, Layers, Tag, Square } from 'lucide-react';
+import { X, ArrowRight, ChevronDown, ChevronUp, Layers, Tag, Square, Globe, Plus } from 'lucide-react';
 import { DataModel, Layer, ModelMetadata } from '../../types';
 import { InferredDataSummary } from '../../utils/importUtils';
+import { COMMON_CRS } from '../../constants';
 import {
   generateModelAbstract, suggestTheme, suggestKeywords,
   suggestLayerKeywords, generateLayerDescription
@@ -252,6 +253,96 @@ const MetadataStep: React.FC<MetadataStepProps> = ({ model, summary, onUpdateMod
           />
         </div>
 
+        {/* Additional CRS */}
+        <div id={`${idPrefix}-meta-additional-crs-field`} className="space-y-2">
+          <div className="flex items-center gap-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t.additionalCrsLabel}</label>
+            <span className="text-[10px] text-slate-400 font-medium lowercase">({t.additionalCrsHint})</span>
+          </div>
+          <div className="space-y-3">
+            <div className="bg-white border-2 border-slate-200 rounded-2xl p-3 min-h-[56px] focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all flex flex-wrap gap-2 items-center">
+              {(model.supportedCRS || []).map((crs, i) => (
+                <span key={i} className="inline-flex items-center gap-1.5 bg-indigo-50 text-indigo-700 border border-indigo-100 px-2.5 py-1.5 rounded-xl text-xs font-bold">
+                  <Globe size={12} className="text-indigo-400" />
+                  {crs}
+                  <button 
+                    onClick={() => onUpdateModel({ ...model, supportedCRS: model.supportedCRS?.filter((_, idx) => idx !== i) })}
+                    className="text-indigo-300 hover:text-indigo-600 transition-colors"
+                  >
+                    <X size={14} />
+                  </button>
+                </span>
+              ))}
+              <input
+                type="text"
+                id="crs-input-additional-step"
+                list="crs-presets-additional-step"
+                placeholder={t.additionalCrsPlaceholder}
+                className="flex-1 min-w-[120px] bg-transparent text-sm font-bold outline-none placeholder:text-slate-300"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ',') {
+                    e.preventDefault();
+                    const val = (e.currentTarget.value).trim().toUpperCase();
+                    if (val && !(model.supportedCRS || []).includes(val)) {
+                      onUpdateModel({ 
+                        ...model, 
+                        supportedCRS: [...(model.supportedCRS || []), val] 
+                      });
+                    }
+                    e.currentTarget.value = '';
+                  }
+                }}
+              />
+              <button
+                onClick={() => {
+                  const input = document.getElementById('crs-input-additional-step') as HTMLInputElement;
+                  const val = input?.value.trim().toUpperCase();
+                  if (val && !(model.supportedCRS || []).includes(val)) {
+                    onUpdateModel({ 
+                      ...model, 
+                      supportedCRS: [...(model.supportedCRS || []), val] 
+                    });
+                    input.value = '';
+                  }
+                }}
+                className="px-4 py-1.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all shadow-sm active:scale-95 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest ml-auto"
+              >
+                <Plus size={14} />
+                <span>{t.importDatabase?.import || 'Add'}</span>
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {COMMON_CRS.map((crs) => (
+                <button
+                  key={crs.code}
+                  onClick={() => {
+                    if (!(model.supportedCRS || []).includes(crs.code)) {
+                      onUpdateModel({ 
+                        ...model, 
+                        supportedCRS: [...(model.supportedCRS || []), crs.code] 
+                      });
+                    }
+                  }}
+                  className={`px-2 py-1 rounded-lg text-[10px] font-black border transition-all ${
+                    (model.supportedCRS || []).includes(crs.code)
+                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
+                      : 'bg-slate-50 border-slate-200 text-slate-500 hover:border-indigo-300'
+                  }`}
+                >
+                  {crs.code}
+                </button>
+              ))}
+            </div>
+            <datalist id="crs-presets-additional-step">
+              {COMMON_CRS.map((crs) => (
+                <option key={crs.code} value={crs.code}>
+                  {crs.name}
+                </option>
+              ))}
+            </datalist>
+          </div>
+        </div>
+
         {/* Contact */}
         <div id={`${idPrefix}-meta-contact-fields`} className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="space-y-1.5">
@@ -352,6 +443,7 @@ const MetadataStep: React.FC<MetadataStepProps> = ({ model, summary, onUpdateMod
           />
         </div>
       </div>
+
 
       {/* Spatial Extent */}
       <div id={`${idPrefix}-meta-bbox-field`} className={`space-y-4 rounded-2xl border-2 transition-all ${isBboxExpanded ? 'border-indigo-200 ring-4 ring-indigo-500/5 shadow-sm p-5 bg-white' : 'border-slate-100 p-4 bg-slate-50/30'}`}>

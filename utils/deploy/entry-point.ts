@@ -14,6 +14,7 @@ import {
   generateCollectionHtml,
   generateItemsHtml,
   generateItemHtml,
+  generateQueryablesHtml,
 } from './pygeoapi-theme';
 import { hasS3Config, getGpkgFilename } from './_helpers';
 
@@ -64,6 +65,7 @@ export const generateDeployFiles = async (
     files['docker/pygeoapi/html-templates/collections/collection.html'] = generateCollectionHtml(model);
     files['docker/pygeoapi/html-templates/collections/items/index.html'] = generateItemsHtml(model);
     files['docker/pygeoapi/html-templates/collections/items/item.html'] = generateItemHtml(model);
+    files['docker/pygeoapi/html-templates/collections/queryables.html'] = generateQueryablesHtml(model);
 
     // Include Docker/Railway infra for a self-contained kit
     const isLocalGpkg = source.type === 'geopackage' && !hasS3Config(source);
