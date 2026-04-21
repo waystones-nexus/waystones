@@ -41,6 +41,28 @@ class GeoParquetDuckDBProvider(BaseProvider):
         super().__init__(provider_def)
         options = self.options or {}
 
+        # ----------------------------------------------------------------
+        # Static schema injected by the TypeScript config generator.
+        # When present, get_fields() returns this directly — no DESCRIBE
+        # round-trip needed and /queryables always returns something useful.
+        # Format expected:
+        #   schema:
+        #     properties:
+        #       my_field:
+        #         type: string
+        #         title: My Field
+        # ----------------------------------------------------------------
+        injected_schema = provider_def.get('schema') or {}
+        raw_props = injected_schema.get('properties') if isinstance(injected_schema, dict) else None
+        if raw_props and isinstance(raw_props, dict):
+            self._static_fields: dict | None = {
+                name: {'type': info.get('type', 'string'), 'title': info.get('title', name)}
+                for name, info in raw_props.items()
+                if isinstance(info, dict)
+            }
+        else:
+            self._static_fields = None
+
         with _LOCK:
             if self.data in _CONN_CACHE and self.data in _META_CACHE:
                 # Reuse existing connection — extensions already loaded, footer already cached.
@@ -265,6 +287,15 @@ class GeoParquetDuckDBProvider(BaseProvider):
     # ------------------------------------------------------------------
 
     def get_fields(self) -> dict:
+        """Return field definitions for the /queryables endpoint.
+
+        Priority:
+        1. Static schema injected from the YAML provider block by the TypeScript
+           config generator — authoritative, rich (titles, enums, formats).
+        2. DuckDB-discovered fields from DESCRIBE — auto-detected fallback.
+        """
+        if self._static_fields is not None:
+            return self._static_fields
         return self._fields_cache
 
     def get(self, identifier, **kwargs):

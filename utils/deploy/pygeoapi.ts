@@ -142,23 +142,24 @@ export const generatePygeoapiConfig = async (
 
     const allProperties = resolveLayerProperties(layer, model.layers);
 
-    // Only provide a schema block if we have explicit properties defined in the model.
-    // Otherwise, omit it so pygeoapi falls back to the provider's auto-discovery (DESCRIBE).
+    // Inject the schema directly into the provider block (8-space indent).
+    // The Python GeoParquetDuckDBProvider reads provider_def['schema'] and
+    // returns it from get_fields(), making /queryables work without live DESCRIBE.
     if (allProperties.length > 0) {
-      yaml += `    schema:\n`;
-      yaml += `      title: "${layer.title || layer.name}"\n`;
-      yaml += `      type: object\n`;
-      yaml += `      properties:\n`;
+      yaml += `        schema:\n`;
+      yaml += `          title: "${layer.title || layer.name}"\n`;
+      yaml += `          type: object\n`;
+      yaml += `          properties:\n`;
       allProperties.forEach(prop => {
         const typeInfo = mapFieldToSchemaType(prop);
         const pName = prop.name || 'untitled_property';
-        yaml += `        "${pName}":\n`;
-        yaml += `          title: "${prop.title || pName}"\n`;
-        yaml += `          type: ${typeInfo.type}\n`;
-        if (typeInfo.format) yaml += `          format: ${typeInfo.format}\n`;
+        yaml += `            "${pName}":\n`;
+        yaml += `              title: "${prop.title || pName}"\n`;
+        yaml += `              type: ${typeInfo.type}\n`;
+        if (typeInfo.format) yaml += `              format: ${typeInfo.format}\n`;
         if (typeInfo.enum) {
-          yaml += `            enum:\n`;
-          typeInfo.enum.forEach((e: string) => { yaml += `              - "${e}"\n`; });
+          yaml += `              enum:\n`;
+          typeInfo.enum.forEach((e: string) => { yaml += `                - "${e}"\n`; });
         }
       });
       yaml += `\n`;
