@@ -89,7 +89,7 @@ const DeployPanel: React.FC<DeployPanelProps> = ({ model, t, lang, onUpdateModel
     host: 'localhost', port: '5432', dbname: '', user: 'postgres', password: '', schema: 'public',
   });
   const [supaConfig, setSupaConfig] = useState<SupabaseConfig>({
-    projectUrl: '', anonKey: '', schema: 'public',
+    connectionString: '', schema: 'public',
   });
   const [dbConfig, setDbConfig] = useState<DatabricksConfig>({
     host: '', httpPath: '', token: '', catalog: 'main', schema: 'default',
@@ -249,7 +249,7 @@ const DeployPanel: React.FC<DeployPanelProps> = ({ model, t, lang, onUpdateModel
   const isConnectionValid = (): boolean => {
     if (!sourceType) return false;
     if (sourceType === 'postgis') return !!(pgConfig.host && pgConfig.dbname && pgConfig.user);
-    if (sourceType === 'supabase') return !!(supaConfig.projectUrl && supaConfig.anonKey);
+    if (sourceType === 'supabase') return !!supaConfig.connectionString;
     if (sourceType === 'databricks') return !!(dbConfig.host && dbConfig.httpPath && dbConfig.token);
     if (sourceType === 'geopackage') return !!gpkgConfig.filename;
     return false;

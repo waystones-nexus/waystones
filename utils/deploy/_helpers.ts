@@ -79,15 +79,14 @@ export const getPgConnectionEnv = (source: SourceConnection): Record<string, str
   }
   if (source.type === 'supabase') {
     const c = source.config as SupabaseConfig;
-    // Supabase PG connection: host is db.<project-ref>.supabase.co, port 5432
-    const projectRef = c.projectUrl.replace('https://', '').replace('.supabase.co', '');
+    const pg = parsePostgresConnectionString(c.connectionString, c.schema);
     return {
-      POSTGRES_HOST: `db.${projectRef}.supabase.co`,
-      POSTGRES_PORT: '5432',
-      POSTGRES_DB: 'postgres',
-      POSTGRES_USER: 'postgres',
-      POSTGRES_PASSWORD: '${SUPABASE_DB_PASSWORD}', // User must set this
-      POSTGRES_SCHEMA: c.schema || 'public',
+      POSTGRES_HOST: pg.host,
+      POSTGRES_PORT: pg.port,
+      POSTGRES_DB: pg.dbname,
+      POSTGRES_USER: pg.user,
+      POSTGRES_PASSWORD: pg.password,
+      POSTGRES_SCHEMA: pg.schema || 'public',
     };
   }
   return null; // Databricks and GeoPackage have no PG connection

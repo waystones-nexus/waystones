@@ -249,10 +249,8 @@ export interface PostgresConfig {
 }
 
 export interface SupabaseConfig {
-  projectUrl: string;   // e.g. https://xyz.supabase.co
-  anonKey: string;
+  connectionString: string;
   schema: string;
-  // Supabase is PostGIS under the hood — we derive the PG connection from these
 }
 
 export interface DatabricksConfig {

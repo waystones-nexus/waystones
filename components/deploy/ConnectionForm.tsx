@@ -134,9 +134,26 @@ const ConnectionForm: React.FC<ConnectionFormProps> = ({
         )}
         {sourceType === 'supabase' && (
           <React.Fragment>
-            <Field id={`${idPrefix}-conn-host-field`} label={d.fields.projectUrl} value={supaConfig.projectUrl} onChange={v => onSupaChange({ ...supaConfig, projectUrl: v })} placeholder="https://abcdef.supabase.co" hint={d.supabaseHint} />
-            <Field label={d.fields.anonKey} value={supaConfig.anonKey} onChange={v => onSupaChange({ ...supaConfig, anonKey: v })} type="password" />
-            <Field id={`${idPrefix}-conn-db-field`} label={d.fields.schema} value={supaConfig.schema} onChange={v => onSupaChange({ ...supaConfig, schema: v })} placeholder="public" />
+            <div className="bg-indigo-50 border border-indigo-100 rounded-lg p-3 text-xs text-indigo-700 mb-4">
+              Find your connection string in the Supabase Dashboard under{' '}
+              <strong>Project Settings → Database → Connection string</strong> (URI format).
+            </div>
+            <Field 
+              id={`${idPrefix}-conn-string-field`} 
+              label={d.fields.connectionString || 'Connection string'} 
+              value={supaConfig.connectionString} 
+              onChange={v => onSupaChange({ ...supaConfig, connectionString: v })} 
+              placeholder={d.fields.connectionStringPlaceholder || "postgresql://user:pass@host:5432/db"} 
+              type="password"
+              hint={d.supabaseHint} 
+            />
+            <Field 
+              id={`${idPrefix}-conn-db-field`} 
+              label={d.fields.schema} 
+              value={supaConfig.schema} 
+              onChange={v => onSupaChange({ ...supaConfig, schema: v })} 
+              placeholder="public" 
+            />
           </React.Fragment>
         )}
         {sourceType === 'databricks' && (
