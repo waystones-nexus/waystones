@@ -7,6 +7,10 @@ import { useAiContext } from '../contexts/AiContext';
 import AiConfigModal from './ai/AiConfigModal';
 import AiLanguageSelector from './ai/AiLanguageSelector';
 import AiErrorHandler from './ai/AiErrorHandler';
+import { useAmbient } from '../contexts/AmbientContext';
+import { QuestPanel } from './shared/QuestPanel';
+import { motion, AnimatePresence } from 'framer-motion';
+import { QUESTS } from '../constants/ambientManifest';
 
 const Header: React.FC<{
   t: any;
@@ -22,6 +26,9 @@ const Header: React.FC<{
 
   const { aiLang, setAiLang } = useAiContext();
   const aiStatus = useAiStatus();
+  const { activeQuests, isDocked, setIsDocked } = useAmbient();
+  const [showQuestPanel, setShowQuestPanel] = React.useState(false);
+  const questPanelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!showAiPanel) return;
@@ -33,6 +40,17 @@ const Header: React.FC<{
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showAiPanel]);
+
+  useEffect(() => {
+    if (!showQuestPanel) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (questPanelRef.current && !questPanelRef.current.contains(e.target as Node)) {
+        setShowQuestPanel(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showQuestPanel]);
 
   // Listen for AI configuration requests
   useEffect(() => {
@@ -289,6 +307,71 @@ const Header: React.FC<{
             <HelpCircle size={20} className="md:w-[24px] md:h-[24px]" />
           </button>
         </div>
+
+        {/* Quest Docked Icon */}
+        <AnimatePresence>
+          {isDocked && (
+            <div className="relative" ref={questPanelRef}>
+              <button
+                onClick={() => setShowQuestPanel(!showQuestPanel)}
+                className={`flex items-center gap-2 p-1.5 pl-1.5 pr-4 rounded-2xl transition-all duration-300 border relative ${
+                  showQuestPanel 
+                    ? 'bg-slate-900 border-slate-800 text-white shadow-xl' 
+                    : 'bg-white border-slate-100 text-slate-600 hover:border-indigo-200 hover:bg-slate-50'
+                }`}
+              >
+                {/* Compact Progress Avatar */}
+                <div className="relative w-9 h-9 shrink-0">
+                  <svg className="w-full h-full transform -rotate-90">
+                    <circle cx="18" cy="18" r="16" fill="transparent" stroke={showQuestPanel ? '#ffffff10' : '#f8fafc'} strokeWidth="2" />
+                    <motion.circle
+                      cx="18"
+                      cy="18"
+                      r="16"
+                      fill="transparent"
+                      stroke={activeQuests.every(q => q.completed) && activeQuests.length > 0 ? '#10b981' : '#4f46e5'}
+                      strokeWidth="2"
+                      strokeDasharray={100}
+                      initial={{ strokeDashoffset: 100 }}
+                      animate={{ strokeDashoffset: 100 - (100 * (activeQuests.filter(q => q.completed).length / (activeQuests.length || 1))) }}
+                      transition={{ duration: 1, ease: "easeOut" }}
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center p-1">
+                    <div className="w-full h-full rounded-full overflow-hidden border border-slate-100/50">
+                      <img 
+                        src={`/units/${activeQuests.find(q => !q.completed) ? (QUESTS.find(q => q.id === activeQuests.find(q => !q.completed)?.id)?.unit || 'peon') : 'shade'}.png`} 
+                        className="w-full h-full object-contain p-0.5" 
+                        alt="" 
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex flex-col items-start">
+                  <span className={`text-[8px] font-black uppercase tracking-widest ${showQuestPanel ? 'text-indigo-400' : 'text-slate-400'}`}>QUESTS</span>
+                  <span className="text-[11px] font-black tracking-tight leading-none">
+                    {activeQuests.filter(q => q.completed).length}/{activeQuests.length}
+                  </span>
+                </div>
+                <ChevronDown size={14} className={`transition-transform duration-300 ${showQuestPanel ? 'rotate-180' : ''}`} />
+              </button>
+
+              {showQuestPanel && (
+                <div className="absolute right-0 top-full mt-2 z-[300] animate-in zoom-in-95 slide-in-from-top-1 duration-150">
+                  <QuestPanel 
+                    isDocked
+                    onUndock={() => {
+                      setIsDocked(false);
+                      setShowQuestPanel(false);
+                    }}
+                    onClose={() => setShowQuestPanel(false)}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+        </AnimatePresence>
 
         <div className="flex items-center bg-slate-50 rounded-2xl p-1 md:p-1.5 border border-slate-100 shrink-0">
           <button onClick={() => onLangChange('no')} className={`px-2 md:px-4 py-1.5 text-[11px] font-black uppercase tracking-[0.2em] rounded-xl transition-all ${lang === 'no' ? 'bg-white shadow-sm border border-slate-100 text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}>NO</button>

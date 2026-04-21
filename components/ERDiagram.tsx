@@ -1,8 +1,8 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import type { Translations } from '../i18n/index';
 import { DataModel, Layer, Field, SharedType } from '../types';
 import { COLORS, getFieldConfig } from '../constants';
-import { Download } from 'lucide-react';
+import { Download, Maximize2, Move } from 'lucide-react';
 
 interface ERDiagramProps {
   model: DataModel;
@@ -51,7 +51,12 @@ const flattenProperties = (
 
 const ERDiagram: React.FC<ERDiagramProps> = ({ model, t }) => {
   const svgRef = useRef<SVGSVGElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   
+  // Drag-to-pan state
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0, sL: 0, sT: 0 });
+
   const mainBoxW = 260;
   const mainBoxHeaderH = 50;
   const rowH = 34;
@@ -168,22 +173,57 @@ const ERDiagram: React.FC<ERDiagramProps> = ({ model, t }) => {
     document.body.removeChild(downloadLink);
   };
 
+  // Pan handlers
+  const onMouseDown = (e: React.MouseEvent) => {
+    if (!containerRef.current) return;
+    setIsDragging(true);
+    setDragStart({
+      x: e.pageX - containerRef.current.offsetLeft,
+      y: e.pageY - containerRef.current.offsetTop,
+      sL: containerRef.current.scrollLeft,
+      sT: containerRef.current.scrollTop
+    });
+  };
+
+  const onMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !containerRef.current) return;
+    e.preventDefault();
+    const x = e.pageX - containerRef.current.offsetLeft;
+    const y = e.pageY - containerRef.current.offsetTop;
+    const walkX = (x - dragStart.x) * 1.5;
+    const walkY = (y - dragStart.y) * 1.5;
+    containerRef.current.scrollLeft = dragStart.sL - walkX;
+    containerRef.current.scrollTop = dragStart.sT - walkY;
+  };
+
+  const stopDragging = () => setIsDragging(false);
+
   const isRequired = (f: Field) => f.multiplicity === '1..1' || f.multiplicity === '1..*';
 
   return (
-    <div className="relative group">
-      <div className="absolute top-4 right-4 z-10 flex gap-2">
+    <div className="relative h-full flex flex-col">
+      <div className="absolute top-6 right-6 z-10 flex gap-2">
+        <div className="bg-white/80 backdrop-blur-md border border-slate-200 px-3 py-1.5 rounded-full flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 shadow-sm sm:flex hidden">
+           <Move size={12} /> Drag to Pan
+        </div>
         <button 
           onClick={downloadSVG} 
-          className="bg-white/90 backdrop-blur border border-slate-200 p-2 rounded-xl text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-sm flex items-center gap-2"
+          className="bg-white/90 backdrop-blur border border-slate-200 p-2.5 rounded-2xl text-slate-500 hover:text-indigo-600 hover:border-indigo-200 transition-all shadow-md flex items-center gap-2 group"
         >
-          <Download size={16} />
+          <Download size={18} className="group-hover:scale-110 transition-transform" />
           <span className="text-[10px] font-black uppercase tracking-widest hidden sm:inline">{t.export.svg}</span>
         </button>
       </div>
 
-      <div className="w-full overflow-x-auto bg-slate-50/50 rounded-2xl border border-slate-200 p-8 shadow-inner custom-scrollbar">
-        <svg ref={svgRef} viewBox={`${-leftPad} 0 ${svgW} ${svgH}`} width={svgW} height={svgH} className="drop-shadow-sm">
+      <div 
+        ref={containerRef}
+        onMouseDown={onMouseDown}
+        onMouseMove={onMouseMove}
+        onMouseUp={stopDragging}
+        onMouseLeave={stopDragging}
+        className={`flex-1 overflow-auto bg-white rounded-[40px] border border-slate-200 shadow-xl m-2 custom-scrollbar select-none ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+      >
+        <svg ref={svgRef} viewBox={`${-leftPad} 0 ${svgW} ${svgH}`} width={svgW} height={svgH} className="drop-shadow-sm pointer-events-none">
           <defs>
             <linearGradient id="mainHeaderGrad" x1="0%" y1="0%" x2="100%" y2="100%">
               <stop offset="0%" stopColor={COLORS.primary} />

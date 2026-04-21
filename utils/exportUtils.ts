@@ -5,6 +5,7 @@ export * from './exportGeoPackage';
 export * from './exportSQL';
 export * from './exportDocumentation';
 export * from './exportModelSchema';
+export * from './exportODC';
 
 // Re-export utility helpers
 export { hexToRgb } from './colorUtils';

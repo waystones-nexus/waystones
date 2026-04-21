@@ -49,6 +49,7 @@ interface ModelEditorProps {
   onOpenDeploy: () => void;
   onUpdateGithubConfig: (config: any) => void;
   onOpenGithubPublish: () => void;
+  onActiveLayerChange?: (id: string | null) => void;
 }
 
 type NavSection = 'model' | 'types' | 'layer';
@@ -74,6 +75,7 @@ const ModelEditor: React.FC<ModelEditorProps> = ({
   onOpenDeploy,
   onUpdateGithubConfig,
   onOpenGithubPublish,
+  onActiveLayerChange,
 }) => {
   // --- UI state
   const [activeNavSection, setActiveNavSection] = useState<'layer' | 'model' | 'types' | 'rules'>('layer');
@@ -111,6 +113,11 @@ const ModelEditor: React.FC<ModelEditorProps> = ({
       sharedTypesActions.setActiveSharedTypeId(newSharedTypeId);
     },
   });
+  
+  // Sync active layer ID back to parent
+  useEffect(() => {
+    onActiveLayerChange?.(layerActions.activeLayerId);
+  }, [layerActions.activeLayerId, onActiveLayerChange]);
 
   const { layerOrder, resetOrder, handleReorder } = useRenderingOrder({
     model,

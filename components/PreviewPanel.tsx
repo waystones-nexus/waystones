@@ -1,30 +1,34 @@
 import React, { useState, useRef, useEffect } from 'react';
 import type { Translations } from '../i18n/index';
 import {
-  Eye, Code2, Share2, ChevronLeft, ChevronRight
+  Code2, Share2, ChevronLeft, ChevronRight, FileText, Network, Layout
 } from 'lucide-react';
 import { DataModel } from '../types';
-import VisualTab from './preview/VisualTab';
 import ExportTab from './preview/ExportTab';
 import SchemaTab from './preview/SchemaTab';
+import DataCard from './DataCard';
+import ERDiagram from './ERDiagram';
 
 interface PreviewPanelProps {
   model: DataModel;
   t: Translations;
   lang: string;
+  activeLayerId?: string | null;
 }
 
-const PreviewPanel: React.FC<PreviewPanelProps> = ({ model, t, lang }) => {
-  const [tab, setTab] = useState<'schema' | 'export'>('schema');
+type PreviewTab = 'card' | 'diagram' | 'schema' | 'export';
+
+const PreviewPanel: React.FC<PreviewPanelProps> = ({ model, t, lang, activeLayerId }) => {
+  const [tab, setTab] = useState<PreviewTab>('card');
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
-  const [touchStart, setTouchStart] = useState(0);
-  const [touchEnd, setTouchEnd] = useState(0);
   const tabContainerRef = useRef<HTMLDivElement>(null);
 
   const allTabs = [
-    { id: 'schema' as const, icon: Code2, label: t.schemaTab },
-    { id: 'export' as const, icon: Share2, label: t.exportTab },
+    { id: 'card' as const, icon: FileText, label: t.viewCard || 'Data Card' },
+    { id: 'diagram' as const, icon: Network, label: t.viewDiagram || 'ER Diagram' },
+    { id: 'schema' as const, icon: Code2, label: t.schemaTab || 'Schema' },
+    { id: 'export' as const, icon: Share2, label: t.exportTab || 'Export' },
   ];
 
   // Check scroll position to show/hide scroll indicators
@@ -33,31 +37,6 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({ model, t, lang }) => {
       const { scrollLeft, scrollWidth, clientWidth } = tabContainerRef.current;
       setCanScrollLeft(scrollLeft > 0);
       setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 1);
-    }
-  };
-
-  // Touch handlers for swipe navigation
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchEnd(0);
-    setTouchStart(e.targetTouches[0].clientX);
-  };
-
-  const handleTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
-  };
-
-  const handleTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
-    
-    const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > 50;
-    const isRightSwipe = distance < -50;
-
-    if (isLeftSwipe && canScrollRight) {
-      scrollTabs('right');
-    }
-    if (isRightSwipe && canScrollLeft) {
-      scrollTabs('left');
     }
   };
 
@@ -73,12 +52,12 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({ model, t, lang }) => {
   };
 
   // Handle tab selection with auto-scroll
-  const handleTabClick = (tabId: string) => {
-    setTab(tabId as 'schema' | 'export');
+  const handleTabClick = (tabId: PreviewTab) => {
+    setTab(tabId);
     
     // Auto-scroll to selected tab if needed
     if (tabContainerRef.current) {
-      const tabElement = document.querySelector(`[data-tab="${tabId}"]`);
+      const tabElement = tabContainerRef.current.querySelector(`[data-tab="${tabId}"]`);
       if (tabElement) {
         tabElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
       }
@@ -97,82 +76,90 @@ const PreviewPanel: React.FC<PreviewPanelProps> = ({ model, t, lang }) => {
 
   return (
     <div className="flex flex-col w-full h-full bg-white overflow-hidden min-w-0">
-
-      {/* ── LIVE PREVIEW ZONE (always visible) ── */}
-      <div className="flex-none h-[38%] min-h-[200px] border-b border-slate-100 overflow-y-auto p-4 md:p-6 bg-slate-50/30 custom-scrollbar">
-        <div className="flex items-center gap-2 mb-3">
-          <Eye size={12} className="text-slate-300 shrink-0" />
-          <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-300">
-            {t.visualTab}
-          </span>
-        </div>
-        <VisualTab model={model} t={t} />
-      </div>
-
-      {/* ── SECONDARY TABS ── */}
-      <div className="flex-none relative">
+      
+      {/* ── PREMIUM TAB BAR ── */}
+      <div className="flex-none relative z-30 bg-white/80 backdrop-blur-md border-b border-slate-100">
         {/* Left gradient indicator */}
         {canScrollLeft && (
-          <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-white via-white to-transparent z-10 pointer-events-none" />
+          <div className="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-white via-white/80 to-transparent z-10 pointer-events-none" />
         )}
 
         {/* Right gradient indicator */}
         {canScrollRight && (
-          <div className="absolute right-0 top-0 bottom-0 w-8 bg-gradient-to-l from-white via-white to-transparent z-10 pointer-events-none" />
+          <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-white via-white/80 to-transparent z-10 pointer-events-none" />
         )}
 
-        {/* Left scroll button */}
+        {/* Scroll buttons */}
         {canScrollLeft && (
           <button
             onClick={() => scrollTabs('left')}
-            className="absolute left-2 top-1/2 -translate-y-1/2 z-20 bg-white border border-slate-200 rounded-full shadow-md p-1.5 hover:bg-slate-50 transition-all hover:scale-105"
-            aria-label="Scroll tabs left"
+            className="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 flex items-center justify-center bg-white border border-slate-200 rounded-full shadow-lg text-slate-600 hover:text-indigo-600 transition-all hover:scale-110 active:scale-95"
           >
-            <ChevronLeft size={14} className="text-slate-600" />
+            <ChevronLeft size={16} />
           </button>
         )}
-
-        {/* Right scroll button */}
         {canScrollRight && (
           <button
             onClick={() => scrollTabs('right')}
-            className="absolute right-2 top-1/2 -translate-y-1/2 z-20 bg-white border border-slate-200 rounded-full shadow-md p-1.5 hover:bg-slate-50 transition-all hover:scale-105"
-            aria-label="Scroll tabs right"
+            className="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 flex items-center justify-center bg-white border border-slate-200 rounded-full shadow-lg text-slate-600 hover:text-indigo-600 transition-all hover:scale-110 active:scale-95"
           >
-            <ChevronRight size={14} className="text-slate-600" />
+            <ChevronRight size={16} />
           </button>
         )}
 
-        <div className="px-4 md:px-6 pt-5 border-b border-slate-100">
-          <div 
-            ref={tabContainerRef}
-            onScroll={checkScroll}
-            onTouchStart={handleTouchStart}
-            onTouchMove={handleTouchMove}
-            onTouchEnd={handleTouchEnd}
-            className="flex gap-4 md:gap-6 pb-px overflow-x-auto no-scrollbar scroll-smooth"
-            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-          >
-            {/* Render all tabs */}
-            {allTabs.map(tabItem => (
-              <button 
-                key={tabItem.id}
-                data-tab={tabItem.id}
-                onClick={() => handleTabClick(tabItem.id)} 
-                className={`flex items-center gap-2 pb-4 text-[10px] md:text-xs font-black uppercase tracking-widest relative transition-colors h-12 whitespace-nowrap shrink-0 ${tab === tabItem.id ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
-              >
-                <tabItem.icon size={16} className="shrink-0" />
-                <span>{tabItem.label}</span>
-                {tab === tabItem.id && <div className="absolute bottom-0 left-0 w-full h-1 bg-indigo-600 rounded-full" />}
-              </button>
-            ))}
+        <div 
+          ref={tabContainerRef}
+          onScroll={checkScroll}
+          className="flex px-4 md:px-6 overflow-x-auto no-scrollbar scroll-smooth"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
+          <div className="flex gap-2 py-3">
+            {allTabs.map(tabItem => {
+              const active = tab === tabItem.id;
+              return (
+                <button 
+                  key={tabItem.id}
+                  data-tab={tabItem.id}
+                  onClick={() => handleTabClick(tabItem.id)} 
+                  className={`
+                    flex items-center gap-2.5 px-4 py-2 rounded-xl text-[10px] md:text-[11px] font-black uppercase tracking-widest whitespace-nowrap transition-all duration-300 relative group
+                    ${active 
+                      ? 'bg-slate-900 text-white shadow-xl shadow-slate-200 translate-y-[-1px]' 
+                      : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'}
+                  `}
+                >
+                  <tabItem.icon size={14} className={`${active ? 'text-indigo-300' : 'text-slate-300 group-hover:text-slate-400'} transition-colors`} />
+                  <span>{tabItem.label}</span>
+                  {active && (
+                    <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-slate-900" />
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 md:p-6 bg-slate-50/30 custom-scrollbar min-w-0 min-h-0">
-        {tab === 'export' && <ExportTab model={model} t={t} lang={lang} />}
-        {tab === 'schema' && <SchemaTab model={model} t={t} />}
+      {/* ── CONTENT ZONE ── */}
+      <div className={`flex-1 overflow-y-auto bg-slate-50/50 custom-scrollbar relative ${tab === 'diagram' ? 'flex flex-col' : ''}`}>
+        <div className={`
+          animate-in fade-in slide-in-from-bottom-4 duration-500 min-w-0
+          ${tab === 'diagram' ? 'flex-1 h-full' : 'p-4 md:p-6 lg:p-8'}
+        `}>
+          {tab === 'card' && <DataCard model={model} t={t} activeLayerId={activeLayerId} />}
+          {tab === 'diagram' && <ERDiagram model={model} t={t} />}
+          {tab === 'schema' && <SchemaTab model={model} t={t} />}
+          {tab === 'export' && <ExportTab model={model} t={t} lang={lang} />}
+        </div>
+      </div>
+
+      {/* Footer Info (Subtle) */}
+      <div className="flex-none px-6 py-3 bg-white border-t border-slate-100 flex items-center justify-between text-[8px] font-black uppercase tracking-widest text-slate-300">
+        <div className="flex items-center gap-4">
+          <span className="flex items-center gap-1"><Layout size={10}/> {model.layers.length} Layers</span>
+          <span className="flex items-center gap-1"><Code2 size={10}/> {model.sharedTypes?.length || 0} Shared Types</span>
+        </div>
+        <span>{model.namespace} • v{model.version}</span>
       </div>
     </div>
   );

@@ -88,7 +88,11 @@ export const generateQgisProject = (
 
   const gpkgFilename = getGpkgFilename(model, source);
 
-  const wmsCrsList = [authid, 'EPSG:4326', 'EPSG:4258', 'EPSG:3857', 'CRS:84']
+  const wmsCrsList = [
+    authid,
+    ...(model.supportedCRS || []).map(c => c.startsWith('EPSG:') ? c : `EPSG:${c}`),
+    'EPSG:4326', 'EPSG:4258', 'EPSG:3857', 'CRS:84'
+  ]
     .filter((v, i, arr) => arr.indexOf(v) === i)
     .map(c => `      <value>${c}</value>`)
     .join('\n');
@@ -120,121 +124,226 @@ export const generateQgisProject = (
       const datasource = `/data/${safeLayerName}.fgb|layername=${safeLayerName}`;
       const providerKey = 'ogr';
 
-      const opacity = layer.style.fillOpacity !== undefined ? layer.style.fillOpacity : 1;
-      const rgb = hexToRgb(layer.style.simpleColor || '#3b82f6');
-      const qColor = `${rgb.r},${rgb.g},${rgb.b},255`;
-      const qOutlineColor = `${rgb.r},${rgb.g},${rgb.b},255`;
       const isPoint = layer.geometryType.includes('Point');
       const isLine = layer.geometryType.includes('LineString');
+      const isPolygon = !isPoint && !isLine;
 
-      const qLineStyle: Record<string, string> = {
-        solid: 'solid', dashed: 'dash', dotted: 'dot',
-        'dash-dot': 'dash dot', 'dash-dot-dot': 'dash dot dot', 'long-dash': 'dash',
-      };
-      const lineStyle = qLineStyle[layer.style.lineDash || 'solid'] || 'solid';
-      const lineWidth = layer.style.lineWidth || 2;
+      const buildSymbolXml = (symbolStyle: any, name: string = "0") => {
+        const opacity = symbolStyle.fillOpacity !== undefined ? symbolStyle.fillOpacity : 1;
+        const colorHex = symbolStyle.color || symbolStyle.simpleColor || '#3b82f6';
+        const rgb = hexToRgb(colorHex);
+        const qColor = `${rgb.r},${rgb.g},${rgb.b},255`;
+        const qOutlineColor = `${rgb.r},${rgb.g},${rgb.b},255`;
 
-      const qMarkerName: Record<string, string> = {
-        circle: 'circle', square: 'square', triangle: 'triangle', star: 'star',
-      };
-      const markerName = qMarkerName[layer.style.pointIcon || 'circle'] || 'circle';
+        const qLineStyle: Record<string, string> = {
+          solid: 'solid', dashed: 'dash', dotted: 'dot',
+          'dash-dot': 'dash dot', 'dash-dot-dot': 'dash dot dot', 'long-dash': 'dash',
+        };
+        const styleLineDash = symbolStyle.lineDash || layer.style.lineDash || 'solid';
+        const lineStyle = qLineStyle[styleLineDash] || 'solid';
+        const lineWidth = symbolStyle.lineWidth ?? layer.style.lineWidth ?? 2;
 
-      const hasCustomHatching = layer.style.hatchStyle &&
-        layer.style.hatchStyle !== 'solid' &&
-        (layer.style.hatchSpacing !== undefined || layer.style.hatchThickness !== undefined);
+        const qMarkerName: Record<string, string> = {
+          circle: 'circle', square: 'square', triangle: 'triangle', star: 'star',
+        };
+        const stylePointIcon = symbolStyle.pointIcon || layer.style.pointIcon || 'circle';
+        const markerName = qMarkerName[stylePointIcon] || 'circle';
 
-      const fillStyle = (layer.style.hatchStyle && layer.style.hatchStyle !== 'solid')
-        ? layer.style.hatchStyle
-        : 'solid';
+        const hatchStyle = symbolStyle.hatchStyle || layer.style.hatchStyle || 'solid';
+        const hatchSpacing = symbolStyle.hatchSpacing ?? layer.style.hatchSpacing ?? 6;
+        const hatchThickness = symbolStyle.hatchThickness ?? layer.style.hatchThickness ?? 1;
+        
+        const hasCustomHatching = hatchStyle !== 'solid' &&
+          (hatchSpacing !== undefined || hatchThickness !== undefined);
 
-      let symbolXml = '';
-      if (isPoint) {
-        symbolXml = `<symbol type="marker" name="0">
-          <layer class="SimpleMarker">
-            <prop k="name" v="${markerName}"/>
-            <prop k="color" v="${qColor}"/>
-            <prop k="size" v="${layer.style.pointSize || 8}"/>
-            <prop k="size_unit" v="Point"/>
-            <prop k="outline_color" v="${qOutlineColor}"/>
-            <prop k="outline_width" v="0"/>
-          </layer>
-        </symbol>`;
-      } else if (isLine) {
-        symbolXml = `<symbol type="line" name="0">
-          <layer class="SimpleLine">
-            <prop k="line_color" v="${qColor}"/>
-            <prop k="line_width" v="${lineWidth}"/>
-            <prop k="line_width_unit" v="Point"/>
-            <prop k="line_style" v="${lineStyle}"/>
-            <prop k="capstyle" v="round"/>
-            <prop k="joinstyle" v="round"/>
-          </layer>
-        </symbol>`;
-      } else {
-        // --- POLYGONS ---
+        const qHatchStyles: Record<string, string> = {
+          solid: 'solid', horizontal: 'horiz', vertical: 'vert', cross: 'cross',
+          b_diagonal: 'bdiag', f_diagonal: 'fdiag', diagonal_x: 'diag_x',
+        };
+        const fillStyle = qHatchStyles[hatchStyle] || 'solid';
 
-        // Helper to generate a QGIS 3.x valid LinePatternFill
-        const createPatternLayer = (angle: number, distance: number, thickness: number) => `
-          <layer class="LinePatternFill">
-            <prop k="angle" v="${angle}"/>
-            <prop k="distance" v="${distance}"/>
-            <prop k="distance_unit" v="Point"/>
-            <symbol type="line" name="@0@0">
-              <layer class="SimpleLine">
-                <prop k="line_color" v="${qColor}"/>
-                <prop k="line_width" v="${thickness}"/>
-                <prop k="line_width_unit" v="Point"/>
-                <prop k="line_style" v="solid"/>
-              </layer>
-            </symbol>
-          </layer>`;
-
-        // The outer border of the polygon
-        const polygonOutlineLayer = `
-          <layer class="SimpleLine">
-            <prop k="line_color" v="${qOutlineColor}"/>
-            <prop k="line_width" v="${lineWidth}"/>
-            <prop k="line_width_unit" v="Point"/>
-            <prop k="line_style" v="${lineStyle}"/>
-            <prop k="joinstyle" v="round"/>
-          </layer>`;
-
-        if (hasCustomHatching) {
-          const distance = layer.style.hatchSpacing || 6;
-          const hatchThickness = layer.style.hatchThickness || 1;
-
-          let patternLayers = '';
-          if (layer.style.hatchStyle === 'cross') {
-            patternLayers = createPatternLayer(0, distance, hatchThickness) + createPatternLayer(90, distance, hatchThickness);
-          } else if (layer.style.hatchStyle === 'diagonal_x') {
-            patternLayers = createPatternLayer(45, distance, hatchThickness) + createPatternLayer(-45, distance, hatchThickness);
-          } else {
-            const hatchAngles: Record<string, number> = {
-              horizontal: 0, vertical: 90, b_diagonal: 45, f_diagonal: -45,
-            };
-            const angle = hatchAngles[layer.style.hatchStyle!] || 0;
-            patternLayers = createPatternLayer(angle, distance, hatchThickness);
-          }
-
-          symbolXml = `<symbol alpha="${opacity}" type="fill" name="0">
-            ${patternLayers}
-            ${polygonOutlineLayer}
-          </symbol>`;
-        } else {
-          // Fallback to simple solid or basic predefined hatching
-          symbolXml = `<symbol alpha="${opacity}" type="fill" name="0">
-            <layer class="SimpleFill">
+        if (isPoint) {
+          return `<symbol alpha="${opacity}" type="marker" name="${name}">
+            <layer class="SimpleMarker">
+              <prop k="name" v="${markerName}"/>
               <prop k="color" v="${qColor}"/>
-              <prop k="style" v="${fillStyle}"/>
+              <prop k="size" v="${symbolStyle.pointSize ?? layer.style.pointSize ?? 8}"/>
+              <prop k="size_unit" v="Point"/>
               <prop k="outline_color" v="${qOutlineColor}"/>
-              <prop k="outline_width" v="${lineWidth}"/>
-              <prop k="outline_width_unit" v="Point"/>
-              <prop k="outline_style" v="${lineStyle}"/>
+              <prop k="outline_width" v="0"/>
+            </layer>
+          </symbol>`;
+        } else if (isLine) {
+          return `<symbol alpha="${opacity}" type="line" name="${name}">
+            <layer class="SimpleLine">
+              <prop k="line_color" v="${qColor}"/>
+              <prop k="line_width" v="${lineWidth}"/>
+              <prop k="line_width_unit" v="Point"/>
+              <prop k="line_style" v="${lineStyle}"/>
+              <prop k="capstyle" v="round"/>
               <prop k="joinstyle" v="round"/>
             </layer>
           </symbol>`;
+        } else {
+          // --- POLYGONS ---
+          const createPatternLayer = (angle: number, distance: number, thickness: number) => `
+            <layer class="LinePatternFill">
+              <prop k="angle" v="${angle}"/>
+              <prop k="distance" v="${distance}"/>
+              <prop k="distance_unit" v="Point"/>
+              <symbol type="line" name="@${name}@0">
+                <layer class="SimpleLine">
+                  <prop k="line_color" v="${qColor}"/>
+                  <prop k="line_width" v="${thickness}"/>
+                  <prop k="line_width_unit" v="Point"/>
+                  <prop k="line_style" v="solid"/>
+                </layer>
+              </symbol>
+            </layer>`;
+
+          const polygonOutlineLayer = `
+            <layer class="SimpleLine">
+              <prop k="line_color" v="${qOutlineColor}"/>
+              <prop k="line_width" v="${lineWidth}"/>
+              <prop k="line_width_unit" v="Point"/>
+              <prop k="line_style" v="${lineStyle}"/>
+              <prop k="joinstyle" v="round"/>
+            </layer>`;
+
+          if (hasCustomHatching) {
+            let patternLayers = '';
+            if (hatchStyle === 'cross') {
+              patternLayers = createPatternLayer(0, hatchSpacing, hatchThickness) + createPatternLayer(90, hatchSpacing, hatchThickness);
+            } else if (hatchStyle === 'diagonal_x') {
+              patternLayers = createPatternLayer(45, hatchSpacing, hatchThickness) + createPatternLayer(-45, hatchSpacing, hatchThickness);
+            } else {
+              const hatchAngles: Record<string, number> = {
+                horizontal: 0, vertical: 90, b_diagonal: 45, f_diagonal: -45,
+              };
+              const angle = hatchAngles[hatchStyle] || 0;
+              patternLayers = createPatternLayer(angle, hatchSpacing, hatchThickness);
+            }
+
+            return `<symbol alpha="${opacity}" type="fill" name="${name}">
+              ${patternLayers}
+              ${polygonOutlineLayer}
+            </symbol>`;
+          } else {
+            return `<symbol alpha="${opacity}" type="fill" name="${name}">
+              <layer class="SimpleFill">
+                <prop k="color" v="${qColor}"/>
+                <prop k="style" v="${fillStyle}"/>
+                <prop k="outline_color" v="${qOutlineColor}"/>
+                <prop k="outline_width" v="${lineWidth}"/>
+                <prop k="outline_width_unit" v="Point"/>
+                <prop k="outline_style" v="${lineStyle}"/>
+                <prop k="joinstyle" v="round"/>
+              </layer>
+            </symbol>`;
+          }
         }
+      };
+
+
+      let rendererXml = '';
+      if (layer.style.type === 'categorized' && layer.style.propertyId) {
+        const attrProperty = layer.properties.find(p => p.id === layer.style.propertyId);
+        const attrName = attrProperty ? attrProperty.name : '';
+        const sp = attrProperty;
+        const vals = sp?.fieldType.kind === 'codelist' && sp.fieldType.mode === 'inline' ? sp.fieldType.values : [];
+
+        const categories: string[] = [];
+        const symbols: string[] = [];
+
+        vals.forEach((v, vIndex) => {
+          const catSettings = layer.style.categorizedSettings?.[v.code];
+          const legacyColor = layer.style.categorizedColors?.[v.code];
+          
+          const symbolStyle = {
+            ...catSettings,
+            color: catSettings?.color || legacyColor || layer.style.simpleColor
+          };
+
+          categories.push(`            <category render="true" symbol="${vIndex}" value="${v.code}" label="${v.label || v.code}"/>`);
+          symbols.push(buildSymbolXml(symbolStyle, vIndex.toString()));
+        });
+
+        rendererXml = `<renderer-v2 attr="${attrName}" type="categorizedSymbol" enableorderby="0" forceraster="0">
+          <categories>
+${categories.join('\n')}
+          </categories>
+          <symbols>
+${symbols.join('\n')}
+          </symbols>
+        </renderer-v2>`;
+      } else {
+        rendererXml = `<renderer-v2 type="singleSymbol" enableorderby="0" forceraster="0">
+          <symbols>
+            ${buildSymbolXml(layer.style)}
+          </symbols>
+        </renderer-v2>`;
       }
+
+      const buildLabelingXml = (layer: Layer) => {
+        const ls = layer.style.labelSettings;
+        if (!ls || !ls.enabled || !ls.propertyId) return '<labeling type="no-label"/>';
+
+        const prop = layer.properties.find(p => p.id === ls.propertyId);
+        const fieldName = prop ? prop.name : '';
+        if (!fieldName) return '<labeling type="no-label"/>';
+
+        const rgb = hexToRgb(ls.color || '#000000');
+        const qColor = `${rgb.r},${rgb.g},${rgb.b},255`;
+        
+        const haloRgb = hexToRgb(ls.haloColor || '#ffffff');
+        const qHaloColor = `${haloRgb.r},${haloRgb.g},${haloRgb.b},255`;
+
+        const isPoint = layer.geometryType.includes('Point');
+        const isLine = layer.geometryType.includes('LineString');
+        
+        const mode = ls.placement || 'around';
+        let placement = "0"; 
+        if (isPoint) {
+          placement = mode === 'over' ? "1" : "0";
+        } else if (isLine) {
+          placement = mode === 'curved' ? "3" : "2";
+        } else if (isPolygon) {
+          placement = mode === 'horizontal' ? "1" : "0";
+        }
+
+        return `<labeling type="simple">
+        <settings calloutType="simple">
+          <text-style
+            fontFamily="${ls.fontFamily || 'Arial'}"
+            fontSize="${ls.fontSize || 10}"
+            fontSizeUnit="Point"
+            textColor="${qColor}"
+            fieldName="${fieldName}"
+            fontWeight="50"
+            fontItalic="0"
+            fontUnderline="0"
+            fontStrikeout="0"
+          />
+          <text-buffer
+            bufferDraw="${ls.haloEnabled ? '1' : '0'}"
+            bufferSize="${ls.haloSize || 1}"
+            bufferSizeUnits="Point"
+            bufferColor="${qHaloColor}"
+            bufferOpacity="1"
+          />
+          <placement 
+            placement="${placement}" 
+            dist="0" 
+            priority="5"
+          />
+          <rendering 
+            fontMinPixelSize="3" 
+            scaleVisibility="0" 
+            maxNumLabels="2000"
+          />
+        </settings>
+      </labeling>`;
+      };
 
       const layerId = `${tbl}_${index}_${Date.now()}`;
 
@@ -248,12 +357,11 @@ export const generateQgisProject = (
         <crs>
           ${buildSpatialRefSys(authid)}
         </crs>
-        <renderer-v2 type="singleSymbol" enableorderby="0" forceraster="0">
-          <symbols>
-            ${symbolXml}
-          </symbols>
-        </renderer-v2>
+        ${rendererXml}
+        ${buildLabelingXml(layer)}
       </maplayer>`);
+
+
 
       treeLayers.push(`    <layer-tree-layer id="${layerId}" name="${layer.name}" providerKey="${providerKey}" checked="Qt::Checked" expanded="1"/>`);
     });

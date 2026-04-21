@@ -80,6 +80,7 @@ export const generatePygeoapiConfig = async (
     const crsList = [
       'http://www.opengis.net/def/crs/OGC/1.3/CRS84',
       ...(nativeCrsUri ? [nativeCrsUri] : []),
+      ...(model.supportedCRS || []).map(crs => toCrsUri(crs)).filter(Boolean),
       ...COMMON_CRS_URIS,
     ].filter((v, i, arr) => arr.indexOf(v) === i);
 

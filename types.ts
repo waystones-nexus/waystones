@@ -84,11 +84,38 @@ export interface Field {
 // --- Helper: hent en lesbar "kind"-streng for UI/config-oppslag ---
 export type FieldKind = FieldType['kind'];
 
+export interface CategorySettings {
+  color?: string;
+  fillOpacity?: number;
+  pointSize?: number;
+  lineWidth?: number;
+  pointIcon?: 'circle' | 'square' | 'triangle' | 'star';
+  lineDash?: 'solid' | 'dashed' | 'dotted' | 'dash-dot' | 'dash-dot-dot' | 'long-dash';
+  hatchStyle?: 'solid' | 'horizontal' | 'vertical' | 'cross' | 'b_diagonal' | 'f_diagonal' | 'diagonal_x';
+  hatchThickness?: number;
+  hatchSpacing?: number;
+}
+
+
+export interface LabelSettings {
+  enabled: boolean;
+  propertyId?: string;
+  fontSize: number;
+  color: string;
+  fontFamily: string;
+  haloEnabled: boolean;
+  haloSize: number;
+  haloColor: string;
+  placement?: string;
+}
+
+
 export interface LayerStyle {
   type: 'simple' | 'categorized';
   simpleColor: string;
   propertyId?: string;
   categorizedColors?: Record<string, string>;
+  categorizedSettings?: Record<string, CategorySettings>;
   pointSize?: number;
   pointIcon?: 'circle' | 'square' | 'triangle' | 'star';
   lineWidth?: number;
@@ -98,7 +125,10 @@ export interface LayerStyle {
   hatchThickness?: number;
   hatchSpacing?: number;
   hatchLineCount?: number;
+  labelSettings?: LabelSettings;
 }
+
+
 
 export interface LayerConstraint {
   id: string;
@@ -164,6 +194,7 @@ export interface DataModel {
   sharedTypes?: SharedType[];
   sharedEnums?: SharedEnum[];
   renderingOrder?: string[];
+  supportedCRS?: string[];
 }
 
 export interface SharedType {

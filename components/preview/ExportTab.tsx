@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import type { Translations } from '../../i18n/index';
 import { DataModel } from '../../types';
 import {
-  BookOpen, FileText, Globe2, Database, Download, Cloud, FileCode, DatabaseZap, Zap, Braces
+  BookOpen, FileText, Globe2, Database, Download, Cloud, FileCode, DatabaseZap, Zap, Braces, ShieldCheck
 } from 'lucide-react';
 import {
   exportGeoPackage, exportSQL, exportDatabricks,
   exportDocumentation, exportDocumentationHTML,
   generateGeoJSONSchema, generateJSONFGSchema,
-  exportModelAsYaml, exportModelSchema, exportModelSchemaAsYaml
+  exportModelAsYaml, exportModelSchema, exportModelSchemaAsYaml,
+  exportODC
 } from '../../utils/exportUtils';
 import { exportTypeScript } from '../../utils/exportTypeScript';
 import { scrubModelForExport } from '../../utils/modelUtils';
@@ -64,6 +65,10 @@ const ExportTab: React.FC<ExportTabProps> = ({ model, t, lang }) => {
 
   const handleModelSchemaYamlExport = () => {
     exportModelSchemaAsYaml(modelFilename);
+  };
+
+  const handleODCExport = () => {
+    exportODC(model, modelFilename);
   };
 
   return (
@@ -173,6 +178,18 @@ const ExportTab: React.FC<ExportTabProps> = ({ model, t, lang }) => {
               <Download size={12} /> Model YAML
             </button>
           </div>
+        </div>
+
+        {/* 8. OPEN DATA CONTRACT (ODC) */}
+        <div className="bg-white p-5 md:p-6 rounded-[24px] md:rounded-[32px] border border-slate-200 shadow-sm flex flex-col justify-between gap-5 transition-transform hover:scale-[1.02] min-h-[220px]">
+          <div>
+            <ShieldCheck className="text-amber-600 mb-3 md:mb-4" size={32}/>
+            <h3 className="text-sm md:text-base font-black text-slate-800 mb-1.5">{t.export.odcTitle}</h3>
+            <p className="text-[10px] md:text-[11px] text-slate-500 font-medium leading-relaxed opacity-80">{t.export.odcDesc}</p>
+          </div>
+          <button onClick={handleODCExport} className="bg-amber-600 hover:bg-amber-700 text-white text-[9px] md:text-[10px] font-black uppercase tracking-wider whitespace-nowrap px-4 md:px-5 py-3.5 rounded-xl md:rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95">
+            <Download size={16} /> YAML
+          </button>
         </div>
 
       </div>

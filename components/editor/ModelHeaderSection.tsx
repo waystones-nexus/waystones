@@ -1,5 +1,5 @@
 import React from 'react';
-import { Database, ChevronUp, ChevronDown } from 'lucide-react';
+import { Database, ChevronUp, ChevronDown, Globe, X } from 'lucide-react';
 import { COMMON_CRS } from '../../constants';
 import { sanitizeTechnicalName } from '../../utils/nameSanitizer';
 import DiffField from './DiffField';
@@ -170,6 +170,61 @@ const ModelHeaderSection: React.FC<ModelHeaderSectionProps> = ({
               </datalist>
             </DiffField>
           </div>
+
+          <DiffField
+            label={
+              <div className="flex items-center gap-2">
+                {t.additionalCrsLabel}
+                <span className="text-[10px] text-slate-400 font-medium lowercase">({t.additionalCrsHint})</span>
+              </div>
+            }
+            currentValue={(model.supportedCRS || []).join(', ')}
+            baselineValue={(baselineModel?.supportedCRS || []).join(', ')}
+            reviewMode={reviewMode}
+          >
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-2">
+                {(model.supportedCRS || []).map((crs, i) => (
+                  <span key={i} className="inline-flex items-center gap-1.5 bg-indigo-50 text-indigo-700 border border-indigo-100 px-2.5 py-1.5 rounded-xl text-[10px] md:text-xs font-bold">
+                    <Globe size={12} className="text-indigo-400" />
+                    {crs}
+                    <button 
+                      onClick={() => onUpdate({ ...model, supportedCRS: model.supportedCRS?.filter((_, idx) => idx !== i) })}
+                      className="text-indigo-300 hover:text-indigo-600 transition-colors"
+                    >
+                      <X size={14} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+              <input
+                type="text"
+                list="crs-presets-additional"
+                placeholder={t.additionalCrsPlaceholder}
+                className="w-full bg-slate-50 border border-slate-200 rounded-[18px] md:rounded-[20px] px-4 py-3 text-sm md:text-base font-bold focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ',') {
+                    e.preventDefault();
+                    const val = (e.currentTarget.value).trim().toUpperCase();
+                    if (val && !(model.supportedCRS || []).includes(val)) {
+                      onUpdate({ 
+                        ...model, 
+                        supportedCRS: [...(model.supportedCRS || []), val] 
+                      });
+                    }
+                    e.currentTarget.value = '';
+                  }
+                }}
+              />
+              <datalist id="crs-presets-additional">
+                {COMMON_CRS.map((crs) => (
+                  <option key={crs.code} value={crs.code}>
+                    {crs.name}
+                  </option>
+                ))}
+              </datalist>
+            </div>
+          </DiffField>
 
           <DiffField
             label={t.description}

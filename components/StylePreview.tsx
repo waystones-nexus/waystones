@@ -23,15 +23,49 @@ const getDashArray = (type: string, width: number) => {
 const StylePreview: React.FC<StylePreviewProps> = ({ layer, t }) => {
   if (!layer) return null;
   const style = layer.style;
-  const color = style.simpleColor || '#6366F1';
+  
+  // Base properties
+  let color = style.simpleColor || '#6366F1';
+  let fillOpacity = style.fillOpacity !== undefined ? style.fillOpacity : 0.5;
+  let lineWidth = style.lineWidth || 2;
+  let pointSize = style.pointSize || 8;
+  let lineDash = style.lineDash || 'solid';
+  let hatchStyle = style.hatchStyle || 'solid';
+  let hatchSpacing = style.hatchSpacing || 6;
+  let hatchThickness = style.hatchThickness || 1;
+
+  // Categorized overrides
+  if (style.type === 'categorized') {
+    const settings = style.categorizedSettings || {};
+    const firstCode = Object.keys(settings)[0];
+    if (firstCode) {
+      const cat = settings[firstCode];
+      color = cat.color || style.categorizedColors?.[firstCode] || color;
+      if (cat.fillOpacity !== undefined) fillOpacity = cat.fillOpacity;
+      if (cat.lineWidth !== undefined) lineWidth = cat.lineWidth;
+      if (cat.pointSize !== undefined) pointSize = cat.pointSize;
+      if (cat.lineDash) lineDash = cat.lineDash;
+      if (cat.hatchStyle) hatchStyle = cat.hatchStyle;
+      if (cat.hatchSpacing !== undefined) hatchSpacing = cat.hatchSpacing;
+      if (cat.hatchThickness !== undefined) hatchThickness = cat.hatchThickness;
+    } else if (style.categorizedColors) {
+      const firstLegacyCode = Object.keys(style.categorizedColors)[0];
+      if (firstLegacyCode) {
+        color = style.categorizedColors[firstLegacyCode];
+      }
+    }
+  }
+
   const isPoint = layer.geometryType.includes('Point');
   const isLine = layer.geometryType.includes('LineString');
   const isPolygon = layer.geometryType.includes('Polygon');
   const isCollection = layer.geometryType === 'GeometryCollection';
 
-  const dashArray = getDashArray(style.lineDash || 'solid', style.lineWidth || 2);
-  const s = style.hatchSpacing || 6;
-  const t_val = style.hatchThickness || 1;
+  const dashArray = getDashArray(lineDash, lineWidth);
+  const s = hatchSpacing;
+  const t_val = hatchThickness;
+
+
 
   return (
     <div className="bg-slate-50 rounded-2xl border border-slate-200 p-4 h-full flex flex-col items-center justify-center relative group min-h-[140px] md:min-h-[160px] shadow-inner">
@@ -66,22 +100,90 @@ const StylePreview: React.FC<StylePreviewProps> = ({ layer, t }) => {
         
         {(isPolygon || isCollection) && (
           <g transform={isCollection ? "translate(10,10) scale(0.8)" : ""}>
-            <path d="M 20 20 L 80 20 L 90 80 L 10 90 Z" fill={style.hatchStyle && style.hatchStyle !== 'solid' ? `url(#hatch-${style.hatchStyle}-${layer.id})` : color} fillOpacity={style.fillOpacity || 0.5} />
-            <path d="M 20 20 L 80 20 L 90 80 L 10 90 Z" fill="none" stroke={color} strokeWidth={style.lineWidth || 2} strokeDasharray={dashArray} strokeLinejoin="round" strokeLinecap="round" />
+            <path d="M 20 20 L 80 20 L 90 80 L 10 90 Z" fill={hatchStyle !== 'solid' ? `url(#hatch-${hatchStyle}-${layer.id})` : color} fillOpacity={fillOpacity} />
+            <path d="M 20 20 L 80 20 L 90 80 L 10 90 Z" fill="none" stroke={color} strokeWidth={lineWidth} strokeDasharray={dashArray} strokeLinejoin="round" strokeLinecap="round" />
           </g>
         )}
+
         {(isLine || isCollection) && (
-          <path d={isCollection ? "M 5 50 Q 50 10 95 50" : "M 10 70 Q 50 10 90 70"} fill="none" stroke={color} strokeWidth={style.lineWidth || 2} strokeDasharray={dashArray} strokeLinecap="round" strokeLinejoin="round" />
+          <path d={isCollection ? "M 5 50 Q 50 10 95 50" : "M 10 70 Q 50 10 90 70"} fill="none" stroke={color} strokeWidth={lineWidth} strokeDasharray={dashArray} strokeLinecap="round" strokeLinejoin="round" />
         )}
         {(isPoint || isCollection) && (
           <g transform={isCollection ? "translate(35,35) scale(0.3)" : ""}>
-            {style.pointIcon === 'circle' && <circle cx="50" cy="50" r={style.pointSize || 8} fill={color} />}
-            {style.pointIcon === 'square' && <rect x={50 - (style.pointSize || 8)} y={50 - (style.pointSize || 8)} width={(style.pointSize || 8) * 2} height={(style.pointSize || 8) * 2} fill={color} />}
-            {style.pointIcon === 'triangle' && <path d={`M 50 ${50 - (style.pointSize || 10)} L ${50 + (style.pointSize || 10)} ${50 + (style.pointSize || 10)} L ${50 - (style.pointSize || 10)} ${50 + (style.pointSize || 10)} Z`} fill={color} />}
-            {style.pointIcon === 'star' && <path d="M 50 35 L 53.09 43.1 L 62.36 43.1 L 54.81 48.2 L 57.9 56.3 L 50 51.2 L 42.1 56.3 L 45.19 48.2 L 37.64 43.1 L 46.91 43.1 Z" fill={color} transform={`translate(50, 50) scale(${(style.pointSize || 8) / 8}) translate(-50, -50)`} />}
+            {style.pointIcon === 'circle' && <circle cx="50" cy="50" r={pointSize} fill={color} fillOpacity={fillOpacity} />}
+            {style.pointIcon === 'square' && <rect x={50 - pointSize} y={50 - pointSize} width={pointSize * 2} height={pointSize * 2} fill={color} fillOpacity={fillOpacity} />}
+            {style.pointIcon === 'triangle' && <path d={`M 50 ${50 - (pointSize + 2)} L ${50 + (pointSize + 2)} ${50 + (pointSize + 2)} L ${50 - (pointSize + 2)} ${50 + (pointSize + 2)} Z`} fill={color} fillOpacity={fillOpacity} />}
+            {style.pointIcon === 'star' && <path d="M 50 35 L 53.09 43.1 L 62.36 43.1 L 54.81 48.2 L 57.9 56.3 L 50 51.2 L 42.1 56.3 L 45.19 48.2 L 37.64 43.1 L 46.91 43.1 Z" fill={color} fillOpacity={fillOpacity} transform={`translate(50, 50) scale(${pointSize / 8}) translate(-50, -50)`} />}
+          </g>
+        )}
+        {style.labelSettings?.enabled && (
+          <g>
+            {/* Define a path for curved label preview if needed */}
+            <defs>
+              <path id="label-path-line" d="M 10 70 Q 50 10 90 70" />
+            </defs>
+
+            {(() => {
+              const ls = style.labelSettings!;
+              const mode = ls.placement || 'around';
+              
+              // Determine Y position based on placement and geometry
+              let yPos = "95";
+              if (isPoint && mode === 'over') yPos = "55";
+              if (isPolygon) yPos = "60"; // Always inside for polygons in preview
+              if (isCollection && mode === 'over') yPos = "50";
+
+              const labelStyles: React.CSSProperties = {
+                fontFamily: ls.fontFamily || 'Arial',
+                fontSize: `${Math.min((ls.fontSize || 10) * 0.8, 14)}px`,
+                fontWeight: 'bold',
+              };
+
+              const isCurved = isLine && mode === 'curved';
+
+              return (
+                <g>
+                  {/* Halo / Buffer */}
+                  {ls.haloEnabled && (
+                    <text
+                      x={isCurved ? undefined : "50"}
+                      y={isCurved ? undefined : yPos}
+                      textAnchor="middle"
+                      style={{
+                        ...labelStyles,
+                        fill: ls.haloColor || '#ffffff',
+                        stroke: ls.haloColor || '#ffffff',
+                        strokeWidth: (ls.haloSize || 1) * 0.4,
+                        strokeLinejoin: 'round'
+                      }}
+                    >
+                      {isCurved ? (
+                        <textPath href="#label-path-line" startOffset="50%">Label</textPath>
+                      ) : 'Label'}
+                    </text>
+                  )}
+                  {/* Main Label Text */}
+                  <text
+                    x={isCurved ? undefined : "50"}
+                    y={isCurved ? undefined : yPos}
+                    textAnchor="middle"
+                    style={{
+                      ...labelStyles,
+                      fill: ls.color || '#000000'
+                    }}
+                  >
+                    {isCurved ? (
+                      <textPath href="#label-path-line" startOffset="50%">Label</textPath>
+                    ) : 'Label'}
+                  </text>
+                </g>
+              );
+            })()}
           </g>
         )}
       </svg>
+
+
     </div>
   );
 };

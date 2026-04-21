@@ -39,6 +39,8 @@ interface AmbientContextType {
   updateQuests: (model: DataModel | null, validation: ImportValidationResult | null, contextId?: string, subStep?: number) => void;
   lastQuestAction: { id: string; ts: number } | null;
   markQuestVisited: (id: string) => void;
+  isDocked: boolean;
+  setIsDocked: (docked: boolean) => void;
 }
 
 export const AmbientContext = createContext<AmbientContextType | undefined>(undefined);
@@ -79,6 +81,14 @@ export const AmbientProvider: React.FC<{ children: ReactNode }> = ({ children })
   const [currentContext, setCurrentContext] = useState<AmbientContextState>({ tab: 'landing', step: 0 });
   const [lastQuestAction, setLastQuestAction] = useState<{ id: string; ts: number } | null>(null);
   const [visitedQuests, setVisitedQuests] = useState<string[]>([]);
+  const [isDocked, setIsDockedState] = useState(() => {
+    try {
+      const stored = localStorage.getItem('waystones_ambient_docked');
+      return stored !== null ? JSON.parse(stored) : true; // Start docked by default
+    } catch {
+      return true;
+    }
+  });
   const contextRef = useRef(currentContext);
   useEffect(() => {
     contextRef.current = currentContext;
@@ -113,6 +123,11 @@ export const AmbientProvider: React.FC<{ children: ReactNode }> = ({ children })
   useEffect(() => {
     localStorage.setItem('waystones_ambient_visited', JSON.stringify(visitedQuests));
   }, [visitedQuests]);
+
+  const setIsDocked = useCallback((docked: boolean) => {
+    setIsDockedState(docked);
+    localStorage.setItem('waystones_ambient_docked', JSON.stringify(docked));
+  }, []);
 
   const markQuestVisited = useCallback((id: string) => {
     setVisitedQuests(prev => {
@@ -638,7 +653,9 @@ export const AmbientProvider: React.FC<{ children: ReactNode }> = ({ children })
       currentContext,
       updateQuests,
       lastQuestAction,
-      markQuestVisited
+      markQuestVisited,
+      isDocked,
+      setIsDocked
     }}>
       {children}
     </AmbientContext.Provider>

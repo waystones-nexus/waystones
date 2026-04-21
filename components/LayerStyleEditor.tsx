@@ -48,8 +48,28 @@ const LayerStyleEditor: React.FC<LayerStyleEditorProps> = ({
     categorizedItem: isDark ? 'bg-black/30 border-slate-700/40 hover:border-slate-600' : 'bg-white border-slate-200 hover:border-slate-300',
     categorizedLabel: isDark ? 'text-slate-400' : 'text-slate-500',
     noCodelist: isDark ? 'bg-slate-800/40 border-slate-700/50 text-slate-500' : 'bg-slate-50 border-slate-200 text-slate-400',
+    input: isDark
+      ? 'bg-slate-900 border-slate-700 text-slate-200 focus:border-indigo-500'
+      : 'bg-white border-slate-200 text-slate-900 focus:border-indigo-400',
     iconActive: isDark ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg' : 'bg-indigo-600 border-indigo-600 text-white shadow-md',
     iconInactive: isDark ? 'bg-slate-800 border-slate-700 text-slate-500 hover:border-slate-500 hover:text-slate-300' : 'bg-white border-slate-200 text-slate-400 hover:border-indigo-300 hover:text-indigo-400',
+  };
+
+  const updateCategory = (code: string, settings: any) => {
+    const current = style.categorizedSettings || {};
+    const existing = current[code] || {};
+
+    // Legacy fallback for color
+    if (!existing.color && style.categorizedColors?.[code]) {
+      existing.color = style.categorizedColors[code];
+    }
+
+    onUpdate({
+      categorizedSettings: {
+        ...current,
+        [code]: { ...existing, ...settings }
+      }
+    });
   };
 
   return (
@@ -197,25 +217,287 @@ const LayerStyleEditor: React.FC<LayerStyleEditorProps> = ({
               )}
             </div>
             {style.propertyId && (
-              <div className={`rounded-2xl p-4 space-y-3 border max-h-[300px] overflow-y-auto custom-scrollbar shadow-inner ${cls.categorizedBg}`}>
+              <div className={`rounded-2xl p-4 space-y-3 border max-h-[500px] overflow-y-auto custom-scrollbar shadow-inner ${cls.categorizedBg}`}>
                 <label className={`text-[10px] font-black uppercase tracking-widest ${cls.categorizedLabel} block mb-2`}>{st.colorsForValues}</label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {(() => { const sp = layer.properties.find(p => p.id === style.propertyId); const vals = sp?.fieldType.kind === 'codelist' && sp.fieldType.mode === 'inline' ? sp.fieldType.values : []; return vals; })().map(v => (
-                    <div key={v.id} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${cls.categorizedItem}`}>
-                      <span className="text-xs font-bold truncate max-w-[120px]">{v.label || v.code}</span>
-                      <input
-                        type="color"
-                        value={style.categorizedColors?.[v.code] || '#6366F1'}
-                        onChange={e => onUpdate({ categorizedColors: { ...(style.categorizedColors || {}), [v.code]: e.target.value } })}
-                        className="w-10 h-8 rounded-lg bg-transparent border-none cursor-pointer hover:scale-110 transition-transform"
-                      />
+                    <div key={v.id} className={`p-3.5 rounded-xl border transition-all ${cls.categorizedItem} space-y-4`}>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-bold truncate flex-1" title={v.label || v.code}>{v.label || v.code}</span>
+                        <input
+                          type="color"
+                          value={style.categorizedSettings?.[v.code]?.color || style.categorizedColors?.[v.code] || '#6366F1'}
+                          onChange={e => updateCategory(v.code, { color: e.target.value })}
+                          className="w-8 h-8 rounded-lg bg-transparent border-none cursor-pointer hover:scale-110 transition-transform shrink-0"
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest">
+                          <span className="text-slate-400">{st.fillOpacity || 'Opacity'}</span>
+                          <span className="text-indigo-500">{Math.round((style.categorizedSettings?.[v.code]?.fillOpacity ?? 0.5) * 100)}%</span>
+                        </div>
+                        <input
+                          type="range" min="0" max="1" step="0.01"
+                          value={style.categorizedSettings?.[v.code]?.fillOpacity ?? 0.5}
+                          onChange={e => updateCategory(v.code, { fillOpacity: parseFloat(e.target.value) })}
+                          className={`w-full h-1.5 ${cls.slider} rounded-full appearance-none cursor-pointer accent-indigo-500`}
+                        />
+                      </div>
+
+                      {isPoint && (
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest">
+                            <span className="text-slate-400">{st.pointSize || 'Size'}</span>
+                            <span className="text-indigo-500">{style.categorizedSettings?.[v.code]?.pointSize ?? style.pointSize ?? 8}px</span>
+                          </div>
+                          <input
+                            type="range" min="2" max="48"
+                            value={style.categorizedSettings?.[v.code]?.pointSize ?? style.pointSize ?? 8}
+                            onChange={e => updateCategory(v.code, { pointSize: parseInt(e.target.value) })}
+                            className={`w-full h-1.5 ${cls.slider} rounded-full appearance-none cursor-pointer accent-indigo-500`}
+                          />
+                        </div>
+                      )}
+
+                      {(isLine || isPolygon) && (
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest">
+                            <span className="text-slate-400">{st.lineWidth || 'Width'}</span>
+                            <span className="text-indigo-500">{style.categorizedSettings?.[v.code]?.lineWidth ?? style.lineWidth ?? 2}px</span>
+                          </div>
+                          <input
+                            type="range" min="1" max="24"
+                            value={style.categorizedSettings?.[v.code]?.lineWidth ?? style.lineWidth ?? 2}
+                            onChange={e => updateCategory(v.code, { lineWidth: parseInt(e.target.value) })}
+                            className={`w-full h-1.5 ${cls.slider} rounded-full appearance-none cursor-pointer accent-indigo-500`}
+                          />
+                        </div>
+                      )}
+
+                      {(isLine || isPolygon) && (
+                        <div className="space-y-1.5">
+                          <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">{st.lineDash}</label>
+                          <select
+                            value={style.categorizedSettings?.[v.code]?.lineDash ?? style.lineDash ?? 'solid'}
+                            onChange={e => updateCategory(v.code, { lineDash: e.target.value })}
+                            className={`w-full text-[10px] p-2 rounded-lg border outline-none transition-colors ${cls.input}`}
+                          >
+                            {Object.entries(st.dashes || {}).map(([k, v]) => (
+                              <option key={k} value={k}>{v as string}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+
+                      {isPolygon && (
+                        <>
+                          <div className="space-y-1.5">
+                            <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">{st.hatchStyle}</label>
+                            <select
+                              value={style.categorizedSettings?.[v.code]?.hatchStyle ?? style.hatchStyle ?? 'solid'}
+                              onChange={e => updateCategory(v.code, { hatchStyle: e.target.value })}
+                              className={`w-full text-[10px] p-2 rounded-lg border outline-none transition-colors ${cls.input}`}
+                            >
+                              {Object.entries(st.hatches || {}).map(([k, v]) => (
+                                <option key={k} value={k}>{v as string}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {(style.categorizedSettings?.[v.code]?.hatchStyle ?? style.hatchStyle ?? 'solid') !== 'solid' && (
+                            <div className="grid grid-cols-2 gap-3 pt-1">
+                              <div className="space-y-1.5">
+                                <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest">
+                                  <span className="text-slate-400">{st.hatchSpacing}</span>
+                                  <span className="text-indigo-500">{style.categorizedSettings?.[v.code]?.hatchSpacing ?? style.hatchSpacing ?? 6}px</span>
+                                </div>
+                                <input
+                                  type="range" min="2" max="24"
+                                  value={style.categorizedSettings?.[v.code]?.hatchSpacing ?? style.hatchSpacing ?? 6}
+                                  onChange={e => updateCategory(v.code, { hatchSpacing: parseInt(e.target.value) })}
+                                  className={`w-full h-1.5 ${cls.slider} rounded-full appearance-none cursor-pointer accent-indigo-500`}
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <div className="flex justify-between items-center text-[9px] font-black uppercase tracking-widest">
+                                  <span className="text-slate-400">{st.hatchThickness}</span>
+                                  <span className="text-indigo-500">{style.categorizedSettings?.[v.code]?.hatchThickness ?? style.hatchThickness ?? 1}px</span>
+                                </div>
+                                <input
+                                  type="range" min="1" max="5"
+                                  value={style.categorizedSettings?.[v.code]?.hatchThickness ?? style.hatchThickness ?? 1}
+                                  onChange={e => updateCategory(v.code, { hatchThickness: parseInt(e.target.value) })}
+                                  className={`w-full h-1.5 ${cls.slider} rounded-full appearance-none cursor-pointer accent-indigo-500`}
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      )}
+
                     </div>
                   ))}
                 </div>
               </div>
             )}
+
           </div>
         )}
+
+        {/* Labeling Section */}
+        <div className={`pt-6 border-t ${cls.divider} space-y-6`}>
+          <div className="flex items-center justify-between">
+            <label className={`text-[10px] font-black uppercase tracking-widest ${cls.label}`}>{st.enableLabels || 'Enable Labels'}</label>
+            <button
+              onClick={() => onUpdate({ labelSettings: { ...(style.labelSettings || { fontSize: 10, color: '#000000', fontFamily: 'Arial', haloEnabled: false, haloSize: 1, haloColor: '#ffffff' }), enabled: !style.labelSettings?.enabled } })}
+              className={`w-12 h-6 rounded-full transition-colors relative ${style.labelSettings?.enabled ? 'bg-indigo-600' : 'bg-slate-300'}`}
+            >
+              <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${style.labelSettings?.enabled ? 'left-7' : 'left-1'}`} />
+            </button>
+          </div>
+
+          {style.labelSettings?.enabled && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 animate-in fade-in slide-in-from-top-2 duration-300">
+              <div className="space-y-3">
+                <label className={`text-[10px] font-black uppercase tracking-widest ${cls.label}`}>{st.labelProperty || 'Label Property'}</label>
+                <select
+                  value={style.labelSettings.propertyId || ''}
+                  onChange={e => onUpdate({ labelSettings: { ...style.labelSettings!, propertyId: e.target.value } })}
+                  className={`w-full border rounded-xl px-4 py-3 text-xs font-bold outline-none cursor-pointer transition-all ${cls.select}`}
+                >
+                  <option value="">-- {st.selectProperty} --</option>
+                  {layer.properties.filter(p => ['primitive', 'codelist'].includes(p.fieldType.kind)).map(p => (
+                    <option key={p.id} value={p.id}>{p.title || p.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-3">
+                <label className={`text-[10px] font-black uppercase tracking-widest ${cls.label}`}>{st.fontFamily || 'Font Family'}</label>
+                <select
+                  value={style.labelSettings.fontFamily || 'Arial'}
+                  onChange={e => onUpdate({ labelSettings: { ...style.labelSettings!, fontFamily: e.target.value } })}
+                  className={`w-full border rounded-xl px-4 py-3 text-xs font-bold outline-none cursor-pointer transition-all ${cls.select}`}
+                >
+                  {['Arial', 'Helvetica', 'Verdana', 'Tahoma', 'Times New Roman', 'Georgia', 'Courier New'].map(f => (
+                    <option key={f} value={f}>{f}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex justify-between items-end">
+                  <label className={`text-[10px] font-black uppercase tracking-widest ${cls.label}`}>{st.fontSize || 'Font Size'}</label>
+                  <span className={`text-xs font-black ${cls.badge} px-2 py-0.5 rounded-md`}>{style.labelSettings.fontSize || 10}pt</span>
+                </div>
+                <input
+                  type="range" min="6" max="72"
+                  value={style.labelSettings.fontSize || 10}
+                  onChange={e => onUpdate({ labelSettings: { ...style.labelSettings!, fontSize: parseInt(e.target.value) } })}
+                  className={`w-full h-2 ${cls.slider} rounded-full appearance-none cursor-pointer accent-indigo-500`}
+                />
+              </div>
+
+              <div className="space-y-3">
+                <label className={`text-[10px] font-black uppercase tracking-widest ${cls.label}`}>{st.labelColor || 'Label Color'}</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={style.labelSettings.color || '#000000'}
+                    onChange={e => onUpdate({ labelSettings: { ...style.labelSettings!, color: e.target.value } })}
+                    className="w-10 h-10 rounded-xl bg-transparent border-none cursor-pointer p-0 overflow-hidden"
+                  />
+                  <span className="text-xs font-mono opacity-50 uppercase">{style.labelSettings.color || '#000000'}</span>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <label className={`text-[10px] font-black uppercase tracking-widest ${cls.label}`}>{st.labelPlacement || 'Label Placement'}</label>
+                <select
+                  value={style.labelSettings.placement || 'around'}
+                  onChange={e => onUpdate({ labelSettings: { ...style.labelSettings!, placement: e.target.value } })}
+                  className={`w-full border rounded-xl px-4 py-3 text-xs font-bold outline-none cursor-pointer transition-all ${cls.select}`}
+                >
+                  {isPoint && (
+                    <>
+                      <option value="around">{st.aroundPoint || 'Around Point'}</option>
+                      <option value="over">{st.overPoint || 'Over Point'}</option>
+                    </>
+                  )}
+                  {isLine && (
+                    <>
+                      <option value="parallel">{st.parallel || 'Parallel'}</option>
+                      <option value="curved">{st.curved || 'Curved'}</option>
+                    </>
+                  )}
+                  {isPolygon && (
+                    <>
+                      <option value="around">{st.aroundCentroid || 'Centroid (Flexible)'}</option>
+                      <option value="horizontal">{st.horizontal || 'Horizontal (Inside)'}</option>
+                    </>
+                  )}
+                  {!isPoint && !isLine && !isPolygon && <option value="around">{st.around || 'Around'}</option>}
+                </select>
+                
+                {/* Placement Description Helper */}
+                <p className="text-[10px] text-slate-400 italic px-1 leading-relaxed">
+                  {(() => {
+                    const mode = style.labelSettings.placement || 'around';
+                    if (isPoint) return mode === 'over' ? "Label sits directly on the point (ideal for symbols)." : "Label is placed in a tight circle around the point.";
+                    if (isLine) return mode === 'curved' ? "Label bends to follow the curvature of the line." : "Label stays straight and parallel to the line.";
+                    if (isPolygon) return mode === 'horizontal' ? "Forces label to stay horizontal and strictly inside the polygon." : "Places label near the center; may move outside if space is limited.";
+                    return "";
+                  })()}
+                </p>
+              </div>
+
+              <div className="sm:col-span-2 space-y-4 pt-2">
+                <div className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    id="halo-enabled"
+                    checked={style.labelSettings.haloEnabled}
+                    onChange={e => onUpdate({ labelSettings: { ...style.labelSettings!, haloEnabled: e.target.checked } })}
+                    className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <label htmlFor="halo-enabled" className={`text-[10px] font-black uppercase tracking-widest ${cls.label} cursor-pointer`}>
+                    {st.haloEnabled || 'Text Buffer (Halo)'}
+                  </label>
+                </div>
+
+                {style.labelSettings.haloEnabled && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 p-4 rounded-2xl bg-slate-50 border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-end">
+                        <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">{st.haloSize || 'Buffer Size'}</label>
+                        <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded-md">{style.labelSettings.haloSize || 1}pt</span>
+                      </div>
+                      <input
+                        type="range" min="0.5" max="10" step="0.1"
+                        value={style.labelSettings.haloSize || 1}
+                        onChange={e => onUpdate({ labelSettings: { ...style.labelSettings!, haloSize: parseFloat(e.target.value) } })}
+                        className="w-full h-1.5 bg-slate-200 rounded-full appearance-none cursor-pointer accent-indigo-500"
+                      />
+                    </div>
+                    <div className="space-y-3">
+                      <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">{st.haloColor || 'Buffer Color'}</label>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="color"
+                          value={style.labelSettings.haloColor || '#ffffff'}
+                          onChange={e => onUpdate({ labelSettings: { ...style.labelSettings!, haloColor: e.target.value } })}
+                          className="w-8 h-8 rounded-lg bg-transparent border-none cursor-pointer p-0 overflow-hidden"
+                        />
+                        <span className="text-xs font-mono opacity-50 uppercase">{style.labelSettings.haloColor || '#ffffff'}</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Preview */}

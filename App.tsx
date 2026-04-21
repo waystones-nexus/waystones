@@ -81,6 +81,7 @@ const App: React.FC = () => {
     }
     return 'landing';
   });
+  const [activeLayerId, setActiveLayerId] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
   const [quickPublishSummary, setQuickPublishSummary] = useState<InferredDataSummary | null>(null);
   const [quickPublishValidation, setQuickPublishValidation] = useState<ImportValidationResult | null>(null);
@@ -626,6 +627,7 @@ const App: React.FC = () => {
                     onOpenDeploy={() => setActiveTab('deploy')}
                     onUpdateGithubConfig={setGithubConfig}
                     onOpenGithubPublish={() => setShowGithubPublish(true)}
+                    onActiveLayerChange={setActiveLayerId}
                   />
                 )
               ) : (
@@ -732,6 +734,7 @@ const App: React.FC = () => {
                   model={selectedModel}
                   t={t}
                   lang={lang}
+                  activeLayerId={activeLayerId}
                 />
               )}
               <button onClick={() => setActiveTab('editor')} className="lg:hidden absolute top-4 left-4 p-2.5 bg-white border border-slate-200 rounded-xl shadow-xl text-slate-500 z-[140] hover:bg-slate-50 transition-colors"><ChevronLeft size={18} /></button>

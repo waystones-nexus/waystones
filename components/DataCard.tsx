@@ -1,12 +1,13 @@
-import React, { Fragment } from 'react';
+import React, { Fragment, useEffect, useRef } from 'react';
 import type { Translations } from '../i18n/index';
 import { DataModel, Layer, PropertyConstraints, Field } from '../types';
 import { COLORS, getFieldConfig } from '../constants';
-import { MapPin, Database, ChevronRight, Layers, Globe, Palette, GitCommit, Square, Hash, Shapes, LayoutList, MousePointer2, Lock, Key, ListChecks, Link, CornerDownRight, Box } from 'lucide-react';
+import { MapPin, Database, ChevronRight, Layers, Globe, Palette, GitCommit, Square, Hash, Shapes, LayoutList, MousePointer2, Lock, Key, ListChecks, Link, CornerDownRight, Box, Info } from 'lucide-react';
 
 interface DataCardProps {
   model: DataModel;
   t: Translations;
+  activeLayerId?: string | null;
 }
 
 const GEOM_ICONS: Record<string, any> = {
@@ -39,8 +40,22 @@ const fieldTypeLabel = (f: Field, t: Translations): string => {
   }
 };
 
-const DataCard: React.FC<DataCardProps> = ({ model, t }) => {
+const DataCard: React.FC<DataCardProps> = ({ model, t, activeLayerId }) => {
   const isRequired = (f: Field) => f.multiplicity === '1..1' || f.multiplicity === '1..*';
+  const layerRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  // Scroll to active layer when it changes
+  useEffect(() => {
+    if (activeLayerId) {
+      const el = layerRefs.current.get(activeLayerId);
+      if (el) {
+        // Use a small delay to ensure rendering is complete
+        setTimeout(() => {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+      }
+    }
+  }, [activeLayerId]);
 
   // Recursive component for rendering properties, sub-properties AND shared types
   const PropertyRow: React.FC<{ prop: Field; layer: Layer; depth?: number }> = ({ prop, layer, depth = 0 }) => {
@@ -90,7 +105,7 @@ const DataCard: React.FC<DataCardProps> = ({ model, t }) => {
             
             <div className="flex items-center gap-2 shrink-0">
               {isStyleAttribute && <Palette size={12} className="text-amber-500" />}
-              <div className="px-2 py-1 rounded text-[9px] font-black uppercase tracking-widest border flex items-center gap-1.5" style={{ backgroundColor: config.bg, color: config.color, borderColor: `${config.color}20` }}>
+              <div className="px-2 py-1 rounded text-[9px] font-black uppercase tracking-widest border flex items-center gap-1.5 shadow-sm" style={{ backgroundColor: config.bg, color: config.color, borderColor: `${config.color}20` }}>
                 {ft.kind === 'datatype-ref' && <Box size={10} />}
                 {sharedTypeRef ? sharedTypeRef.name : fieldTypeLabel(prop, t)}
               </div>
@@ -161,166 +176,187 @@ const DataCard: React.FC<DataCardProps> = ({ model, t }) => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header Info Card */}
-      <div className="rounded-2xl p-6 text-white shadow-xl shadow-indigo-100" style={{ background: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)` }}>
-        <h2 className="text-xl font-black mb-1">{model.name || t.untitledModel || 'Untitled Model'}</h2>
-        <div className="flex flex-wrap items-center gap-3 text-white/70 text-[10px] font-bold uppercase tracking-[0.2em] mb-4">
-          <span>{model.namespace || t.noNamespace || 'no.namespace'}</span>
-          <span className="w-1 h-1 rounded-full bg-white/30" />
-          <span>v{model.version}</span>
-          <span className="w-1 h-1 rounded-full bg-white/30" />
-          <span className="flex items-center gap-1.5 bg-white/20 px-2 py-0.5 rounded-full"><Globe size={12} /> {model.crs || 'EPSG:4326'}</span>
+      <div className="rounded-[32px] p-8 text-white shadow-2xl shadow-indigo-200 relative overflow-hidden" style={{ background: `linear-gradient(135deg, ${COLORS.primary} 0%, ${COLORS.primaryDark} 100%)` }}>
+        <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative z-10">
+            <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-md border border-white/30">
+                    <Database size={20} />
+                </div>
+                <h2 className="text-2xl font-black tracking-tight">{model.name || t.untitledModel || 'Untitled Model'}</h2>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 text-white/70 text-[10px] font-black uppercase tracking-[0.2em] mb-6">
+                <span className="bg-white/10 px-3 py-1 rounded-full border border-white/10">{model.namespace || t.noNamespace || 'no.namespace'}</span>
+                <span className="bg-white/10 px-3 py-1 rounded-full border border-white/10">v{model.version}</span>
+                <span className="flex items-center gap-1.5 bg-indigo-500/40 text-indigo-100 px-3 py-1 rounded-full border border-indigo-400/30 backdrop-blur-sm shadow-inner"><Globe size={12} /> {model.crs || 'EPSG:4326'}</span>
+            </div>
+            {model.description && (
+                <div className="bg-black/10 backdrop-blur-md p-4 rounded-2xl border border-white/10 shadow-inner">
+                    <p className="text-xs text-indigo-50 font-medium italic leading-relaxed">"{model.description}"</p>
+                </div>
+            )}
         </div>
-        {model.description && <p className="text-xs text-white/90 leading-relaxed font-medium italic">"{model.description}"</p>}
       </div>
 
       {/* Layers List */}
-      {model.layers.map(layer => {
-        
-        // Find all codelists recursively to display them at the bottom
-        const findCodelists = (props: Field[]): { prop: Field; values: { id: string; code: string; label: string; description?: string }[] }[] => {
-            let lists: { prop: Field; values: { id: string; code: string; label: string; description?: string }[] }[] = [];
-            props.forEach(f => {
-                if (f.fieldType.kind === 'codelist') {
-                    let vals: { id: string; code: string; label: string; description?: string }[] = [];
-                    if (f.fieldType.mode === 'shared') {
-                        vals = model.sharedEnums?.find(e => e.id === (f.fieldType as any).enumRef)?.values ?? [];
-                    } else if (f.fieldType.mode === 'inline') {
-                        vals = f.fieldType.values;
-                    }
-                    if (vals.length > 0) lists.push({ prop: f, values: vals });
-                }
-                if (f.fieldType.kind === 'datatype-inline' && f.fieldType.properties.length > 0) {
-                    lists = [...lists, ...findCodelists(f.fieldType.properties)];
-                }
-                if (f.fieldType.kind === 'datatype-ref') {
-                    const st = model.sharedTypes?.find(s => s.id === (f.fieldType as any).typeId);
-                    if (st) lists = [...lists, ...findCodelists(st.properties)];
-                }
-            });
-            return lists;
-        };
-        const codelists = findCodelists(layer.properties);
-        
-        const GeomIcon = GEOM_ICONS[layer.geometryType] || MousePointer2;
-
-        return (
-          <div key={layer.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-500">
-            <div className="px-5 py-4 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-black text-slate-800 flex items-center gap-2 flex-wrap">
-                   <div className="w-4 h-4 rounded-md border border-slate-200 shadow-sm shrink-0" style={{ backgroundColor: layer.style.simpleColor }} />
-                   <Layers size={16} className="text-indigo-600" />
-                   {layer.name}
-                   {layer.isAbstract && (
-                     <span className="text-[8px] font-black text-violet-500 bg-violet-50 border border-violet-200 px-1.5 py-0.5 rounded-full">{t.abstract || '«abstract»'}</span>
-                   )}
-                   {layer.extends && (() => {
-                     const parent = model.layers.find(l => l.id === layer.extends);
-                     return parent ? <span className="text-[9px] text-violet-400 font-bold">↑ {parent.name}</span> : null;
-                   })()}
-                </h3>
-                {layer.description && <p className="text-[10px] text-slate-400 mt-1">{layer.description}</p>}
-              </div>
-              <div className="flex flex-col items-end gap-1 shrink-0">
-                  <div className="flex items-center gap-1.5 bg-indigo-50 text-indigo-600 px-2.5 py-1 rounded-full border border-indigo-100">
-                    <GeomIcon size={12} />
-                    <span className="text-[9px] font-black uppercase whitespace-nowrap">{t.geometryTypes[layer.geometryType] || layer.geometryType}</span>
-                  </div>
-              </div>
-            </div>
-
-            <div className="divide-y divide-slate-100">
-              {/* Special row for Geometry */}
-              <div className="p-4 flex items-center justify-between bg-indigo-50/20">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-sm font-black text-indigo-800 mono">{layer.geometryColumnName}</span>
-                    <span className="text-indigo-500 text-xs font-black">*</span>
-                  </div>
-                  <div className="text-[10px] text-indigo-500/70 font-bold uppercase tracking-tight">{t.types.geometry} ({model.crs})</div>
-                </div>
-                <div className="flex items-center gap-3 shrink-0">
-                   {layer.style.type === 'categorized' && (
-                     <div className="flex -space-x-1.5 overflow-hidden p-1">
-                        {Object.values(layer.style.categorizedColors || {}).slice(0, 4).map((c, idx) => (
-                           <div key={idx} className="w-4 h-4 rounded-full border border-white ring-1 ring-slate-100 shadow-sm" style={{ backgroundColor: c }} />
-                        ))}
-                     </div>
-                   )}
-                   <div className="px-2 py-1 rounded text-[9px] font-black uppercase tracking-widest border border-indigo-200 bg-indigo-100 text-indigo-700 whitespace-nowrap">{t.geometryTypes[layer.geometryType] || layer.geometryType}</div>
-                </div>
-              </div>
-
-              {/* Map base properties and recursively render */}
-              {layer.properties.map(prop => (
-                <PropertyRow key={prop.id} prop={prop} layer={layer} />
-              ))}
-            </div>
-
-            {codelists.length > 0 && (
-              <div className="bg-slate-50/50 p-5 space-y-4 border-t border-slate-100">
-                <span className="text-[10px] font-black uppercase tracking-[0.1em] text-slate-400 flex items-center gap-2"><Database size={14}/> {t.codelistValues}</span>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {codelists.map(({ prop, values }, idx) => {
-                    const isStyleAttribute = layer.style.type === 'categorized' && layer.style.propertyId === prop.id;
-                    return (
-                      <div key={`${prop.id}-${idx}`} className={`bg-white rounded-2xl border overflow-hidden shadow-sm flex flex-col ${isStyleAttribute ? 'border-amber-200' : 'border-slate-200'}`}>
-                         <div className={`${isStyleAttribute ? 'bg-amber-500' : 'bg-slate-700'} px-4 py-2 text-white text-[10px] font-black uppercase flex items-center justify-between tracking-wider`}>
-                           <span>{prop.title || prop.name}</span>
-                           {isStyleAttribute && <Palette size={12} />}
-                         </div>
-                         <div className="divide-y divide-slate-50">
-                            {values.map(v => (
-                              <div key={v.id} className="px-4 py-2 hover:bg-slate-50 transition-colors">
-                                <div className="flex items-center gap-2">
-                                   {isStyleAttribute && (
-                                     <div className="w-2.5 h-2.5 rounded-full shrink-0 shadow-sm ring-1 ring-slate-200" style={{ backgroundColor: layer.style.categorizedColors?.[v.code] || '#ccc' }} />
-                                   )}
-                                   <span className={`text-[10px] font-black mono shrink-0 ${isStyleAttribute ? 'text-amber-600' : 'text-blue-600'}`}>{v.code}</span>
-                                   <span className="text-xs font-bold text-slate-700 truncate">{v.label}</span>
-                                </div>
-                                {v.description && (
-                                  <p className="text-[9px] text-slate-400 mt-0.5 pl-4 sm:pl-4 italic">{v.description}</p>
-                                )}
-                              </div>
-                            ))}
-                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+      <div className="space-y-6">
+        {model.layers.map(layer => {
+            const isActive = activeLayerId === layer.id;
             
-            {layer.layerConstraints && layer.layerConstraints.length > 0 && (
-              <div className="bg-emerald-50/30 p-5 space-y-4 border-t border-emerald-100">
-                <span className="text-[10px] font-black uppercase tracking-[0.1em] text-emerald-600 flex items-center gap-2">
-                  <Lock size={14} /> {t.layerValidation?.title || 'Advanced Validation'}
-                </span>
-                <div className="grid grid-cols-1 gap-3">
-                  {layer.layerConstraints.map(constraint => (
-                    <div key={constraint.id} className="bg-white rounded-xl border border-emerald-100 p-4 shadow-sm flex flex-col sm:flex-row sm:items-center gap-3 justify-between">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs font-black mono text-slate-700 bg-slate-100 px-2 py-1 rounded">{constraint.fieldA}</span>
-                        <span className="text-xs font-black text-emerald-600 mono">{constraint.operator}</span>
-                        <span className="text-xs font-black mono text-slate-700 bg-slate-100 px-2 py-1 rounded">{constraint.fieldB}</span>
+            // Find all codelists recursively to display them at the bottom
+            const findCodelists = (props: Field[]): { prop: Field; values: { id: string; code: string; label: string; description?: string }[] }[] => {
+                let lists: { prop: Field; values: { id: string; code: string; label: string; description?: string }[] }[] = [];
+                props.forEach(f => {
+                    if (f.fieldType.kind === 'codelist') {
+                        let vals: { id: string; code: string; label: string; description?: string }[] = [];
+                        if (f.fieldType.mode === 'shared') {
+                            vals = model.sharedEnums?.find(e => e.id === (f.fieldType as any).enumRef)?.values ?? [];
+                        } else if (f.fieldType.mode === 'inline') {
+                            vals = f.fieldType.values;
+                        }
+                        if (vals.length > 0) lists.push({ prop: f, values: vals });
+                    }
+                    if (f.fieldType.kind === 'datatype-inline' && f.fieldType.properties.length > 0) {
+                        lists = [...lists, ...findCodelists(f.fieldType.properties)];
+                    }
+                    if (f.fieldType.kind === 'datatype-ref') {
+                        const st = model.sharedTypes?.find(s => s.id === (f.fieldType as any).typeId);
+                        if (st) lists = [...lists, ...findCodelists(st.properties)];
+                    }
+                });
+                return lists;
+            };
+            const codelists = findCodelists(layer.properties);
+            
+            const GeomIcon = GEOM_ICONS[layer.geometryType] || MousePointer2;
+
+            return (
+              <div 
+                key={layer.id} 
+                ref={(el) => { if (el) layerRefs.current.set(layer.id, el); else layerRefs.current.delete(layer.id); }}
+                className={`bg-white rounded-[28px] border transition-all duration-500 overflow-hidden shadow-sm ${isActive ? 'border-indigo-500 ring-4 ring-indigo-50 shadow-xl translate-y-[-4px]' : 'border-slate-200'}`}
+              >
+                <div className={`px-6 py-5 flex items-center justify-between transition-colors ${isActive ? 'bg-indigo-50/50' : 'bg-slate-50'}`}>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-800 flex items-center gap-2.5 flex-wrap">
+                       <div className="w-5 h-5 rounded-lg border border-slate-200 shadow-sm shrink-0" style={{ backgroundColor: layer.style.simpleColor }} />
+                       <span className="text-indigo-600"><Layers size={18} /></span>
+                       <span className="tracking-tight">{layer.name}</span>
+                       {layer.isAbstract && (
+                         <span className="text-[8px] font-black text-violet-500 bg-violet-50 border border-violet-200 px-2 py-0.5 rounded-full uppercase tracking-wider">{t.abstract || 'abstract'}</span>
+                       )}
+                       {layer.extends && (() => {
+                         const parent = model.layers.find(l => l.id === layer.extends);
+                         return parent ? <span className="text-[9px] text-violet-400 font-bold bg-violet-50/50 px-2 py-0.5 rounded-lg border border-violet-100/50">↑ parent: {parent.name}</span> : null;
+                       })()}
+                    </h3>
+                    {layer.description && <p className="text-[10px] text-slate-400 mt-1.5 font-medium leading-relaxed max-w-md">{layer.description}</p>}
+                  </div>
+                  <div className="flex flex-col items-end gap-1 shrink-0">
+                      <div className="flex items-center gap-2 bg-white text-indigo-600 px-3 py-1.5 rounded-xl border border-indigo-100 shadow-sm transition-transform group-hover:scale-105">
+                        <GeomIcon size={14} />
+                        <span className="text-[9px] font-black uppercase whitespace-nowrap tracking-widest">{t.geometryTypes[layer.geometryType] || layer.geometryType}</span>
                       </div>
-                      {constraint.errorMessage && (
-                        <div className="text-[10px] text-slate-500 italic bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100">
-                          "{constraint.errorMessage}"
+                  </div>
+                </div>
+
+                <div className="divide-y divide-slate-100">
+                  {/* Geometry Context row */}
+                  {layer.geometryType !== 'No Geometry' && (
+                    <div className="p-5 flex items-center justify-between bg-indigo-50/10">
+                        <div className="min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                            <span className="text-sm font-black text-indigo-900 mono">{layer.geometryColumnName}</span>
+                            <span className="text-indigo-500 text-xs font-black">*</span>
                         </div>
-                      )}
+                        <div className="text-[10px] text-indigo-500/60 font-black uppercase tracking-widest flex items-center gap-1.5"><Info size={10} /> {t.types.geometry} ({model.crs})</div>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                        {layer.style.type === 'categorized' && (
+                            <div className="flex -space-x-2 overflow-hidden p-1 bg-white rounded-lg border border-slate-100 shadow-sm">
+                                {Object.values(layer.style.categorizedColors || {}).slice(0, 5).map((c, idx) => (
+                                <div key={idx} className="w-5 h-5 rounded-full border-2 border-white shadow-sm" style={{ backgroundColor: c }} />
+                                ))}
+                                {Object.keys(layer.style.categorizedColors || {}).length > 5 && (
+                                    <div className="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-[8px] font-bold text-slate-400 border-2 border-white">+</div>
+                                )}
+                            </div>
+                        )}
+                        <div className="px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest border border-indigo-200 bg-indigo-50 text-indigo-700 whitespace-nowrap shadow-sm">{layer.geometryType}</div>
+                        </div>
                     </div>
+                  )}
+
+                  {/* Properties */}
+                  {layer.properties.map(prop => (
+                    <PropertyRow key={prop.id} prop={prop} layer={layer} />
                   ))}
                 </div>
+
+                {codelists.length > 0 && (
+                  <div className="bg-slate-50/30 p-6 space-y-5 border-t border-slate-100">
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 flex items-center gap-2.5 opacity-60"><Database size={16}/> {t.codelistValues || 'Field Vocabularies'}</span>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      {codelists.map(({ prop, values }, idx) => {
+                        const isStyleAttribute = layer.style.type === 'categorized' && layer.style.propertyId === prop.id;
+                        return (
+                          <div key={`${prop.id}-${idx}`} className={`bg-white rounded-[20px] border overflow-hidden shadow-sm flex flex-col transition-all hover:shadow-md ${isStyleAttribute ? 'border-amber-200' : 'border-slate-200'}`}>
+                             <div className={`${isStyleAttribute ? 'bg-amber-500' : 'bg-slate-600'} px-4 py-2.5 text-white text-[10px] font-black uppercase flex items-center justify-between tracking-[0.1em]`}>
+                               <span>{prop.title || prop.name}</span>
+                               {isStyleAttribute && <Palette size={14} />}
+                             </div>
+                             <div className="divide-y divide-slate-50 max-h-[200px] overflow-y-auto custom-scrollbar">
+                                {values.map(v => (
+                                  <div key={v.id} className="px-4 py-2.5 hover:bg-slate-50 transition-colors">
+                                    <div className="flex items-center gap-3">
+                                       {isStyleAttribute && (
+                                         <div className="w-3 h-3 rounded-full shrink-0 shadow-sm ring-2 ring-white" style={{ backgroundColor: layer.style.categorizedColors?.[v.code] || '#ccc' }} />
+                                       )}
+                                       <span className={`text-[10px] font-black mono shrink-0 px-1.5 py-0.5 rounded bg-slate-50 ${isStyleAttribute ? 'text-amber-700' : 'text-indigo-600'}`}>{v.code}</span>
+                                       <span className="text-xs font-bold text-slate-700 truncate">{v.label}</span>
+                                    </div>
+                                    {v.description && (
+                                      <p className="text-[9px] text-slate-400 mt-1 pl-6 italic leading-relaxed">{v.description}</p>
+                                    )}
+                                  </div>
+                                ))}
+                             </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                
+                {layer.layerConstraints && layer.layerConstraints.length > 0 && (
+                  <div className="bg-emerald-50/20 p-6 space-y-5 border-t border-emerald-100/50">
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600 flex items-center gap-2.5 opacity-70">
+                      <Lock size={16} /> {t.layerValidation?.title || 'Data Quality Rules'}
+                    </span>
+                    <div className="grid grid-cols-1 gap-4">
+                      {layer.layerConstraints.map(constraint => (
+                        <div key={constraint.id} className="bg-white rounded-2xl border border-emerald-100 p-5 shadow-sm flex flex-col sm:flex-row sm:items-center gap-4 justify-between transition-all hover:bg-emerald-50/30">
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <span className="text-xs font-black mono text-emerald-800 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-100 shadow-sm">{constraint.fieldA}</span>
+                            <span className="text-[10px] font-black text-slate-400 mono uppercase tracking-widest px-2">{constraint.operator}</span>
+                            <span className="text-xs font-black mono text-emerald-800 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-100 shadow-sm">{constraint.fieldB}</span>
+                          </div>
+                          {constraint.errorMessage && (
+                            <div className="text-[10px] font-bold text-slate-500 italic bg-slate-50 px-4 py-2 rounded-xl border border-slate-200/50 shadow-inner">
+                              "{constraint.errorMessage}"
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-            
-          </div>
-        );
-      })}
+            );
+        })}
+      </div>
     </div>
   );
 };
