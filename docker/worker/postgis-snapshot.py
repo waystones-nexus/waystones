@@ -334,7 +334,7 @@ def main() -> None:
             print(f"[snapshot] Converting '{safe_name}' → parquet ...", flush=True)
             convert_to_parquet(fgb_path, safe_name, fgb_dir)
 
-            manifest_layers.append({"name": table_part, "safe_name": safe_name})
+            manifest_layers.append({"name": full_name, "safe_name": safe_name})
             print(f"[snapshot] Table '{full_name}' done.", flush=True)
 
         if not manifest_layers:
