@@ -142,28 +142,27 @@ export const generatePygeoapiConfig = async (
 
     const allProperties = resolveLayerProperties(layer, model.layers);
 
-    yaml += `    schema:\n`;
-    yaml += `      # Resolved properties for ${layer.name} (Local: ${layer.properties.length}, Total: ${allProperties.length})\n`;
-    yaml += `      # Generator Version: 1.0.2\n`;
-    yaml += `      title: "${layer.name}"\n`;
-    yaml += `      type: object\n`;
-    yaml += `      properties:\n`;
-    yaml += `        "waystones_ping":\n`;
-    yaml += `          title: "Waystones Connection Check"\n`;
-    yaml += `          type: string\n`;
-    allProperties.forEach(prop => {
-      const typeInfo = mapFieldToSchemaType(prop);
-      const pName = prop.name || 'untitled_property';
-      yaml += `        "${pName}":\n`;
-      yaml += `          title: "${prop.title || pName}"\n`;
-      yaml += `          type: ${typeInfo.type}\n`;
-      if (typeInfo.format) yaml += `          format: ${typeInfo.format}\n`;
-      if (typeInfo.enum) {
-        yaml += `          enum:\n`;
-        typeInfo.enum.forEach((e: string) => { yaml += `            - "${e}"\n`; });
-      }
-    });
-    yaml += `\n`;
+    // Only provide a schema block if we have explicit properties defined in the model.
+    // Otherwise, omit it so pygeoapi falls back to the provider's auto-discovery (DESCRIBE).
+    if (allProperties.length > 0) {
+      yaml += `    schema:\n`;
+      yaml += `      title: "${layer.title || layer.name}"\n`;
+      yaml += `      type: object\n`;
+      yaml += `      properties:\n`;
+      allProperties.forEach(prop => {
+        const typeInfo = mapFieldToSchemaType(prop);
+        const pName = prop.name || 'untitled_property';
+        yaml += `        "${pName}":\n`;
+        yaml += `          title: "${prop.title || pName}"\n`;
+        yaml += `          type: ${typeInfo.type}\n`;
+        if (typeInfo.format) yaml += `          format: ${typeInfo.format}\n`;
+        if (typeInfo.enum) {
+          yaml += `            enum:\n`;
+          typeInfo.enum.forEach((e: string) => { yaml += `              - "${e}"\n`; });
+        }
+      });
+      yaml += `\n`;
+    }
   }
 
   return yaml;

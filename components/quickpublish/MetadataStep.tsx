@@ -254,22 +254,22 @@ const MetadataStep: React.FC<MetadataStepProps> = ({ model, summary, onUpdateMod
         </div>
 
         {/* Additional CRS */}
-        <div id={`${idPrefix}-meta-additional-crs-field`} className="space-y-2">
+        <div id={`${idPrefix}-meta-additional-crs-field`} className="space-y-1.5">
           <div className="flex items-center gap-2">
-            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{t.additionalCrsLabel}</label>
-            <span className="text-[10px] text-slate-400 font-medium lowercase">({t.additionalCrsHint})</span>
+            <label className="text-[9px] font-black uppercase tracking-widest text-slate-400">{t.additionalCrsLabel}</label>
+            <span className="text-[9px] text-slate-400 font-medium lowercase">({t.additionalCrsHint})</span>
           </div>
-          <div className="space-y-3">
-            <div className="bg-white border-2 border-slate-200 rounded-2xl p-3 min-h-[56px] focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all flex flex-wrap gap-2 items-center">
+          <div className="space-y-2">
+            <div className="bg-white border-2 border-slate-200 rounded-xl p-2 min-h-[44px] focus-within:border-indigo-400 focus-within:ring-4 focus-within:ring-indigo-500/10 transition-all flex flex-wrap gap-1.5 items-center">
               {(model.supportedCRS || []).map((crs, i) => (
-                <span key={i} className="inline-flex items-center gap-1.5 bg-indigo-50 text-indigo-700 border border-indigo-100 px-2.5 py-1.5 rounded-xl text-xs font-bold">
-                  <Globe size={12} className="text-indigo-400" />
+                <span key={i} className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-700 border border-indigo-100 px-2 py-1 rounded-lg text-[10px] font-bold">
+                  <Globe size={10} className="text-indigo-400" />
                   {crs}
                   <button 
                     onClick={() => onUpdateModel({ ...model, supportedCRS: model.supportedCRS?.filter((_, idx) => idx !== i) })}
-                    className="text-indigo-300 hover:text-indigo-600 transition-colors"
+                    className="text-indigo-300 hover:text-indigo-600 transition-colors ml-0.5"
                   >
-                    <X size={14} />
+                    <X size={12} />
                   </button>
                 </span>
               ))}
@@ -278,7 +278,7 @@ const MetadataStep: React.FC<MetadataStepProps> = ({ model, summary, onUpdateMod
                 id="crs-input-additional-step"
                 list="crs-presets-additional-step"
                 placeholder={t.additionalCrsPlaceholder}
-                className="flex-1 min-w-[120px] bg-transparent text-sm font-bold outline-none placeholder:text-slate-300"
+                className="flex-1 min-w-[100px] bg-transparent text-xs font-bold outline-none placeholder:text-slate-300"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ',') {
                     e.preventDefault();
@@ -293,23 +293,6 @@ const MetadataStep: React.FC<MetadataStepProps> = ({ model, summary, onUpdateMod
                   }
                 }}
               />
-              <button
-                onClick={() => {
-                  const input = document.getElementById('crs-input-additional-step') as HTMLInputElement;
-                  const val = input?.value.trim().toUpperCase();
-                  if (val && !(model.supportedCRS || []).includes(val)) {
-                    onUpdateModel({ 
-                      ...model, 
-                      supportedCRS: [...(model.supportedCRS || []), val] 
-                    });
-                    input.value = '';
-                  }
-                }}
-                className="px-4 py-1.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-all shadow-sm active:scale-95 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest ml-auto"
-              >
-                <Plus size={14} />
-                <span>{t.importDatabase?.import || 'Add'}</span>
-              </button>
             </div>
             <div className="flex flex-wrap gap-1.5">
               {COMMON_CRS.map((crs) => (

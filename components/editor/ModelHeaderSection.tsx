@@ -241,23 +241,6 @@ const ModelHeaderSection: React.FC<ModelHeaderSectionProps> = ({
                     }
                   }}
                 />
-                <button
-                  onClick={() => {
-                    const input = document.getElementById('crs-input-additional') as HTMLInputElement;
-                    const val = input?.value.trim().toUpperCase();
-                    if (val && !(model.supportedCRS || []).includes(val)) {
-                      onUpdate({ 
-                        ...model, 
-                        supportedCRS: [...(model.supportedCRS || []), val] 
-                      });
-                      input.value = '';
-                    }
-                  }}
-                  className="p-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-all shadow-sm active:scale-95 flex items-center justify-center shrink-0 ml-auto"
-                  title="Add CRS"
-                >
-                  <Plus size={12} />
-                </button>
               </div>
               <datalist id="crs-presets-additional">
                 {COMMON_CRS.map((crs) => (
