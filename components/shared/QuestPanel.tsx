@@ -273,7 +273,7 @@ export const QuestPanel: React.FC<QuestPanelProps> = ({
          {isDocked && onUndock && (
            <button
             onClick={onUndock}
-            className="flex items-center gap-1.5 text-[9px] font-black text-slate-400 hover:text-indigo-600 uppercase tracking-widest transition-colors group"
+            className="hidden md:flex items-center gap-1.5 text-[9px] font-black text-slate-400 hover:text-indigo-600 uppercase tracking-widest transition-colors group"
            >
              <Anchor size={10} className="group-hover:scale-110 transition-transform" />
              Undock Character

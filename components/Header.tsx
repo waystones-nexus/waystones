@@ -298,7 +298,7 @@ const Header: React.FC<{
             target="_blank"
             rel="noopener noreferrer"
             title="GitHub - View Source Code"
-            className="p-2.5 md:p-3.5 rounded-2xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-50/50 border border-transparent hover:border-indigo-100 transition-all shrink-0"
+            className="hidden md:flex p-2.5 md:p-3.5 rounded-2xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-50/50 border border-transparent hover:border-indigo-100 transition-all shrink-0"
           >
             <Github size={20} className="md:w-[24px] md:h-[24px]" />
           </a>
@@ -314,7 +314,7 @@ const Header: React.FC<{
             <div className="relative" ref={questPanelRef}>
               <button
                 onClick={() => setShowQuestPanel(!showQuestPanel)}
-                className={`flex items-center gap-2 p-1.5 pl-1.5 pr-4 rounded-2xl transition-all duration-300 border relative ${
+                className={`flex items-center gap-2 p-1.5 pl-1.5 pr-3 md:pr-4 rounded-2xl transition-all duration-300 border relative ${
                   showQuestPanel 
                     ? 'bg-slate-900 border-slate-800 text-white shadow-xl' 
                     : 'bg-white border-slate-100 text-slate-600 hover:border-indigo-200 hover:bg-slate-50'
@@ -349,12 +349,12 @@ const Header: React.FC<{
                   </div>
                 </div>
                 <div className="flex flex-col items-start">
-                  <span className={`text-[8px] font-black uppercase tracking-widest ${showQuestPanel ? 'text-indigo-400' : 'text-slate-400'}`}>QUESTS</span>
+                  <span className={`hidden md:block text-[8px] font-black uppercase tracking-widest ${showQuestPanel ? 'text-indigo-400' : 'text-slate-400'}`}>QUESTS</span>
                   <span className="text-[11px] font-black tracking-tight leading-none">
                     {activeQuests.filter(q => q.completed).length}/{activeQuests.length}
                   </span>
                 </div>
-                <ChevronDown size={14} className={`transition-transform duration-300 ${showQuestPanel ? 'rotate-180' : ''}`} />
+                <ChevronDown size={14} className={`hidden md:block transition-transform duration-300 ${showQuestPanel ? 'rotate-180' : ''}`} />
               </button>
 
               {showQuestPanel && (
