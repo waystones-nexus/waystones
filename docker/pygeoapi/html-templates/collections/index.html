@@ -33,9 +33,11 @@
   .col-meta { padding: 1rem 1.3rem; min-width: 200px; border-left: 1px solid #f1f5f9; display: flex; flex-direction: column; justify-content: center; }
   .col-meta-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: #94a3b8; font-weight: 700; }
   .col-meta-value { font-size: 0.85rem; color: #334155; font-weight: 500; margin-bottom: 0.6rem; }
-  .col-cta { flex-shrink: 0; display: flex; align-items: center; padding: 0 1.3rem; }
-  .col-cta a { font-size: 0.85rem; font-weight: 600; color: var(--brand); white-space: nowrap; text-decoration: none; }
-  .col-cta a:hover { text-decoration: underline; }
+  .col-cta { flex-shrink: 0; display: flex; flex-direction: column; justify-content: center; align-items: flex-end; padding: 0 1.3rem; gap: 0.4rem; }
+  .col-cta a.main-cta { font-size: 0.85rem; font-weight: 700; color: var(--brand); white-space: nowrap; text-decoration: none; }
+  .col-cta a.main-cta:hover { text-decoration: underline; }
+  .col-cta a.sec-cta { font-size: 0.72rem; font-weight: 600; color: #64748b; white-space: nowrap; text-decoration: none; }
+  .col-cta a.sec-cta:hover { color: var(--brand); text-decoration: underline; }
   #collections-map { height: 380px; border-radius: var(--radius); box-shadow: var(--shadow-md); margin-bottom: 1.5rem; }
 
   @media (max-width: 767px) {
@@ -106,7 +108,7 @@
   </div>
   <div class="col-body">
     <div>
-      <a class="col-title" href="{{ config.server.url }}/collections/{{ col.id }}">{{ col.title }}</a>
+      <a class="col-title" href="{{ config.server.url }}/collections/{{ col.id }}/items">{{ col.title | default(col.id) }}</a>
     </div>
     <p class="col-desc">{{ col.description }}</p>
     <div class="col-tags">
@@ -148,7 +150,8 @@
     </div>
   </div>
   <div class="col-cta">
-    <a href="{{ config.server.url }}/collections/{{ col.id }}">View &rarr;</a>
+    <a href="{{ config.server.url }}/collections/{{ col.id }}/items" class="main-cta">Explore Data &rarr;</a>
+    <a href="{{ config.server.url }}/collections/{{ col.id }}" class="sec-cta">Metadata</a>
   </div>
 </div>
 {% endfor %}

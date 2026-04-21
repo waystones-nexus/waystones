@@ -26,6 +26,7 @@ Waystones converts geospatial data models into production-ready OGC API and WMS 
 ### 🍱 Deployment Kit Generation
 **Generate production-ready OGC API and WMS services.**
 - **Automated Configuration**: Generates `pygeoapi` (REST) and **QGIS Server** (WMS) configurations.
+- **Cloud-Optimized Streaming**: Kits serve static GeoParquet/FlatGeobuf from local disk or stream directly from S3/R2 via HTTP Range Requests. No heavy database connections, no massive file downloads into memory.
 - **Self-Contained Kits**: Deployment kits include all necessary Dockerfiles and boot scripts.
 - **Multiple Targets**: Deploy to Docker Compose, Railway, Render, Fly.io, or Waystones Cloud.
 - **Metadata Support**: Built-in support for **STAC** (SpatioTemporal Asset Catalog) catalogs.
@@ -113,9 +114,12 @@ The conversion worker typically runs once on first boot or during a CI/CD build,
   - **Fast Path**: In SaaS environments, containers download a pre-baked OpenAPI document for instant service availability.
   - **Slow Path**: In local development, a placeholder is served while the document is generated in the background.
 - **Background Warm-up**: The `warmup.py` process runs as a low-priority background task to pre-fill DuckDB caches and fetch Parquet footers from S3/R2, ensuring sub-second response times even on cold boots.
-- **Dual Engines**:
-  - **pygeoapi**: High-performance RESTful access via **DuckDB** serving **GeoParquet**.
-  - **QGIS Server**: High-fidelity map rendering serving **FlatGeobuf**.
+- **Snapshot Worker**: Automated conversion pipeline (GDAL/DuckDB) that transforms live databases or GeoPackages into optimized static formats, enabling the snapshot architecture.
+- Dual Engines:
+
+pygeoapi: High-performance RESTful access via DuckDB, reading GeoParquet via zero-copy streaming (over network or local storage).
+
+QGIS Server: High-fidelity map rendering serving FlatGeobuf natively from cloud storage or local disk.
 - **CI/CD Driven**: Built-in GitHub Actions workflows automate data conversion and kit packaging.
 
 ### 🐳 Docker Configuration
