@@ -8,16 +8,18 @@ interface QuestPanelProps {
   onClose?: () => void;
   onReset?: () => void;
   onUndock?: () => void;
+  onDock?: () => void;
   isDocked?: boolean;
   quadrant?: { isLeft: boolean; isTop: boolean };
 }
 
-export const QuestPanel: React.FC<QuestPanelProps> = ({ 
-  onClose, 
-  onReset, 
+export const QuestPanel: React.FC<QuestPanelProps> = ({
+  onClose,
+  onReset,
   onUndock,
+  onDock,
   isDocked,
-  quadrant = { isLeft: false, isTop: true } 
+  quadrant = { isLeft: false, isTop: true }
 }) => {
   const { activeQuests, triggerQuestWhisper, currentContext } = useAmbient();
 
@@ -258,9 +260,9 @@ export const QuestPanel: React.FC<QuestPanelProps> = ({
       </div>
 
       {/* Admin/Settings Footer */}
-      <div className="px-8 py-3 bg-white border-t border-slate-100 flex justify-end">
+      <div className="px-8 py-3 bg-white border-t border-slate-100 flex justify-end gap-4">
          {onReset && (
-           <button 
+           <button
             onClick={onReset}
             className="flex items-center gap-1.5 text-[9px] font-black text-slate-400 hover:text-indigo-600 uppercase tracking-widest transition-colors group"
            >
@@ -268,13 +270,22 @@ export const QuestPanel: React.FC<QuestPanelProps> = ({
              Reset Position
            </button>
          )}
-         {onUndock && (
-           <button 
+         {isDocked && onUndock && (
+           <button
             onClick={onUndock}
             className="flex items-center gap-1.5 text-[9px] font-black text-slate-400 hover:text-indigo-600 uppercase tracking-widest transition-colors group"
            >
              <Anchor size={10} className="group-hover:scale-110 transition-transform" />
              Undock Character
+           </button>
+         )}
+         {!isDocked && onDock && (
+           <button
+            onClick={onDock}
+            className="flex items-center gap-1.5 text-[9px] font-black text-slate-400 hover:text-indigo-600 uppercase tracking-widest transition-colors group"
+           >
+             <Anchor size={10} className="group-hover:scale-110 transition-transform" />
+             Dock Character
            </button>
          )}
       </div>

@@ -8,7 +8,7 @@ import { QuestPanel } from './QuestPanel';
 
 
 export const QuestLog: React.FC = () => {
-  const { activeQuests, currentContext, isDocked } = useAmbient();
+  const { activeQuests, currentContext, isDocked, setIsDocked } = useAmbient();
   const { isDesktop } = useWindowWidth();
 
   // Use absolute screen coordinates (top-0, left-0) for total stability
@@ -75,6 +75,16 @@ export const QuestLog: React.FC = () => {
     setPosition({ x: defaultX, y: defaultY });
     setQuadrant({ isLeft: false, isTop: true });
     updateSystem(defaultX, defaultY);
+  };
+
+  const handleUndock = () => {
+    setIsDocked(false);
+    setIsOpen(false);
+  };
+
+  const handleDock = () => {
+    setIsDocked(true);
+    setIsOpen(false);
   };
 
   const completedCount = activeQuests.filter(q => q.completed).length;
@@ -198,10 +208,13 @@ export const QuestLog: React.FC = () => {
                 zIndex: 100
               }}
             >
-              <QuestPanel 
+              <QuestPanel
                 onReset={handleReset}
                 quadrant={quadrant}
                 onClose={() => setIsOpen(false)}
+                onUndock={handleUndock}
+                onDock={handleDock}
+                isDocked={isDocked}
               />
             </div>
           )}
