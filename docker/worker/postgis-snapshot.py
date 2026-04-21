@@ -51,10 +51,11 @@ def force_ipv4_for_endpoint(endpoint_url: str):
     if not domain:
         return
     try:
+        # socket.gethostbyname explicitly requests an IPv4 address (A record)
         ipv4_addr = socket.gethostbyname(domain)
         with open("/etc/hosts", "a") as f:
             f.write(f"\n{ipv4_addr} {domain}\n")
-        print(f"[snapshot] Fixed IPv6 timeout: {domain} → {ipv4_addr}", flush=True)
+        print(f"[snapshot] Fixed IPv6 timeout: Forced {domain} to {ipv4_addr} in /etc/hosts", flush=True)
     except Exception as e:
         print(f"[snapshot] Warning: Could not override DNS for IPv4: {e}", flush=True)
 
@@ -151,6 +152,15 @@ def build_pg_connection_string() -> str:
     password = os.environ["PG_PASSWORD"]
     return f"PG:host={host} port={port} dbname={dbname} user={user} password={password}"
 
+def build_pg_uri() -> str:
+    host     = os.environ["PG_HOST"]
+    port     = os.environ.get("PG_PORT", "5432")
+    dbname   = os.environ["PG_DB"]
+    user     = os.environ["PG_USER"]
+    password = os.environ["PG_PASSWORD"]
+    # postgres://[user[:password]@][netloc][:port][/dbname][?param1=value1&...]
+    return f"postgresql://{user}:{password}@{host}:{port}/{dbname}"
+
 def snapshot_table(pg_conn: str, full_name: str, geom_col: str, safe_name: str, out_dir: str, target_crs: str = None) -> str:
     """Export a PostGIS table to FlatGeobuf. Returns local .fgb path."""
     out_path = os.path.join(out_dir, f"{safe_name}.fgb")
@@ -191,7 +201,8 @@ def snapshot_table(pg_conn: str, full_name: str, geom_col: str, safe_name: str, 
 # Parquet conversion (unchanged — no S3 logic here)
 # ---------------------------------------------------------------------------
 
-def convert_to_parquet(fgb_path: str, safe_name: str, out_dir: str) -> None:
+def convert_to_parquet(pg_uri: str, full_name: str, safe_name: str, out_dir: str) -> None:
+    """Convert PostGIS table to GeoParquet via DuckDB native postgres extension."""
     import duckdb
     out_path = os.path.join(out_dir, f"{safe_name}.parquet")
     try:
@@ -199,31 +210,42 @@ def convert_to_parquet(fgb_path: str, safe_name: str, out_dir: str) -> None:
         conn = duckdb.connect(":memory:")
         conn.execute(f"SET extension_directory='{ext_dir}'")
         conn.execute("LOAD spatial")
-        # Normalise FID: FlatGeobuf FIDs come through st_read as "fid" or "ogc_fid".
-        # Rename to "fid" so the GeoParquetDuckDBProvider can use id_field=fid.
-        schema = conn.execute(f"DESCRIBE SELECT * FROM st_read('{fgb_path}')").fetchall()
+        conn.execute("INSTALL postgres; LOAD postgres;")
         
-        # Find geometry column dynamically (usually 'geom' but find the GEOMETRY type)
-        # DuckDB DESCRIBE returns (column_name, column_type, null, key, default, extra)
-        geom_col = next((r[0] for r in schema if r[1].upper() == "GEOMETRY"), "geom")
+        # Attach PostGIS source natively
+        conn.execute(f"ATTACH '{pg_uri}' AS pg_source (TYPE postgres, READ_ONLY)")
+        
+        # Resolve table name (handle schema.table)
+        source_table = f"pg_source.{full_name}" if "." in full_name else f"pg_source.public.{full_name}"
+        
+        # Introspect schema to find geometry and existing identifiers
+        schema = conn.execute(f"DESCRIBE SELECT * FROM {source_table} LIMIT 0").fetchall()
+        col_names = [r[0].lower() for r in schema]
+        
+        # Find geometry column dynamically
+        geom_col = next((r[0] for r in schema if r[1].upper() in ["GEOMETRY", "POINT", "MULTIPOINT", "LINESTRING", "MULTILINESTRING", "POLYGON", "MULTIPOLYGON", "GEOMETRYCOLLECTION"]), "geom")
 
         bbox_cols = (
             f', ST_XMin("{geom_col}") AS bbox_xmin'
-            f', ST_XMax("{geom_col}") AS bbox_xmax'
             f', ST_YMin("{geom_col}") AS bbox_ymin'
+            f', ST_XMax("{geom_col}") AS bbox_xmax'
             f', ST_YMax("{geom_col}") AS bbox_ymax'
         )
 
-        col_names = [r[0].lower() for r in schema]
+        # Standardize FID: rename or generate if missing
         if "fid" in col_names:
             select = f"*{bbox_cols}"
         elif "ogc_fid" in col_names:
             other = ", ".join(f'"{r[0]}"' for r in schema if r[0].lower() != "ogc_fid")
-            select = f"ogc_fid AS fid, {other}{bbox_cols}"
+            select = f'"{geom_col}", ogc_fid AS fid, {other}{bbox_cols}'
+        elif "rowid" in col_names:
+             other = ", ".join(f'"{r[0]}"' for r in schema if r[0].lower() != "rowid")
+             select = f'"{geom_col}", rowid AS fid, {other}{bbox_cols}'
         else:
             select = f"row_number() OVER () AS fid, *{bbox_cols}"
+
         conn.execute(f"""
-            COPY (SELECT {select} FROM st_read('{fgb_path}'))
+            COPY (SELECT {select} FROM {source_table})
             TO '{out_path}'
             (FORMAT PARQUET, CODEC 'snappy', ROW_GROUP_SIZE 1000)
         """)
@@ -252,6 +274,7 @@ def main() -> None:
 
     target_crs = os.environ.get("TARGET_CRS") or None
     pg_conn    = build_pg_connection_string()
+    pg_uri     = build_pg_uri()
 
     tables_raw = os.environ.get("TABLES", "").strip()
     tables_to_process = []
@@ -332,7 +355,7 @@ def main() -> None:
                 continue
 
             print(f"[snapshot] Converting '{safe_name}' → parquet ...", flush=True)
-            convert_to_parquet(fgb_path, safe_name, fgb_dir)
+            convert_to_parquet(pg_uri, full_name, safe_name, fgb_dir)
 
             manifest_layers.append({"name": full_name, "safe_name": safe_name})
             print(f"[snapshot] Table '{full_name}' done.", flush=True)
