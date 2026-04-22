@@ -123,8 +123,18 @@
   <div class="filter-section-title">Spatial Filter</div>
   <div class="filter-row mb-4">
     <div class="filter-row-field" style="flex:1">
-      <label>Bounding box (xmin, vmin, xmax, ymax)</label>
-      <input type="text" id="qf-bbox" placeholder="e.g. 10.0, 59.0, 11.0, 60.0">
+      <label>Bounding box (xmin, ymin, xmax, ymax)</label>
+      <div class="d-flex gap-2">
+        <input type="text" id="qf-bbox" placeholder="e.g. 10.0, 59.0, 11.0, 60.0" style="flex:1">
+        <button class="btn-filter-toggle" style="padding:0.4rem 0.6rem" title="Use current map extent" onclick="GF.useMapBounds()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          Use View
+        </button>
+        <button id="btn-draw-bbox" class="btn-filter-toggle" style="padding:0.4rem 0.6rem" title="Draw rectangle on map" onclick="GF.startBboxDraw()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="3"/></svg>
+          Draw Area
+        </button>
+      </div>
     </div>
   </div>
 
@@ -195,7 +205,7 @@
       attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
       maxZoom: 19
     }).addTo(map);
-    var featuresData = {{ data | to_json | safe }};
+    var featuresData = ({{ data | to_json | safe }});
     if (featuresData && featuresData.features && featuresData.features.length > 0) {
       var brandColor = getComputedStyle(document.documentElement).getPropertyValue('--brand').trim();
       var layer = L.geoJSON(featuresData, {
@@ -239,6 +249,25 @@
         }
       }).addTo(map);
       try { map.fitBounds(layer.getBounds(), { padding: [24, 24] }); } catch(e) {}
+    }
+
+    var brandColor = getComputedStyle(document.documentElement).getPropertyValue('--brand').trim();
+    var bboxLayer = null;
+
+    window.GF.updateBboxOnMap = function(bboxStr) {
+      if (bboxLayer) { map.removeLayer(bboxLayer); bboxLayer = null; }
+      if (!bboxStr) return;
+      var parts = bboxStr.split(',').map(function(s) { return parseFloat(s.trim()); });
+      if (parts.length === 4 && !parts.some(isNaN)) {
+        bboxLayer = L.rectangle([[parts[1], parts[0]], [parts[3], parts[2]]], {
+          color: brandColor, weight: 2, fillOpacity: 0.1, dashArray: '5, 5'
+        }).addTo(map);
+      }
+    };
+
+    var bboxInput = document.getElementById('qf-bbox');
+    if (bboxInput) {
+      bboxInput.addEventListener('input', function() { window.GF.updateBboxOnMap(this.value); });
     }
 
     var params = (new URL(document.location)).searchParams;
@@ -497,6 +526,78 @@
       window.GF.updateFilterCount();
     };
 
+    window.GF.useMapBounds = function() {
+      var bounds = map.getBounds();
+      var precision = 4;
+      var val = [
+        bounds.getWest().toFixed(precision),
+        bounds.getSouth().toFixed(precision),
+        bounds.getEast().toFixed(precision),
+        bounds.getNorth().toFixed(precision)
+      ].join(', ');
+      var input = document.getElementById('qf-bbox');
+      if (input) {
+        input.value = val;
+        window.GF.updateBboxOnMap(val);
+        window.GF.updateFilterCount();
+      }
+    };
+
+    window.GF.startBboxDraw = function() {
+      var btn = document.getElementById('btn-draw-bbox');
+      if (btn.classList.contains('active')) {
+        // Cancel if already active
+        map.off('mousedown touchstart');
+        map.dragging.enable();
+        btn.classList.remove('active');
+        document.getElementById('items-map').style.cursor = '';
+        return;
+      }
+
+      btn.classList.add('active');
+      document.getElementById('items-map').style.cursor = 'crosshair';
+      map.dragging.disable();
+
+      map.once('mousedown touchstart', function(e) {
+        var startLatLng = e.latlng;
+        var rect = L.rectangle([startLatLng, startLatLng], {
+          color: brandColor, weight: 2, fillOpacity: 0.1, dashArray: '5, 5'
+        }).addTo(map);
+
+        function onMove(e2) {
+          rect.setBounds([startLatLng, e2.latlng]);
+        }
+
+        function onUp(e2) {
+          map.off('mousemove touchmove', onMove);
+          map.off('mouseup touchend', onUp);
+          map.dragging.enable();
+          btn.classList.remove('active');
+          document.getElementById('items-map').style.cursor = '';
+          
+          var b = rect.getBounds();
+          var precision = 4;
+          var val = [
+            b.getWest().toFixed(precision),
+            b.getSouth().toFixed(precision),
+            b.getEast().toFixed(precision),
+            b.getNorth().toFixed(precision)
+          ].join(', ');
+          
+          var input = document.getElementById('qf-bbox');
+          if (input) {
+            input.value = val;
+            window.GF.updateBboxOnMap(val);
+            window.GF.updateFilterCount();
+          }
+          map.removeLayer(rect);
+        }
+
+        map.on('mousemove touchmove', onMove);
+        map.on('mouseup touchend', onUp);
+      });
+    };
+
     window.GF.updateFilterCount = function() {
       var noValOps = { 'IS NULL': true, 'IS NOT NULL': true };
       var list = document.getElementById('filter-list');
@@ -537,6 +638,7 @@
       if (params.has('bbox')) {
         var bv = params.get('bbox');
         chips.push({ key: 'bbox', value: bv });
+        window.GF.updateBboxOnMap(bv);
       }
       if (chips.length === 0) return;
       container.innerHTML = chips.map(function(c) {
