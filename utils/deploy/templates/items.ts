@@ -94,9 +94,11 @@ export function generateItemsHtml(_model: DataModel): string {
     <span class="meta-label">Limit</span>
     <select id="items-limit" class="form-select form-select-sm" style="font-size:0.85rem; padding:0.15rem 1.5rem 0.15rem 0.5rem; border-color:#cbd5e1; border-radius:0.375rem; color:#334155; font-weight:600; cursor:pointer;">
       <option value="{{ config.server.limits.default_items }}">{{ config.server.limits.default_items }} (Default)</option>
-      <option value="10">10</option>
-      <option value="50">50</option>
-      <option value="100">100</option>
+      {% for l in [10, 50, 100, 500, 1000] %}
+        {% if l | string != config.server.limits.default_items | string %}
+          <option value="{{ l }}">{{ l }}</option>
+        {% endif %}
+      {% endfor %}
     </select>
   </div>
   <div class="ms-auto d-flex gap-2">

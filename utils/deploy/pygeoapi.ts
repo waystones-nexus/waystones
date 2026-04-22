@@ -28,7 +28,7 @@ export const generatePygeoapiConfig = async (
   yaml += `    attribution: '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap contributors</a>'\n`;
   yaml += `  limits:\n`;
   yaml += `    default_items: 10\n`;
-  yaml += `    max_items: 10000\n`;
+  yaml += `    max_items: 1000\n`;
   yaml += `  templates:\n`;
   yaml += `    path: /pygeoapi/local-templates\n\n`;
   yaml += `logging:\n  level: INFO\n\n`;
