@@ -284,9 +284,10 @@ def main() -> None:
                 with open(args.model, "r") as f:
                     model = json.load(f)
 
-                if not target_crs and model.get("crs"):
-                    target_crs = model.get("crs")
-                    print(f"[snapshot] Inherited target CRS from model: {target_crs}", flush=True)
+                # Force WGS84 normalization for the backend Parquet files so 
+                # pygeoapi spatial pushdown (bbox_xmin <= lon) works correctly.
+                target_crs = "EPSG:4326"
+                print("[worker] Enforcing EPSG:4326 normalization for Parquet files", flush=True)
 
                 layers = model.get("layers", [])
                 mappings_cfg = model.get("sourceConnection", {}).get("layerMappings", {})
@@ -322,9 +323,10 @@ def main() -> None:
                     with open(args.model, "r") as f:
                         model = json.load(f)
 
-                    if not target_crs and model.get("crs"):
-                        target_crs = model.get("crs")
-                        print(f"[snapshot] Inherited target CRS from model: {target_crs}", flush=True)
+                    # Force WGS84 normalization for the backend Parquet files so 
+                    # pygeoapi spatial pushdown (bbox_xmin <= lon) works correctly.
+                    target_crs = "EPSG:4326"
+                    print("[worker] Enforcing EPSG:4326 normalization for Parquet files", flush=True)
 
                     layers = model.get("layers", [])
                     mappings_cfg = model.get("sourceConnection", {}).get("layerMappings", {})
