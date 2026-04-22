@@ -246,18 +246,22 @@ class GeoParquetDuckDBProvider(BaseProvider):
         # OGC API Part 3: CQL2 filter
         if filterq is not None:
             if to_sql_where is not None:
-                # Map fields. Use TRY_CAST for numbers to bypass DuckDB VARCHAR vs INT strictness
-                field_mapping = {}
-                for f, info in self.get_fields().items():
-                    if info.get('type') in ('number', 'integer'):
-                        field_mapping[f] = f'TRY_CAST("{f}" AS DOUBLE)'
-                    else:
-                        field_mapping[f] = f'"{f}"'
+                # Map fields natively first so pygeofilter doesn't over-quote our SQL functions
+                field_mapping = {f: f for f in self.get_fields().keys()}
+                
                 try:
+                    # Generate the base SQL (e.g., "osm_id" < 5)
                     cql_sql = to_sql_where(filterq, field_mapping)
-                    clauses.append(f'({cql_sql})')
+                    
+                    # Post-process the SQL string to inject DuckDB TRY_CAST for numeric fields
+                    for f, info in self.get_fields().items():
+                        if info.get('type') in ('number', 'integer'):
+                            # Replace the quoted identifier with the casted identifier
+                            cql_sql = cql_sql.replace(f'"{f}"', f'TRY_CAST("{f}" AS DOUBLE)')
+                            
+                    clauses.append(f"({cql_sql})")
                 except Exception as e:
-                    LOGGER.error(f'Failed to compile CQL2 to SQL: {e}')
+                    LOGGER.error(f"Failed to compile CQL2 to SQL: {e}")
             else:
                 LOGGER.warning('pygeofilter is not installed. CQL2 filters are ignored.')
 
