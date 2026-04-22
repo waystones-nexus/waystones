@@ -13,6 +13,11 @@ import threading
 
 from pygeoapi.provider.base import BaseProvider, ProviderItemNotFoundError
 
+try:
+    from pygeofilter.backends.sql import to_sql_where
+except ImportError:
+    to_sql_where = None
+
 LOGGER = logging.getLogger(__name__)
 
 _DUCK_TO_OGC = {
@@ -213,7 +218,7 @@ class GeoParquetDuckDBProvider(BaseProvider):
             return f'"{self._geom_col}"'
         return f'ST_GeomFromWKB("{self._geom_col}")'
 
-    def _build_where(self, bbox: list, properties: list) -> tuple[str, list]:
+    def _build_where(self, bbox: list, properties: list, filterq=None) -> tuple[str, list]:
         clauses: list[str] = []
         params: list = []
         if len(bbox) == 4:
@@ -232,11 +237,25 @@ class GeoParquetDuckDBProvider(BaseProvider):
                 f'ST_Intersects({self._geom_for_filter()}, ST_MakeEnvelope(?, ?, ?, ?))'
             )
             params.extend(bbox)
-            
+
+        # OGC API Part 1: Basic exact-match properties
         for name, value in (properties or []):
             clauses.append(f'"{name}" = ?')
             params.append(value)
-            
+
+        # OGC API Part 3: CQL2 filter
+        if filterq is not None:
+            if to_sql_where is not None:
+                # Map field names to DuckDB quoted column names
+                field_mapping = {f: f'"{f}"' for f in self.get_fields().keys()}
+                try:
+                    cql_sql = to_sql_where(filterq, field_mapping)
+                    clauses.append(f'({cql_sql})')
+                except Exception as e:
+                    LOGGER.error(f'Failed to compile CQL2 to SQL: {e}')
+            else:
+                LOGGER.warning('pygeofilter is not installed. CQL2 filters are ignored.')
+
         return ('WHERE ' + ' AND '.join(clauses)) if clauses else '', params
 
     def _count(self, where: str, params: list) -> int:
@@ -309,8 +328,8 @@ class GeoParquetDuckDBProvider(BaseProvider):
         return self._row_to_feature(row)
 
     def query(self, offset=0, limit=10, resulttype='results',
-              bbox=[], properties=[], skip_geometry=False, **kwargs):
-        where, params = self._build_where(bbox, properties)
+              bbox=[], properties=[], skip_geometry=False, filterq=None, **kwargs):
+        where, params = self._build_where(bbox, properties, filterq=filterq)
         number_matched = self._count(where, params)
 
         if resulttype == 'hits':
