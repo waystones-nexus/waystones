@@ -9,6 +9,8 @@ Reads 4 environment variables and routes to the appropriate conversion script:
                or postgresql://user:pass@host:5432/dbname
   OUTPUT_TYPE  "local" | "s3"
   OUTPUT_URI   Destination: local dir (/data/) or s3://bucket/prefix
+  MODEL_PATH   Optional: Path to model.json for layer mapping/naming
+  TARGET_CRS   Optional: Target CRS (default EPSG:4326) for normalization
 
 For INPUT_TYPE=postgis the URI is parsed and individual PG_* env vars are
 injected so postgis-snapshot.py's build_pg_connection_string() works unchanged.
