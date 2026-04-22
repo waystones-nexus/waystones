@@ -162,15 +162,13 @@ def convert_layer_to_parquet(fgb_path: str, safe_name: str, out_dir: str) -> str
             f', ST_YMax("{geom_col}") AS bbox_ymax'
         )
 
-        # Standardize FID: rename or generate if missing
+        # Standardize FID: rename or generate if missing, avoiding column duplication
         if "fid" in col_names:
             select = f"*{bbox_cols}"
         elif "ogc_fid" in col_names:
-            other = ", ".join(f'"{r[0]}"' for r in schema if r[0].lower() != "ogc_fid")
-            select = f'"{geom_col}", ogc_fid AS fid, {other}{bbox_cols}'
+            select = f"* EXCLUDE (ogc_fid), ogc_fid AS fid{bbox_cols}"
         elif "rowid" in col_names:
-             other = ", ".join(f'"{r[0]}"' for r in schema if r[0].lower() != "rowid")
-             select = f'"{geom_col}", rowid AS fid, {other}{bbox_cols}'
+            select = f"* EXCLUDE (rowid), rowid AS fid{bbox_cols}"
         else:
             select = f"row_number() OVER () AS fid, *{bbox_cols}"
 
@@ -206,6 +204,8 @@ def main() -> None:
     if is_s3_output and not bucket:
         raise RuntimeError("Neither S3_BUCKET_NAME nor R2_BUCKET environment variable is set")
 
+    target_crs = args.target_crs
+
     with tempfile.TemporaryDirectory() as work_dir:
 
         # ── 1. Obtain GPKG ───────────────────────────────────────────────────
@@ -238,7 +238,11 @@ def main() -> None:
                 # model["sourceConnection"]["layerMappings"] is { "layer_uuid": { "sourceLayer": "GPKG Layer Name" } }
                 layers = model.get("layers", [])
                 mappings_cfg = model.get("sourceConnection", {}).get("layerMappings", {})
-                
+
+                if not target_crs and model.get("crs"):
+                    target_crs = model.get("crs")
+                    print(f"[converter] Inherited target CRS from model: {target_crs}", flush=True)
+
                 for layer in layers:
                     l_id   = layer.get("id")
                     target = layer.get("name")
@@ -267,7 +271,7 @@ def main() -> None:
         for layer_name, safe_name in mapping.items():
             print(f"[converter] Converting '{layer_name}' → {safe_name}.fgb ...", flush=True)
             try:
-                fgb_path = convert_layer(gpkg_path, layer_name, safe_name, fgb_dir, args.target_crs)
+                fgb_path = convert_layer(gpkg_path, layer_name, safe_name, fgb_dir, target_crs)
             except RuntimeError as e:
                 print(f"[converter] ERROR: {e}", file=sys.stderr, flush=True)
                 sys.exit(1)

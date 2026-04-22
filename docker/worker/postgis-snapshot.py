@@ -228,15 +228,13 @@ def convert_to_parquet(fgb_path: str, safe_name: str, out_dir: str) -> None:
             f', ST_YMax("{geom_col}") AS bbox_ymax'
         )
 
-        # Standardize FID: rename or generate if missing
+        # Standardize FID: rename or generate if missing, avoiding column duplication
         if "fid" in col_names:
             select = f"*{bbox_cols}"
         elif "ogc_fid" in col_names:
-            other = ", ".join(f'"{r[0]}"' for r in schema if r[0].lower() != "ogc_fid")
-            select = f'"{geom_col}", ogc_fid AS fid, {other}{bbox_cols}'
+            select = f"* EXCLUDE (ogc_fid), ogc_fid AS fid{bbox_cols}"
         elif "rowid" in col_names:
-             other = ", ".join(f'"{r[0]}"' for r in schema if r[0].lower() != "rowid")
-             select = f'"{geom_col}", rowid AS fid, {other}{bbox_cols}'
+            select = f"* EXCLUDE (rowid), rowid AS fid{bbox_cols}"
         else:
             select = f"row_number() OVER () AS fid, *{bbox_cols}"
 
@@ -285,7 +283,11 @@ def main() -> None:
             try:
                 with open(args.model, "r") as f:
                     model = json.load(f)
-                
+
+                if not target_crs and model.get("crs"):
+                    target_crs = model.get("crs")
+                    print(f"[snapshot] Inherited target CRS from model: {target_crs}", flush=True)
+
                 layers = model.get("layers", [])
                 mappings_cfg = model.get("sourceConnection", {}).get("layerMappings", {})
                 
@@ -319,6 +321,11 @@ def main() -> None:
                 try:
                     with open(args.model, "r") as f:
                         model = json.load(f)
+
+                    if not target_crs and model.get("crs"):
+                        target_crs = model.get("crs")
+                        print(f"[snapshot] Inherited target CRS from model: {target_crs}", flush=True)
+
                     layers = model.get("layers", [])
                     mappings_cfg = model.get("sourceConnection", {}).get("layerMappings", {})
                     for l in layers:
