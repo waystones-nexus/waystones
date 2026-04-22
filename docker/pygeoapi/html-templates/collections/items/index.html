@@ -329,13 +329,36 @@
           // 2. Try OGC Filter (CQL2)
           var filterVal = params.get('filter');
           if (filterVal) {
-            // Simple regex for 'prop op val'
-            var re = /([a-zA-Z0-9_]+)\s*(=|>|<|>=|<=|<>)\s*(['"]?)(.*?)\3/g;
+            // Match: attr IN (v1, v2, ...) or attr NOT IN (v1, v2, ...)
+            var reIn = /([a-zA-Z0-9_]+)\s+(NOT IN|IN)\s*\(([^)]+)\)/gi;
+            var matchIn;
+            while ((matchIn = reIn.exec(filterVal)) !== null) {
+              var attr = matchIn[1];
+              var op = matchIn[2].toUpperCase();
+              var val = matchIn[3].trim();
+              if (window.GF.queryables[attr]) {
+                window.GF.addRow({ attr: attr, op: op, val: val });
+                rowsRestored = true;
+              }
+            }
+            // Match: attr LIKE '%value%'
+            var reLike = /([a-zA-Z0-9_]+)\s+LIKE\s+'([^']*)'/gi;
+            var matchLike;
+            while ((matchLike = reLike.exec(filterVal)) !== null) {
+              var attr = matchLike[1];
+              var val = matchLike[2].replace(/^%|%$/g, '');
+              if (window.GF.queryables[attr]) {
+                window.GF.addRow({ attr: attr, op: 'LIKE', val: val });
+                rowsRestored = true;
+              }
+            }
+            // Match simple comparison: attr op 'val' or attr op 123
+            var re = /([a-zA-Z0-9_]+)\s*(=|>=|<=|<>|>|<)\s*(?:'([^']*)'|(\S+))/g;
             var match;
             while ((match = re.exec(filterVal)) !== null) {
               var attr = match[1];
               var op = match[2];
-              var val = match[4];
+              var val = match[3] !== undefined ? match[3] : match[4];
               if (window.GF.queryables[attr]) {
                 window.GF.addRow({ attr: attr, op: op, val: val });
                 rowsRestored = true;
@@ -361,7 +384,7 @@
         return '<option value="' + key + '"' + (data.attr === key ? ' selected' : '') + '>' + (q.title || key) + '</option>';
       }).join('');
 
-      var ops = ['=', '<>', '>', '<', '>=', '<='];
+      var ops = ['=', '<>', '>', '<', '>=', '<=', 'IN', 'NOT IN', 'LIKE'];
       var opOptions = ops.map(function(o) {
         return '<option value="' + o + '"' + (data.op === o ? ' selected' : '') + '>' + o + '</option>';
       }).join('');
@@ -379,52 +402,49 @@
 
     window.GF.applyFilters = function() {
       var url = new URL(document.location);
-      // Clear existing
+      // Clear existing filter state
       Object.keys(window.GF.queryables).forEach(function(key) { url.searchParams.delete(key); });
       url.searchParams.delete('filter');
       url.searchParams.delete('bbox');
       url.searchParams.delete('offset');
 
       var rows = document.querySelectorAll('.filter-row');
-      var simpleFilters = [];
-      var cqlFilters = [];
+      var conditions = [];
 
       rows.forEach(function(row) {
-        var attr = row.querySelector('.qf-attr')?.value;
-        var op = row.querySelector('.qf-op')?.value;
-        var val = row.querySelector('.qf-val')?.value.trim();
+        var attr = row.querySelector('.qf-attr') ? row.querySelector('.qf-attr').value : '';
+        var op   = row.querySelector('.qf-op')   ? row.querySelector('.qf-op').value   : '=';
+        var val  = row.querySelector('.qf-val')  ? row.querySelector('.qf-val').value.trim() : '';
         if (!attr || !val) return;
 
-        if (op === '=') {
-          simpleFilters.push({ key: attr, val: val });
+        var qType = (window.GF.queryables[attr] || {}).type;
+        var isNumeric = (qType === 'number' || qType === 'integer');
+
+        if (op === 'IN' || op === 'NOT IN') {
+          // Split comma-separated values and format each element
+          var parts = val.split(',').map(function(v) {
+            v = v.trim();
+            return isNumeric ? v : "'" + v + "'";
+          });
+          conditions.push(attr + ' ' + op + ' (' + parts.join(', ') + ')');
+        } else if (op === 'LIKE') {
+          // Wrap value in wildcards if the user didn't provide them
+          var likeVal = val.indexOf('%') === -1 ? '%' + val + '%' : val;
+          conditions.push(attr + " LIKE '" + likeVal + "'");
         } else {
-          // FIX 2: Check exact type from queryables to prevent pygeofilter 400 Bad Request crashes
-          var qType = window.GF.queryables[attr]?.type;
-          var isNumericType = (qType === 'number' || qType === 'integer');
-          var formattedVal = isNumericType ? val : "'" + val + "'";
-          cqlFilters.push(attr + " " + op + " " + formattedVal);
+          // Standard comparison: =, <>, >, <, >=, <=
+          var formattedVal = isNumeric ? val : "'" + val + "'";
+          conditions.push(attr + ' ' + op + ' ' + formattedVal);
         }
       });
 
-      // Prefer simple params if ONLY equality is used for one or more DIFFERENT keys
-      // But if operators are used, or multiple filters for same key, CQL is better
-      if (cqlFilters.length > 0) {
-        // Build CQL2 filter string
-        var allConditions = simpleFilters.map(function(f) { 
-          var qType = window.GF.queryables[f.key]?.type;
-          var isNumericType = (qType === 'number' || qType === 'integer');
-          return f.key + " = " + (isNumericType ? f.val : "'" + f.val + "'");
-        }).concat(cqlFilters);
-        url.searchParams.set('filter', allConditions.join(' AND '));
-      } else {
-        simpleFilters.forEach(function(f) {
-          url.searchParams.set(f.key, f.val);
-        });
+      if (conditions.length > 0) {
+        url.searchParams.set('filter', conditions.join(' AND '));
       }
 
       var bboxEl = document.getElementById('qf-bbox');
       if (bboxEl && bboxEl.value.trim()) url.searchParams.set('bbox', bboxEl.value.trim());
-      
+
       document.location = url.toString();
     };
 
