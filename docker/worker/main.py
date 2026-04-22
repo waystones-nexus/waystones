@@ -14,6 +14,7 @@ For INPUT_TYPE=postgis the URI is parsed and individual PG_* env vars are
 injected so postgis-snapshot.py's build_pg_connection_string() works unchanged.
 """
 
+import json
 import os
 import sys
 import subprocess
@@ -70,12 +71,28 @@ def main() -> None:
         )
         sys.exit(1)
 
+    # Resolve target CRS: prefer TARGET_CRS env var, then model.json["crs"], then default to EPSG:4326
+    target_crs = os.environ.get("TARGET_CRS", "").strip()
+    if not target_crs and model_path and os.path.exists(model_path):
+        try:
+            with open(model_path, "r") as f:
+                model_data = json.load(f)
+            target_crs = model_data.get("crs", "").strip()
+            if target_crs:
+                print(f"[main] Inherited target CRS from model: {target_crs}", flush=True)
+        except Exception as exc:
+            print(f"[main] Warning: could not read CRS from model.json: {exc}", flush=True)
+    if not target_crs:
+        target_crs = "EPSG:4326"
+        print(f"[main] No CRS specified — defaulting to {target_crs}", flush=True)
+
     print(f"[main] INPUT_TYPE={input_type}   INPUT_URI={input_uri}",  flush=True)
     print(f"[main] OUTPUT_TYPE={output_type}  OUTPUT_URI={output_uri}", flush=True)
     if model_path:
         print(f"[main] MODEL_PATH={model_path}", flush=True)
 
     env = os.environ.copy()
+    env["TARGET_CRS"] = target_crs
 
     if input_type == "gpkg":
         script = os.path.join(SCRIPTS_DIR, "gpkg-converter.py")
@@ -84,6 +101,7 @@ def main() -> None:
             f"--source={input_uri}",
             f"--output-prefix={output_uri}",
             "--user-id=local",
+            f"--target-crs={target_crs}",
         ]
         if model_path:
             cmd.append(f"--model={model_path}")
