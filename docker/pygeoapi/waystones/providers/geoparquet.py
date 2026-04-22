@@ -65,7 +65,7 @@ class GeoParquetDuckDBProvider(BaseProvider):
             if self.data in _CONN_CACHE and self.data in _META_CACHE:
                 self._conn = _CONN_CACHE[self.data]
                 self._apply_metadata(_META_CACHE[self.data])
-                self.fields = self.get_fields()
+                self._fields = self.get_fields()
                 return
 
             import duckdb
@@ -101,7 +101,7 @@ class GeoParquetDuckDBProvider(BaseProvider):
             _CONN_CACHE[self.data] = conn
             _META_CACHE[self.data] = meta
             self._apply_metadata(meta)
-            self.fields = self.get_fields()
+            self._fields = self.get_fields()
 
     def _apply_metadata(self, meta: dict):
         self._geom_col        = meta['geom_col']
