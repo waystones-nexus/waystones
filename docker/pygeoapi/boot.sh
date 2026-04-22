@@ -54,6 +54,8 @@ if [ "$USE_SIDECAR" = "1" ] || [ -n "${WMS_WAKEUP_URL:-}" ]; then
     echo "[startup] Routing pygeoapi to internal port 5001..."
     export CONTAINER_PORT=5001
     export GUNICORN_CMD_ARGS="${GUNICORN_CMD_ARGS:-} --forwarded-allow-ips=127.0.0.1"
+    # Map WSGI_WORKERS (from Waystones Cloud provisioner) to Gunicorn workers
+    export CONTAINER_WORKERS="${WSGI_WORKERS:-${CONTAINER_WORKERS:-2}}"
 else
     export CONTAINER_PORT="${PORT:-5000}"
 fi
@@ -95,6 +97,8 @@ exec gunicorn \
     --workers "${CONTAINER_WORKERS:-2}" \
     --worker-class=gthread \
     --threads 2 \
+    --max-requests 500 \
+    --max-requests-jitter 50 \
     --bind "${CONTAINER_HOST:-0.0.0.0}:${CONTAINER_PORT}" \
     --access-logfile - \
     --timeout 6000 \
