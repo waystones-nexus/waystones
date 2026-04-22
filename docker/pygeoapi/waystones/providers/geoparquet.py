@@ -246,8 +246,8 @@ class GeoParquetDuckDBProvider(BaseProvider):
         # OGC API Part 3: CQL2 filter
         if filterq is not None:
             if to_sql_where is not None:
-                # Map field names to DuckDB quoted column names
-                field_mapping = {f: f'"{f}"' for f in self.get_fields().keys()}
+                # Let pygeofilter handle the quoting naturally
+                field_mapping = {f: f for f in self.get_fields().keys()}
                 try:
                     cql_sql = to_sql_where(filterq, field_mapping)
                     clauses.append(f'({cql_sql})')
