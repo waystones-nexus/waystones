@@ -119,7 +119,7 @@ export const generateDockerCompose = (
   // --- worker ---
   compose += `  # --- Worker (runs once: converts input → Parquet + FlatGeobuf, then exits) ---\n`;
   compose += `  worker:\n`;
-  compose += `    image: ghcr.io/henrik716/waystones:worker-latest\n`;
+  compose += `    image: ghcr.io/henrik716/waystones-keystone:worker-latest\n`;
   compose += `    volumes:\n`;
   compose += `      - waystones_data:/data\n`;
   if (isS3Gpkg) {
@@ -151,7 +151,7 @@ export const generateDockerCompose = (
   compose += `
   # --- API Gateway / OGC API (pygeoapi) ---
   pygeoapi:
-    image: ghcr.io/henrik716/waystones:pygeoapi-latest
+    image: ghcr.io/henrik716/waystones-keystone:pygeoapi-latest
     ports:
       - "5000:5000"
     volumes:
@@ -176,7 +176,7 @@ export const generateDockerCompose = (
   # --- WMS (QGIS Server) ---
   # Internal Engine — accessed via pygeoapi gateway at http://localhost:5000/ows/
   qgis-server:
-    image: ghcr.io/henrik716/waystones:qgis-latest
+    image: ghcr.io/henrik716/waystones-keystone:qgis-latest
     volumes:
       - ./project.qgs:/data/project.qgs:ro
       - waystones_data:/data:ro

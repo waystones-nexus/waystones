@@ -1,4 +1,4 @@
-FROM ghcr.io/henrik716/waystones:qgis-latest
+FROM ghcr.io/henrik716/waystones-keystone:qgis-latest
 
 USER root
 

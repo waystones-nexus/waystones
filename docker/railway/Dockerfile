@@ -1,4 +1,4 @@
-FROM ghcr.io/henrik716/waystones:pygeoapi-latest
+FROM ghcr.io/henrik716/waystones-keystone:pygeoapi-latest
 
 USER root
 
