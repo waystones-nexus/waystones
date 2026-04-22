@@ -254,6 +254,9 @@
     var brandColor = getComputedStyle(document.documentElement).getPropertyValue('--brand').trim();
     var bboxLayer = null;
 
+    // Initialise GF early so all assignments below are safe
+    window.GF = window.GF || {};
+
     window.GF.updateBboxOnMap = function(bboxStr) {
       if (bboxLayer) { map.removeLayer(bboxLayer); bboxLayer = null; }
       if (!bboxStr) return;
@@ -301,9 +304,7 @@
     var queryables = {}; // exposed on window.GF so onclick handlers can reach it
 
     // Expose all filter functions globally so inline onclick="..." can call them
-    window.GF = window.GF || {};
     window.GF.queryables = queryables;
-    var GF = window.GF;  // Global alias for inline handlers
 
     window.GF.toggleFilterPanel = function() {
       var panel = document.getElementById('filter-panel');
