@@ -198,11 +198,11 @@ def snapshot_table(pg_conn: str, full_name: str, geom_col: str, safe_name: str, 
     return out_path
 
 # ---------------------------------------------------------------------------
-# Parquet conversion (unchanged — no S3 logic here)
+# Parquet conversion (reads from reprojected FGB — no S3 logic here)
 # ---------------------------------------------------------------------------
 
-def convert_to_parquet(pg_uri: str, full_name: str, safe_name: str, out_dir: str) -> None:
-    """Convert PostGIS table to GeoParquet via DuckDB native postgres extension."""
+def convert_to_parquet(fgb_path: str, safe_name: str, out_dir: str) -> None:
+    """Convert FlatGeobuf to GeoParquet via DuckDB spatial."""
     import duckdb
     out_path = os.path.join(out_dir, f"{safe_name}.parquet")
     try:
@@ -210,18 +210,14 @@ def convert_to_parquet(pg_uri: str, full_name: str, safe_name: str, out_dir: str
         conn = duckdb.connect(":memory:")
         conn.execute(f"SET extension_directory='{ext_dir}'")
         conn.execute("LOAD spatial")
-        conn.execute("INSTALL postgres; LOAD postgres;")
-        
-        # Attach PostGIS source natively
-        conn.execute(f"ATTACH '{pg_uri}' AS pg_source (TYPE postgres, READ_ONLY)")
-        
-        # Resolve table name (handle schema.table)
-        source_table = f"pg_source.{full_name}" if "." in full_name else f"pg_source.public.{full_name}"
-        
+
+        # Read directly from the newly reprojected FGB file
+        source_query = f"st_read('{fgb_path}')"
+
         # Introspect schema to find geometry and existing identifiers
-        schema = conn.execute(f"DESCRIBE SELECT * FROM {source_table} LIMIT 0").fetchall()
+        schema = conn.execute(f"DESCRIBE SELECT * FROM {source_query} LIMIT 0").fetchall()
         col_names = [r[0].lower() for r in schema]
-        
+
         # Find geometry column dynamically
         geom_col = next((r[0] for r in schema if r[1].upper() in ["GEOMETRY", "POINT", "MULTIPOINT", "LINESTRING", "MULTILINESTRING", "POLYGON", "MULTIPOLYGON", "GEOMETRYCOLLECTION"]), "geom")
 
@@ -245,7 +241,7 @@ def convert_to_parquet(pg_uri: str, full_name: str, safe_name: str, out_dir: str
             select = f"row_number() OVER () AS fid, *{bbox_cols}"
 
         conn.execute(f"""
-            COPY (SELECT {select} FROM {source_table})
+            COPY (SELECT {select} FROM {source_query})
             TO '{out_path}'
             (FORMAT PARQUET, CODEC 'snappy', ROW_GROUP_SIZE 1000)
         """)
@@ -355,7 +351,7 @@ def main() -> None:
                 continue
 
             print(f"[snapshot] Converting '{safe_name}' → parquet ...", flush=True)
-            convert_to_parquet(pg_uri, full_name, safe_name, fgb_dir)
+            convert_to_parquet(fgb_path, safe_name, fgb_dir)
 
             manifest_layers.append({"name": full_name, "safe_name": safe_name})
             print(f"[snapshot] Table '{full_name}' done.", flush=True)

@@ -135,8 +135,8 @@ def convert_layer(gpkg_path: str, layer_name: str, safe_name: str, out_dir: str,
     return out_path
 
 
-def convert_layer_to_parquet(gpkg_path: str, layer_name: str, safe_name: str, out_dir: str) -> str | None:
-    """Convert a GeoPackage layer to GeoParquet via DuckDB spatial. Non-fatal on failure."""
+def convert_layer_to_parquet(fgb_path: str, safe_name: str, out_dir: str) -> str | None:
+    """Convert a reprojected FlatGeobuf file to GeoParquet via DuckDB spatial. Non-fatal on failure."""
     import duckdb
     out_path = os.path.join(out_dir, f"{safe_name}.parquet")
     try:
@@ -144,9 +144,9 @@ def convert_layer_to_parquet(gpkg_path: str, layer_name: str, safe_name: str, ou
         conn = duckdb.connect(":memory:")
         conn.execute(f"SET extension_directory='{ext_dir}'")
         conn.execute("LOAD spatial")
-        
-        # Determine source query. st_read with layer= is preferred.
-        source_query = f"st_read('{gpkg_path}', layer='{layer_name}')"
+
+        # Read directly from the newly reprojected FGB file
+        source_query = f"st_read('{fgb_path}')"
         
         # Introspect schema to find geometry and existing identifiers
         schema = conn.execute(f"DESCRIBE SELECT * FROM {source_query} LIMIT 0").fetchall()
@@ -273,7 +273,7 @@ def main() -> None:
                 sys.exit(1)
 
             print(f"[converter] Converting '{layer_name}' → {safe_name}.parquet ...", flush=True)
-            convert_layer_to_parquet(gpkg_path, layer_name, safe_name, fgb_dir)
+            convert_layer_to_parquet(fgb_path, safe_name, fgb_dir)
 
             manifest_layers.append({"name": layer_name, "safe_name": safe_name})
             print(f"[converter] Layer '{layer_name}' done.", flush=True)
