@@ -246,8 +246,13 @@ class GeoParquetDuckDBProvider(BaseProvider):
         # OGC API Part 3: CQL2 filter
         if filterq is not None:
             if to_sql_where is not None:
-                # Let pygeofilter handle the quoting naturally
-                field_mapping = {f: f for f in self.get_fields().keys()}
+                # Map fields. Use TRY_CAST for numbers to bypass DuckDB VARCHAR vs INT strictness
+                field_mapping = {}
+                for f, info in self.get_fields().items():
+                    if info.get('type') in ('number', 'integer'):
+                        field_mapping[f] = f'TRY_CAST("{f}" AS DOUBLE)'
+                    else:
+                        field_mapping[f] = f'"{f}"'
                 try:
                     cql_sql = to_sql_where(filterq, field_mapping)
                     clauses.append(f'({cql_sql})')
