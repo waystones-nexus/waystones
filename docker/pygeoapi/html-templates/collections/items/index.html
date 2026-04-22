@@ -326,43 +326,47 @@
             }
           });
           
-          // 2. Try OGC Filter (CQL2)
+          // 2. Try OGC Filter (CQL2) — restore filter rows from URL
           var filterVal = params.get('filter');
           if (filterVal) {
-            // Match: attr IN (v1, v2, ...) or attr NOT IN (v1, v2, ...)
+            // IS NULL / IS NOT NULL
+            var reNull = /([a-zA-Z0-9_]+)\s+(IS NOT NULL|IS NULL)/gi;
+            var matchNull;
+            while ((matchNull = reNull.exec(filterVal)) !== null) {
+              var attr = matchNull[1], op = matchNull[2].toUpperCase();
+              if (window.GF.queryables[attr]) { window.GF.addRow({ attr: attr, op: op, val: '' }); rowsRestored = true; }
+            }
+            // BETWEEN min AND max
+            var reBetween = /([a-zA-Z0-9_]+)\s+BETWEEN\s+'?([^'\s]+)'?\s+AND\s+'?([^'\s]+)'?/gi;
+            var matchBetween;
+            while ((matchBetween = reBetween.exec(filterVal)) !== null) {
+              var attr = matchBetween[1], lo = matchBetween[2], hi = matchBetween[3];
+              if (window.GF.queryables[attr]) { window.GF.addRow({ attr: attr, op: 'BETWEEN', val: lo + ', ' + hi }); rowsRestored = true; }
+            }
+            // IN / NOT IN
             var reIn = /([a-zA-Z0-9_]+)\s+(NOT IN|IN)\s*\(([^)]+)\)/gi;
             var matchIn;
             while ((matchIn = reIn.exec(filterVal)) !== null) {
-              var attr = matchIn[1];
-              var op = matchIn[2].toUpperCase();
-              var val = matchIn[3].trim();
-              if (window.GF.queryables[attr]) {
-                window.GF.addRow({ attr: attr, op: op, val: val });
-                rowsRestored = true;
-              }
+              var attr = matchIn[1], op = matchIn[2].toUpperCase();
+              // Strip quotes from each value for display
+              var val = matchIn[3].split(',').map(function(v) { return v.trim().replace(/^'|'$/g, ''); }).join(', ');
+              if (window.GF.queryables[attr]) { window.GF.addRow({ attr: attr, op: op, val: val }); rowsRestored = true; }
             }
-            // Match: attr LIKE '%value%'
-            var reLike = /([a-zA-Z0-9_]+)\s+LIKE\s+'([^']*)'/gi;
+            // LIKE / NOT LIKE
+            var reLike = /([a-zA-Z0-9_]+)\s+(NOT LIKE|LIKE)\s+'([^']*)'/gi;
             var matchLike;
             while ((matchLike = reLike.exec(filterVal)) !== null) {
-              var attr = matchLike[1];
-              var val = matchLike[2].replace(/^%|%$/g, '');
-              if (window.GF.queryables[attr]) {
-                window.GF.addRow({ attr: attr, op: 'LIKE', val: val });
-                rowsRestored = true;
-              }
+              var attr = matchLike[1], op = matchLike[2].toUpperCase();
+              var val = matchLike[3].replace(/^%|%$/g, '');
+              if (window.GF.queryables[attr]) { window.GF.addRow({ attr: attr, op: op, val: val }); rowsRestored = true; }
             }
-            // Match simple comparison: attr op 'val' or attr op 123
+            // Standard comparisons: =, <>, >, <, >=, <=
             var re = /([a-zA-Z0-9_]+)\s*(=|>=|<=|<>|>|<)\s*(?:'([^']*)'|(\S+))/g;
             var match;
             while ((match = re.exec(filterVal)) !== null) {
-              var attr = match[1];
-              var op = match[2];
+              var attr = match[1], op = match[2];
               var val = match[3] !== undefined ? match[3] : match[4];
-              if (window.GF.queryables[attr]) {
-                window.GF.addRow({ attr: attr, op: op, val: val });
-                rowsRestored = true;
-              }
+              if (window.GF.queryables[attr]) { window.GF.addRow({ attr: attr, op: op, val: val }); rowsRestored = true; }
             }
           }
 
@@ -384,15 +388,20 @@
         return '<option value="' + key + '"' + (data.attr === key ? ' selected' : '') + '>' + (q.title || key) + '</option>';
       }).join('');
 
-      var ops = ['=', '<>', '>', '<', '>=', '<=', 'IN', 'NOT IN', 'LIKE'];
+      var ops = ['=', '<>', '>', '<', '>=', '<=', 'IN', 'NOT IN', 'LIKE', 'NOT LIKE', 'IS NULL', 'IS NOT NULL', 'BETWEEN'];
       var opOptions = ops.map(function(o) {
         return '<option value="' + o + '"' + (data.op === o ? ' selected' : '') + '>' + o + '</option>';
       }).join('');
+      // Hide value input for IS NULL / IS NOT NULL
+      var noValOps = { 'IS NULL': true, 'IS NOT NULL': true };
 
-      row.innerHTML = 
+      var valPlaceholder = data.op === 'BETWEEN' ? 'min, max' : data.op === 'IN' || data.op === 'NOT IN' ? 'val1, val2, …' : 'Value...';
+      var valHidden = noValOps[data.op] ? ' style="display:none"' : '';
+
+      row.innerHTML =
         '<div class="filter-row-field"><label>Attribute</label><select class="qf-attr">' + attrOptions + '</select></div>' +
-        '<div class="filter-row-op"><label>Op</label><select class="qf-op">' + opOptions + '</select></div>' +
-        '<div class="filter-row-val"><label>Value</label><input type="text" class="qf-val" value="' + (data.val || '') + '" placeholder="Value..."></div>' +
+        '<div class="filter-row-op"><label>Op</label><select class="qf-op" onchange="GF.onOpChange(this)">' + opOptions + '</select></div>' +
+        '<div class="filter-row-val"' + valHidden + '><label>Value</label><input type="text" class="qf-val" value="' + (data.val || '') + '" placeholder="' + valPlaceholder + '"></div>' +
         '<button class="btn-remove-row" title="Remove" onclick="this.parentElement.remove(); GF.updateFilterCount();">' +
         '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
       
@@ -411,28 +420,41 @@
       var rows = document.querySelectorAll('.filter-row');
       var conditions = [];
 
+      var noValOps = { 'IS NULL': true, 'IS NOT NULL': true };
+
       rows.forEach(function(row) {
         var attr = row.querySelector('.qf-attr') ? row.querySelector('.qf-attr').value : '';
         var op   = row.querySelector('.qf-op')   ? row.querySelector('.qf-op').value   : '=';
-        var val  = row.querySelector('.qf-val')  ? row.querySelector('.qf-val').value.trim() : '';
-        if (!attr || !val) return;
+        var valEl = row.querySelector('.qf-val');
+        var val  = valEl ? valEl.value.trim() : '';
+        if (!attr) return;
+        // IS NULL / IS NOT NULL don't need a value
+        if (!noValOps[op] && !val) return;
 
         var qType = (window.GF.queryables[attr] || {}).type;
         var isNumeric = (qType === 'number' || qType === 'integer');
 
-        if (op === 'IN' || op === 'NOT IN') {
-          // Split comma-separated values and format each element
+        if (op === 'IS NULL' || op === 'IS NOT NULL') {
+          conditions.push(attr + ' ' + op);
+        } else if (op === 'BETWEEN') {
+          // Expect 'min, max'
+          var parts = val.split(',').map(function(v) { return v.trim(); });
+          if (parts.length === 2) {
+            var lo = isNumeric ? parts[0] : "'" + parts[0] + "'";
+            var hi = isNumeric ? parts[1] : "'" + parts[1] + "'";
+            conditions.push(attr + ' BETWEEN ' + lo + ' AND ' + hi);
+          }
+        } else if (op === 'IN' || op === 'NOT IN') {
           var parts = val.split(',').map(function(v) {
             v = v.trim();
             return isNumeric ? v : "'" + v + "'";
           });
           conditions.push(attr + ' ' + op + ' (' + parts.join(', ') + ')');
-        } else if (op === 'LIKE') {
-          // Wrap value in wildcards if the user didn't provide them
+        } else if (op === 'LIKE' || op === 'NOT LIKE') {
           var likeVal = val.indexOf('%') === -1 ? '%' + val + '%' : val;
-          conditions.push(attr + " LIKE '" + likeVal + "'");
+          conditions.push(attr + ' ' + op + " '" + likeVal + "'");
         } else {
-          // Standard comparison: =, <>, >, <, >=, <=
+          // Standard: =, <>, >, <, >=, <=
           var formattedVal = isNumeric ? val : "'" + val + "'";
           conditions.push(attr + ' ' + op + ' ' + formattedVal);
         }
@@ -457,13 +479,34 @@
       document.location = url.toString();
     };
 
+    window.GF.onOpChange = function(select) {
+      var noValOps = { 'IS NULL': true, 'IS NOT NULL': true };
+      var op = select.value;
+      var row = select.closest('.filter-row');
+      var valDiv = row ? row.querySelector('.filter-row-val') : null;
+      var valInput = row ? row.querySelector('.qf-val') : null;
+      if (!valDiv) return;
+      if (noValOps[op]) {
+        valDiv.style.display = 'none';
+      } else {
+        valDiv.style.display = '';
+        if (valInput) {
+          valInput.placeholder = op === 'BETWEEN' ? 'min, max' : (op === 'IN' || op === 'NOT IN') ? 'val1, val2, \u2026' : 'Value...';
+        }
+      }
+      window.GF.updateFilterCount();
+    };
+
     window.GF.updateFilterCount = function() {
+      var noValOps = { 'IS NULL': true, 'IS NOT NULL': true };
       var list = document.getElementById('filter-list');
       var rows = list ? list.querySelectorAll('.filter-row') : [];
       var count = 0;
       rows.forEach(function(row) {
-        var v = row.querySelector('.qf-val')?.value.trim();
-        if (v) count++;
+        var op = row.querySelector('.qf-op') ? row.querySelector('.qf-op').value : '';
+        if (noValOps[op]) { count++; return; }
+        var valEl = row.querySelector('.qf-val');
+        if (valEl && valEl.value.trim()) count++;
       });
       var bboxEl = document.getElementById('qf-bbox');
       if (bboxEl && bboxEl.value.trim()) count++;
