@@ -39,7 +39,7 @@ def parse_args():
     p.add_argument("--user-id",       required=True,  help="User ID (for logging)")
     p.add_argument("--model",         required=False, default=None, help="Path to model.json for layer mapping")
     p.add_argument("--deployment-id", required=False, default=None, help="Deployment ID (for S3 manifest path)")
-    p.add_argument("--target-crs",    required=False, default=None, help="Target CRS (e.g. EPSG:4326) for reprojection")
+    p.add_argument("--target-crs",    required=False, default="EPSG:4326", help="Target CRS (e.g. EPSG:4326) for reprojection")
     return p.parse_args()
 
 # ---------------------------------------------------------------------------
@@ -204,7 +204,10 @@ def main() -> None:
     if is_s3_output and not bucket:
         raise RuntimeError("Neither S3_BUCKET_NAME nor R2_BUCKET environment variable is set")
 
-    target_crs = args.target_crs
+    # The Parquet/FlatGeobuf pipeline must always output WGS84 so that bbox columns
+    # are in decimal degrees and pygeoapi spatial filtering works correctly.
+    target_crs = args.target_crs or "EPSG:4326"
+    print(f"[worker] Enforcing {target_crs} normalization for Parquet files", flush=True)
 
     with tempfile.TemporaryDirectory() as work_dir:
 
@@ -239,10 +242,7 @@ def main() -> None:
                 layers = model.get("layers", [])
                 mappings_cfg = model.get("sourceConnection", {}).get("layerMappings", {})
 
-                # Force WGS84 normalization for the backend Parquet files so 
-                # pygeoapi spatial pushdown (bbox_xmin <= lon) works correctly.
-                target_crs = "EPSG:4326"
-                print("[worker] Enforcing EPSG:4326 normalization for Parquet files", flush=True)
+                # Mapping: GPKG Layer Name -> target name
 
                 for layer in layers:
                     l_id   = layer.get("id")

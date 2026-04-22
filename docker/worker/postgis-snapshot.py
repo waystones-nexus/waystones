@@ -266,7 +266,10 @@ def main() -> None:
     if is_s3_output and not bucket:
         raise RuntimeError("Neither S3_BUCKET_NAME nor R2_BUCKET environment variable is set")
 
-    target_crs = os.environ.get("TARGET_CRS") or None
+    # The Parquet/FlatGeobuf pipeline must always output WGS84 so that bbox columns
+    # are in decimal degrees and pygeoapi spatial filtering works correctly.
+    target_crs = os.environ.get("TARGET_CRS", "").strip() or "EPSG:4326"
+    print(f"[worker] Enforcing {target_crs} normalization for Parquet files", flush=True)
     pg_conn    = build_pg_connection_string()
     pg_uri     = build_pg_uri()
 
@@ -284,10 +287,6 @@ def main() -> None:
                 with open(args.model, "r") as f:
                     model = json.load(f)
 
-                # Force WGS84 normalization for the backend Parquet files so 
-                # pygeoapi spatial pushdown (bbox_xmin <= lon) works correctly.
-                target_crs = "EPSG:4326"
-                print("[worker] Enforcing EPSG:4326 normalization for Parquet files", flush=True)
 
                 layers = model.get("layers", [])
                 mappings_cfg = model.get("sourceConnection", {}).get("layerMappings", {})
@@ -323,10 +322,6 @@ def main() -> None:
                     with open(args.model, "r") as f:
                         model = json.load(f)
 
-                    # Force WGS84 normalization for the backend Parquet files so 
-                    # pygeoapi spatial pushdown (bbox_xmin <= lon) works correctly.
-                    target_crs = "EPSG:4326"
-                    print("[worker] Enforcing EPSG:4326 normalization for Parquet files", flush=True)
 
                     layers = model.get("layers", [])
                     mappings_cfg = model.get("sourceConnection", {}).get("layerMappings", {})
