@@ -151,7 +151,7 @@ export const generatePygeoapiConfig = async (
       yaml += `          type: object\n`;
       yaml += `          properties:\n`;
       allProperties.forEach(prop => {
-        const typeInfo = mapFieldToSchemaType(prop);
+        const typeInfo = mapFieldToSchemaType(prop, model);
         const pName = prop.name || 'untitled_property';
         yaml += `            "${pName}":\n`;
         yaml += `              title: "${prop.title || pName}"\n`;
@@ -216,52 +216,44 @@ function resolveLayerProperties(layer: any, allLayers: any[]): any[] {
   return Array.from(propertyMap.values());
 }
 
-function mapFieldToSchemaType(field: any): { type: string; format?: string; enum?: string[] } {
+function mapFieldToSchemaType(field: any, model: any): { type: string; format?: string; enum?: string[] } {
   const ft = field.fieldType;
-  if (!ft) return { type: 'string' };
+  const constraints = field.constraints || {};
 
-  if (ft.kind === 'primitive') {
+  let typeInfo: { type: string; format?: string; enum?: string[] } = { type: 'string' };
+
+  if (ft && ft.kind === 'primitive') {
     const bt = String(ft.baseType).toLowerCase();
     switch (bt) {
-      case 'integer':
-      case 'int':
-      case 'int4':
-      case 'int8':
-      case 'integer32':
-      case 'integer64':
-      case 'bigint':
-      case 'long':
-      case 'short':
-      case 'smallint':
-      case 'tinyint':
-        return { type: 'number' };
-      case 'number':
-      case 'float':
-      case 'float4':
-      case 'float8':
-      case 'double':
-      case 'decimal':
-      case 'numeric':
-      case 'real':
-        return { type: 'number' };
-      case 'boolean':
-      case 'bool':
-        return { type: 'boolean' };
-      case 'date': return { type: 'string', format: 'date' };
-      case 'date-time':
-      case 'timestamp':
-      case 'timestamptz':
-        return { type: 'string', format: 'date-time' };
-      default: return { type: 'string' };
+      case 'integer': case 'int': case 'int4': case 'int8':
+      case 'integer32': case 'integer64': case 'bigint':
+      case 'long': case 'short': case 'smallint': case 'tinyint':
+      case 'number': case 'float': case 'float4': case 'float8':
+      case 'double': case 'decimal': case 'numeric': case 'real':
+        typeInfo.type = 'number'; break;
+      case 'boolean': case 'bool':
+        typeInfo.type = 'boolean'; break;
+      case 'date':
+        typeInfo.type = 'string'; typeInfo.format = 'date'; break;
+      case 'date-time': case 'timestamp': case 'timestamptz':
+        typeInfo.type = 'string'; typeInfo.format = 'date-time'; break;
+      default:
+        typeInfo.type = 'string'; break;
     }
   }
 
-  if (ft.kind === 'codelist' && ft.mode === 'inline') {
-    return {
-      type: 'string',
-      enum: ft.values.map((v: any) => v.code || v.id)
-    };
+  if (constraints.enumeration && Array.isArray(constraints.enumeration) && constraints.enumeration.length > 0) {
+    typeInfo.enum = constraints.enumeration;
+  } else if (ft && ft.kind === 'codelist') {
+    typeInfo.type = 'string';
+    if (ft.mode === 'inline' && Array.isArray(ft.values)) {
+      typeInfo.enum = ft.values.map((v: any) => v.code || v.id);
+    } else if (ft.mode === 'shared' && ft.enumRef && model && Array.isArray(model.sharedEnums)) {
+      const sharedEnum = model.sharedEnums.find((e: any) => e.id === ft.enumRef);
+      if (sharedEnum && Array.isArray(sharedEnum.values)) {
+        typeInfo.enum = sharedEnum.values.map((v: any) => v.code || v.id);
+      }
+    }
   }
-
-  return { type: 'string' };
+  return typeInfo;
 }

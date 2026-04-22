@@ -41,33 +41,31 @@ class GeoParquetDuckDBProvider(BaseProvider):
         super().__init__(provider_def)
         options = self.options or {}
 
-        # ----------------------------------------------------------------
-        # Static schema injected by the TypeScript config generator.
-        # When present, get_fields() returns this directly — no DESCRIBE
-        # round-trip needed and /queryables always returns something useful.
-        # Format expected:
-        #   schema:
-        #     properties:
-        #       my_field:
-        #         type: string
-        #         title: My Field
-        # ----------------------------------------------------------------
-        injected_schema = provider_def.get('schema') or {}
+        injected_schema = provider_def.get('schema') or options.get('schema') or {}
         raw_props = injected_schema.get('properties') if isinstance(injected_schema, dict) else None
+
         if raw_props and isinstance(raw_props, dict):
-            self._static_fields: dict | None = {
-                name: {'type': info.get('type', 'string'), 'title': info.get('title', name)}
-                for name, info in raw_props.items()
-                if isinstance(info, dict)
-            }
+            self._static_fields = {}
+            for name, info in raw_props.items():
+                if isinstance(info, dict):
+                    field_def = {
+                        'type': info.get('type', 'string'),
+                        'title': info.get('title', name)
+                    }
+                    if 'enum' in info:
+                        field_def['enum'] = info['enum']
+                    if 'format' in info:
+                        field_def['format'] = info['format']
+
+                    self._static_fields[name] = field_def
         else:
             self._static_fields = None
 
         with _LOCK:
             if self.data in _CONN_CACHE and self.data in _META_CACHE:
-                # Reuse existing connection — extensions already loaded, footer already cached.
                 self._conn = _CONN_CACHE[self.data]
                 self._apply_metadata(_META_CACHE[self.data])
+                self.fields = self.get_fields()
                 return
 
             import duckdb
@@ -78,14 +76,12 @@ class GeoParquetDuckDBProvider(BaseProvider):
             conn.execute("LOAD spatial")
 
             if self.data.startswith('s3://'):
-                # Prefer standard AWS_ENDPOINT_URL, fallback to S3_ENDPOINT or AWS_S3_ENDPOINT
                 endpoint = (
                     options.get('r2_endpoint') or 
                     os.environ.get('AWS_ENDPOINT_URL') or 
                     os.environ.get('S3_ENDPOINT') or
                     os.environ.get('AWS_S3_ENDPOINT', '')
                 )
-                # DuckDB s3_endpoint requires hostname only (no protocol)
                 if '://' in endpoint:
                     endpoint = endpoint.split('://')[-1]
                 endpoint = endpoint.rstrip('/')
@@ -100,13 +96,12 @@ class GeoParquetDuckDBProvider(BaseProvider):
                 conn.execute("SET s3_use_ssl=true")
 
             self._conn = conn
-            # Fetch metadata via DuckDB (runs queries over S3)
             meta = self._init_metadata()
 
-            # Atomically populate caches only after successful initialization
             _CONN_CACHE[self.data] = conn
             _META_CACHE[self.data] = meta
             self._apply_metadata(meta)
+            self.fields = self.get_fields()
 
     def _apply_metadata(self, meta: dict):
         self._geom_col        = meta['geom_col']
