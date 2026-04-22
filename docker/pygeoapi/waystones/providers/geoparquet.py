@@ -224,19 +224,19 @@ class GeoParquetDuckDBProvider(BaseProvider):
         if len(bbox) == 4:
             minx, miny, maxx, maxy = bbox
             
-            # OPTIMIZATION 1: Conditional Spatial Pushdown
-            if self._has_bbox_struct:
+            # OPTIMIZATION: Parquet row group pruning
+            # Instantly drops chunks outside the bounding box using native numeric columns
+            if getattr(self, '_has_bbox_struct', False):
                 clauses.append("bbox.xmin <= ? AND bbox.xmax >= ? AND bbox.ymin <= ? AND bbox.ymax >= ?")
                 params.extend([maxx, minx, maxy, miny])
-            elif self._has_bbox_cols:
+            elif getattr(self, '_has_bbox_cols', False):
                 clauses.append("bbox_xmin <= ? AND bbox_xmax >= ? AND bbox_ymin <= ? AND bbox_ymax >= ?")
                 params.extend([maxx, minx, maxy, miny])
 
-            # Exact spatial intersection
-            clauses.append(
-                f'ST_Intersects({self._geom_for_filter()}, ST_MakeEnvelope(?, ?, ?, ?))'
-            )
-            params.extend(bbox)
+            # Exact spatial intersection (filters the surviving features precisely)
+            poly_wkt = f"POLYGON(({minx} {miny}, {maxx} {miny}, {maxx} {maxy}, {minx} {maxy}, {minx} {miny}))"
+            clauses.append(f"ST_Intersects({self._geom_for_filter()}, ST_GeomFromText(?))")
+            params.append(poly_wkt)
 
         # OGC API Part 1: Basic exact-match properties
         for name, value in (properties or []):
