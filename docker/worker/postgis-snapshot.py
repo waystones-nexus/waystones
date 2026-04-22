@@ -268,6 +268,7 @@ def main() -> None:
 
     # The Parquet/FlatGeobuf pipeline must always output WGS84 so that bbox columns
     # are in decimal degrees and pygeoapi spatial filtering works correctly.
+    # TARGET_CRS is provided as an escape hatch; defaults to EPSG:4326.
     target_crs = os.environ.get("TARGET_CRS", "").strip() or "EPSG:4326"
     print(f"[worker] Enforcing {target_crs} normalization for Parquet files", flush=True)
     pg_conn    = build_pg_connection_string()
