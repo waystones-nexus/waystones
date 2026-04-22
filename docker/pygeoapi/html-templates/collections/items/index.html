@@ -205,7 +205,7 @@
       attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
       maxZoom: 19
     }).addTo(map);
-    var featuresData = ({{ data | to_json | safe }});
+    var featuresData = {{ data | to_json | safe }}; // @ts-ignore - Jinja2 template variable
     if (featuresData && featuresData.features && featuresData.features.length > 0) {
       var brandColor = getComputedStyle(document.documentElement).getPropertyValue('--brand').trim();
       var layer = L.geoJSON(featuresData, {
@@ -303,6 +303,7 @@
     // Expose all filter functions globally so inline onclick="..." can call them
     window.GF = window.GF || {};
     window.GF.queryables = queryables;
+    var GF = window.GF;  // Global alias for inline handlers
 
     window.GF.toggleFilterPanel = function() {
       var panel = document.getElementById('filter-panel');
