@@ -263,8 +263,9 @@
       var parts = bboxStr.split(',').map(function(s) { return parseFloat(s.trim()); });
       if (parts.length === 4 && !parts.some(isNaN)) {
         bboxLayer = L.rectangle([[parts[1], parts[0]], [parts[3], parts[2]]], {
-          color: brandColor, weight: 2, fillOpacity: 0.1, dashArray: '5, 5'
+          color: brandColor, weight: 2, fillOpacity: 0.1, dashArray: '5, 5', interactive: false
         }).addTo(map);
+        bboxLayer.bringToBack();
       }
     };
 
@@ -563,7 +564,7 @@
       map.once('mousedown touchstart', function(e) {
         var startLatLng = e.latlng;
         var rect = L.rectangle([startLatLng, startLatLng], {
-          color: brandColor, weight: 2, fillOpacity: 0.1, dashArray: '5, 5'
+          color: brandColor, weight: 2, fillOpacity: 0.1, dashArray: '5, 5', interactive: false
         }).addTo(map);
 
         function onMove(e2) {

@@ -174,7 +174,8 @@
       var bbox = {{ data.extent.spatial.bbox[0] | tojson }};
       var sw = [bbox[1], bbox[0]], ne = [bbox[3], bbox[2]];
       var brandColor = getComputedStyle(document.documentElement).getPropertyValue('--brand').trim();
-      L.rectangle([sw, ne], { color: brandColor, weight: 2, fillOpacity: 0.15 }).addTo(map);
+      var rect = L.rectangle([sw, ne], { color: brandColor, weight: 2, fillOpacity: 0.15, interactive: false }).addTo(map);
+      rect.bringToBack();
       map.fitBounds([sw, ne], { padding: [8, 8] });
     {% endif %}
   });
