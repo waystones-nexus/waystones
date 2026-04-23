@@ -9,12 +9,16 @@ const ConfirmDeleteDialog: React.FC<{
   isDeleting?: boolean,
   deletingQuote?: string,
   onClose: () => void,
-  onConfirm: () => void
-}> = ({ t, isDeleting, deletingQuote, onClose, onConfirm }) => {
+  onConfirm: () => void,
+  onSkip?: () => void
+}> = ({ t, isDeleting, deletingQuote, onClose, onConfirm, onSkip }) => {
   const theme = UNIT_THEMES['void-entity'];
 
   return (
-    <div className="fixed inset-0 z-[400] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300">
+    <div 
+      className={`fixed inset-0 z-[400] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-300 ${isDeleting ? 'cursor-pointer' : ''}`}
+      onClick={isDeleting ? onSkip : undefined}
+    >
       <div className="bg-white rounded-[32px] w-full max-w-sm shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 border border-slate-100">
         <div className="p-8 text-center space-y-6">
           <AnimatePresence mode="wait">

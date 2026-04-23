@@ -162,12 +162,44 @@ const App: React.FC = () => {
     }));
   }, []);
 
+  const deleteTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const skipDeleteAnimation = useCallback(() => {
+    if (deleteTimeoutRef.current) {
+      clearTimeout(deleteTimeoutRef.current);
+      deleteTimeoutRef.current = null;
+      
+      // Perform the actual deletion logic that was inside the timeout
+      if (modelToDelete) {
+        setModels(prev => {
+          const updated = prev.filter(m => m.id !== modelToDelete);
+          setTimeout(() => pushToHistory(updated, true), 0);
+          if (selectedId === modelToDelete) {
+            if (updated.length > 0) {
+              setSelectedId(updated[0].id);
+              setActiveTab('editor');
+            } else {
+              setSelectedId(null);
+              setActiveTab('landing');
+            }
+          }
+          return updated;
+        });
+        setDirty(false);
+        setIsDeleting(false);
+        setModelToDelete(null);
+      }
+    }
+  }, [modelToDelete, selectedId, setModels, pushToHistory, setSelectedId, setActiveTab]);
+
   const handleDeleteModel = (id: string) => {
     const randomQuote = VOID_ENTITY_QUOTES[Math.floor(Math.random() * VOID_ENTITY_QUOTES.length)];
     setDeletingQuote(randomQuote);
     setIsDeleting(true);
 
-    setTimeout(() => {
+    if (deleteTimeoutRef.current) clearTimeout(deleteTimeoutRef.current);
+
+    deleteTimeoutRef.current = setTimeout(() => {
       setModels(prev => {
         const updated = prev.filter(m => m.id !== id);
         setTimeout(() => pushToHistory(updated, true), 0);
@@ -185,8 +217,15 @@ const App: React.FC = () => {
       setDirty(false);
       setIsDeleting(false);
       setModelToDelete(null);
+      deleteTimeoutRef.current = null;
     }, 3500);
   };
+
+  useEffect(() => {
+    return () => {
+      if (deleteTimeoutRef.current) clearTimeout(deleteTimeoutRef.current);
+    };
+  }, []);
 
   const handleImportModel = (imported: DataModel, meta?: { repo: string; path: string; branch: string }) => {
     triggerActionWhisper('import_complete');
@@ -467,6 +506,7 @@ const App: React.FC = () => {
             deletingQuote={deletingQuote}
             onClose={() => setModelToDelete(null)}
             onConfirm={() => handleDeleteModel(modelToDelete)}
+            onSkip={skipDeleteAnimation}
           />
         )}
 
