@@ -43,7 +43,7 @@ const AiConfigModal: React.FC<AiConfigModalProps> = ({
   const [showSuccess, setShowSuccess] = React.useState(false);
   const [trialUsesLeft, setTrialUsesLeft] = React.useState(getTrialUsesLeft());
   const modalRef = useRef<HTMLDivElement>(null);
-  const hasDefaultKey = !!import.meta.env.VITE_DEFAULT_AI_KEY;
+  const hasDefaultKey = import.meta.env.VITE_HAS_TRIAL === 'true';
 
 
   useEffect(() => {

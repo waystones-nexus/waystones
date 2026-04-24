@@ -5,6 +5,8 @@ import { i18n, createEmptyModel } from './constants';
 import { AiProvider } from './contexts/AiContext';
 import { useAmbient } from './contexts/AmbientContext';
 import { VOID_ENTITY_QUOTES } from './constants/ambientManifest';
+import { AiOperationType } from './hooks/useAiContext';
+import AiConfigModal from './components/ai/AiConfigModal';
 import ModelEditor from './components/ModelEditor';
 import PreviewPanel from './components/PreviewPanel';
 import DataMapper from './components/DataMapper';
@@ -57,6 +59,8 @@ const App: React.FC = () => {
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [previewCollapsed, setPreviewCollapsed] = useState(false);
+  const [showAiModal, setShowAiModal] = useState(false);
+  const [pendingAiOperation, setPendingAiOperation] = useState<AiOperationType | null>(null);
 
   const { previewWidth, isResizingPreview, setIsResizingPreview } = usePanelResize();
   const { isDesktop } = useWindowWidth();
@@ -97,6 +101,17 @@ const App: React.FC = () => {
   }, [historyIndex, historyLength]);
 
   const selectedModel = models.find(m => m.id === selectedId);
+
+  // Listen for AI configuration requests
+  useEffect(() => {
+    const handleAiConfigureRequired = (e: CustomEvent) => {
+      setPendingAiOperation(e.detail.operation);
+      setShowAiModal(true);
+    };
+
+    window.addEventListener('ai-configure-required', handleAiConfigureRequired as EventListener);
+    return () => window.removeEventListener('ai-configure-required', handleAiConfigureRequired as EventListener);
+  }, []);
 
   // Validate when switching to deploy tab
   useEffect(() => {
@@ -831,6 +846,19 @@ const App: React.FC = () => {
           </div>
         </>
       )}
+
+      {/* AI Configuration Modal — rendered at root level to escape stacking contexts */}
+      <AiConfigModal
+        isOpen={showAiModal}
+        onClose={() => setShowAiModal(false)}
+        initialOperation={pendingAiOperation}
+        onSuccess={() => {
+          setShowAiModal(false);
+          setPendingAiOperation(null);
+        }}
+        t={t}
+        lang={lang}
+      />
       </AiProvider>
   );
 };

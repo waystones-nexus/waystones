@@ -296,6 +296,108 @@ async function handleGitHubOAuth(req, res) {
   }
 }
 
+// In-memory rate limiter for trial AI: key = "${ip}-${weekKey}", value = use count
+const trialRateMap = new Map();
+
+function getTrialWeekKey() {
+  const now = new Date();
+  const jan1 = new Date(now.getFullYear(), 0, 1);
+  const week = Math.ceil(((now.getTime() - jan1.getTime()) / 86400000 + jan1.getDay() + 1) / 7);
+  return `${now.getFullYear()}-W${week}`;
+}
+
+async function handleAiTrial(req, res) {
+  res.setHeader('Content-Type', 'application/json');
+
+  if (req.method !== 'POST') { res.writeHead(405).end(); return; }
+
+  const defaultKey = process.env.DEFAULT_AI_KEY;
+  if (!defaultKey) {
+    res.writeHead(404);
+    res.end(JSON.stringify({ error: 'Trial not available' }));
+    return;
+  }
+
+  const MAX_TRIAL = 10;
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+  const rateKey = `${ip}-${getTrialWeekKey()}`;
+  const used = trialRateMap.get(rateKey) || 0;
+  if (used >= MAX_TRIAL) {
+    res.writeHead(429);
+    res.end(JSON.stringify({ error: 'Trial limit reached' }));
+    return;
+  }
+
+  const chunks = [];
+  for await (const chunk of req) chunks.push(chunk);
+  let system, user;
+  try {
+    ({ system, user } = JSON.parse(Buffer.concat(chunks).toString()));
+  } catch {
+    res.writeHead(400);
+    res.end(JSON.stringify({ error: 'Invalid JSON' }));
+    return;
+  }
+
+  if (!system || !user) {
+    res.writeHead(400);
+    res.end(JSON.stringify({ error: 'Missing system or user' }));
+    return;
+  }
+
+  const provider = process.env.DEFAULT_AI_PROVIDER ||
+    (defaultKey.startsWith('sk-ant-') ? 'claude' : 'gemini');
+
+  try {
+    let text;
+    if (provider === 'claude') {
+      const upstream = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': defaultKey,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 512,
+          system,
+          messages: [{ role: 'user', content: user }],
+        }),
+      });
+      if (upstream.status === 429) { res.writeHead(429); res.end(JSON.stringify({ error: 'Rate limit' })); return; }
+      if (!upstream.ok) { res.writeHead(502); res.end(JSON.stringify({ error: 'AI error' })); return; }
+      const data = await upstream.json();
+      text = data.content?.[0]?.text?.trim() ?? '';
+    } else {
+      const upstream = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${defaultKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            system_instruction: { parts: [{ text: system }] },
+            contents: [{ role: 'user', parts: [{ text: user }] }],
+          }),
+        }
+      );
+      if (upstream.status === 429) { res.writeHead(429); res.end(JSON.stringify({ error: 'Rate limit' })); return; }
+      if (!upstream.ok) { res.writeHead(502); res.end(JSON.stringify({ error: 'AI error' })); return; }
+      const data = await upstream.json();
+      text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? '';
+    }
+
+    if (!text) { res.writeHead(502); res.end(JSON.stringify({ error: 'Empty AI response' })); return; }
+    trialRateMap.set(rateKey, used + 1);
+    res.writeHead(200);
+    res.end(JSON.stringify({ text, provider }));
+  } catch (err) {
+    console.error('AI trial error:', err.message);
+    res.writeHead(502);
+    res.end(JSON.stringify({ error: 'AI request failed' }));
+  }
+}
+
 const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://localhost');
@@ -306,6 +408,10 @@ const server = createServer(async (req, res) => {
 
     if (url.pathname === '/api/pg-schema') {
       return await handlePostgisSchema(req, res);
+    }
+
+    if (url.pathname === '/api/ai-trial') {
+      return await handleAiTrial(req, res);
     }
 
     // Serve static files, fall back to index.html for SPA routing

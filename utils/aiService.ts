@@ -128,15 +128,10 @@ export function getProvider(): AiProvider {
   if (saved === 'claude' || saved === 'gemini') return saved;
   const hasUserKey = !!localStorage.getItem(API_KEY_PREFIX + 'claude') || !!localStorage.getItem(API_KEY_PREFIX + 'gemini');
 
-  if (!hasUserKey && import.meta.env.VITE_DEFAULT_AI_KEY && getTrialUsesLeft() > 0) {
+  if (!hasUserKey && import.meta.env.VITE_HAS_TRIAL === 'true' && getTrialUsesLeft() > 0) {
     const defaultProvider = import.meta.env.VITE_DEFAULT_AI_PROVIDER;
     if (defaultProvider === 'claude' || defaultProvider === 'gemini') {
       return defaultProvider;
-    }
-    if (import.meta.env.VITE_DEFAULT_AI_KEY.startsWith('sk-ant-')) {
-      return 'claude';
-    } else {
-      return 'gemini';
     }
   }
 
@@ -154,7 +149,7 @@ export function getApiKey(p?: AiProvider): string | null {
 
 export function hasApiKey(p?: AiProvider): boolean {
   if (getApiKey(p)) return true;
-  if (import.meta.env.VITE_DEFAULT_AI_KEY && getTrialUsesLeft() > 0) return true;
+  if (import.meta.env.VITE_HAS_TRIAL === 'true' && getTrialUsesLeft() > 0) return true;
   return false;
 }
 
@@ -213,17 +208,22 @@ export function incrementTrialUses(): void {
 async function callAI(system: string, user: string): Promise<string> {
   const provider = getProvider();
   let key = getApiKey();
-  let isTrial = false;
 
   if (!key) {
-    const defaultKey = import.meta.env.VITE_DEFAULT_AI_KEY;
-    if (defaultKey && getTrialUsesLeft() > 0) {
-      key = defaultKey;
-      isTrial = true;
-      // When relying on the trial key, the provider is dictated by `getProvider()`.
-    } else {
-      throw new AiKeyMissingError();
+    if (import.meta.env.VITE_HAS_TRIAL === 'true' && getTrialUsesLeft() > 0) {
+      const trialRes = await fetch('/api/ai-trial', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ system, user }),
+      });
+      if (trialRes.status === 429) throw new AiRateLimitError(60);
+      if (!trialRes.ok) throw new AiNetworkError('Trial request failed');
+      const trialData = await trialRes.json();
+      if (!trialData.text) throw new Error('AI returned empty response');
+      incrementTrialUses();
+      return trialData.text;
     }
+    throw new AiKeyMissingError();
   }
 
   try {
@@ -257,7 +257,6 @@ async function callAI(system: string, user: string): Promise<string> {
       const data = await res.json();
       const result = data.content?.[0]?.text?.trim() ?? '';
       if (!result) throw new Error('AI returned empty response');
-      if (isTrial) incrementTrialUses();
       return result;
 
     } else {
@@ -283,7 +282,6 @@ async function callAI(system: string, user: string): Promise<string> {
       const data = await res.json();
       const result = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? '';
       if (!result) throw new Error('AI returned empty response');
-      if (isTrial) incrementTrialUses();
       return result;
     }
   } catch (error) {

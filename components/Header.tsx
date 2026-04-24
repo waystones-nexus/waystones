@@ -4,7 +4,6 @@ import { Language } from '../types';
 import { AiProvider, getProvider, setProvider, getApiKey, saveApiKey, clearApiKey, getTrialUsesLeft, SUPPORTED_LANGUAGES } from '../utils/aiService';
 import { useAiStatus } from '../hooks/useAiStatus';
 import { useAiContext } from '../contexts/AiContext';
-import AiConfigModal from './ai/AiConfigModal';
 import AiLanguageSelector from './ai/AiLanguageSelector';
 import AiErrorHandler from './ai/AiErrorHandler';
 import { useAmbient } from '../contexts/AmbientContext';
@@ -20,11 +19,9 @@ const Header: React.FC<{
   onHome?: () => void;
 }> = ({ t, lang, onLangChange, onShowGuide, onHome }) => {
   const [showAiPanel, setShowAiPanel] = React.useState(false);
-  const [showAiModal, setShowAiModal] = React.useState(false);
-  const [pendingOperation, setPendingOperation] = React.useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  const { aiLang, setAiLang } = useAiContext();
+  const { aiLang, setAiLang, configureApiKey } = useAiContext();
   const aiStatus = useAiStatus();
   const { activeQuests, isDocked, setIsDocked } = useAmbient();
   const [showQuestPanel, setShowQuestPanel] = React.useState(false);
@@ -52,20 +49,11 @@ const Header: React.FC<{
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showQuestPanel]);
 
-  // Listen for AI configuration requests
-  useEffect(() => {
-    const handleAiConfigureRequired = (e: CustomEvent) => {
-      setPendingOperation(e.detail.operation);
-      setShowAiModal(true);
-    };
 
-    window.addEventListener('ai-configure-required', handleAiConfigureRequired as EventListener);
-    return () => window.removeEventListener('ai-configure-required', handleAiConfigureRequired as EventListener);
-  }, []);
 
   const handleAiButtonClick = () => {
     if (!aiStatus.hasKey) {
-      setShowAiModal(true);
+      configureApiKey();
     } else {
       setShowAiPanel(!showAiPanel);
     }
@@ -266,7 +254,7 @@ const Header: React.FC<{
                 <button
                   onClick={() => {
                     setShowAiPanel(false);
-                    setShowAiModal(true);
+                    configureApiKey();
                   }}
                   className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-black bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 transition-colors"
                 >
@@ -279,7 +267,7 @@ const Header: React.FC<{
                     error={aiStatus.error}
                     onConfigure={() => {
                       setShowAiPanel(false);
-                      setShowAiModal(true);
+                      configureApiKey();
                     }}
                     onRetry={aiStatus.clearError}
                     onDismiss={aiStatus.clearError}
@@ -379,18 +367,6 @@ const Header: React.FC<{
         </div>
       </div>
 
-      {/* AI Configuration Modal */}
-      <AiConfigModal
-        isOpen={showAiModal}
-        onClose={() => setShowAiModal(false)}
-        initialOperation={pendingOperation}
-        onSuccess={() => {
-          setShowAiModal(false);
-          setPendingOperation(null);
-        }}
-        t={t}
-        lang={lang}
-      />
     </header>
   );
 };

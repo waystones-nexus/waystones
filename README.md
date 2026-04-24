@@ -78,9 +78,10 @@ GITHUB_CLIENT_ID=your_github_oauth_app_id
 GITHUB_CLIENT_SECRET=your_github_oauth_app_secret
 VITE_GITHUB_REDIRECT_URI=http://localhost:3000/auth/callback
 
-# Optional: AI Assistant (Claude or Gemini)
-VITE_DEFAULT_AI_KEY=your_api_key_here
-VITE_DEFAULT_AI_PROVIDER=claude  # or 'gemini'
+# Optional: AI trial feature (server-side only — never exposed to browser)
+DEFAULT_AI_KEY=your_api_key_here
+DEFAULT_AI_PROVIDER=claude  # or 'gemini'
+VITE_HAS_TRIAL=true         # set to 'true' to enable the trial UI
 ```
 
 The app includes a small Express server (`server.js`) that proxies GitHub OAuth and handles PostGIS schema imports. In development, `npm run dev` starts both Vite and the server automatically.
