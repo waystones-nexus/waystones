@@ -37,7 +37,7 @@ export const useAiStatus = () => {
   const [hasKey, setHasKey] = useState(hasApiKey());
   const [provider, setProvider] = useState(getProvider());
   const [trialUsesLeft, setTrialUsesLeft] = useState(getTrialUsesLeft());
-  const [hasDefaultKey] = useState(!!import.meta.env.VITE_DEFAULT_AI_KEY);
+  const [hasDefaultKey] = useState(import.meta.env.VITE_HAS_TRIAL === 'true');
 
   useEffect(() => {
     const handleKeyChange = (e: Event) => {
