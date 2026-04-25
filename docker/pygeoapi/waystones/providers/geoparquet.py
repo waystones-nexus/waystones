@@ -90,30 +90,19 @@ class GeoParquetDuckDBProvider(BaseProvider):
                     if cache_dir and not os.path.exists(cache_dir):
                         os.makedirs(cache_dir, exist_ok=True)
                     
-                    # Try possible names for persistent metadata cache in 1.5.x
-                    for cmd in [
-                        f"SET http_metadata_cache = '{cache_path}'",
-                        f"PRAGMA http_metadata_cache = '{cache_path}'",
-                        f"SET http_cache_file = '{cache_path}'",
-                        f"SET http_cache_directory = '{cache_dir}'",
-                        "SET enable_http_metadata_cache = true"
-                    ]:
-                        try:
-                            conn.execute(cmd)
-                            LOGGER.info(f"Successfully executed: {cmd}")
-                        except Exception:
-                            continue
+                    # Confirmed settings available in DuckDB 1.5.2
+                    conn.execute("SET enable_http_metadata_cache = true")
+                    conn.execute("SET parquet_metadata_cache = true")
                     
-                    LOGGER.info(f"Initialized DuckDB metadata cache at: {cache_dir}")
+                    # Point home_directory to the Fly Volume as a best-effort for extension persistence
+                    try:
+                        conn.execute(f"SET home_directory = '{cache_dir}'")
+                    except Exception:
+                        pass
+                    
+                    LOGGER.info(f"Initialized DuckDB metadata cache settings (Home: {cache_dir})")
                 except Exception as e:
                     LOGGER.warning(f"Failed to initialize metadata cache: {e}")
-
-            # Debug: List ALL settings to see what we're missing
-            try:
-                all_settings = conn.execute("SELECT name, value, description FROM duckdb_settings()").fetchall()
-                LOGGER.info(f"ALL available DuckDB settings: {all_settings}")
-            except Exception as e:
-                LOGGER.warning(f"Failed to query duckdb_settings: {e}")
 
             # DuckDB 1.5+ Native Advantage: Skip spatial for initial handshake
             ddb_version_str = duckdb.__version__
