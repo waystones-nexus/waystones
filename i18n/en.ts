@@ -35,7 +35,7 @@ export const en = {
     whatCanIDo2: "Render your data on interactive maps viewable in browsers and desktop GIS tools.",
     whatCanIDo3: "Get Docker Compose and GitHub Actions CI/CD out of the box.",
     whatCanIDo4: "Validate data quality upfront — catch errors before publishing.",
-    whatCanIDo5: "Share a live service URL with colleagues or the public — no server management.",
+    whatCanIDo5: "Share a live service URL with colleagues or the public.",
   },
   quickPublish: {
     backToStart: "Back to start",

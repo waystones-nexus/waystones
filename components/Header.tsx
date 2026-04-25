@@ -189,7 +189,7 @@ const Header: React.FC<{
           </button>
 
           {showAiPanel && (
-            <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl border border-slate-200 shadow-2xl p-5 z-[300] animate-in zoom-in-95 slide-in-from-top-1 duration-150">
+            <div className="fixed sm:absolute left-4 right-4 sm:left-auto sm:right-0 top-[calc(100%+8px)] sm:top-full mt-2 w-auto sm:w-80 bg-white rounded-2xl border border-slate-200 shadow-2xl p-5 z-[300] animate-in zoom-in-95 slide-in-from-top-1 duration-150">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <div className="p-1.5 bg-indigo-50 rounded-lg">
@@ -346,7 +346,7 @@ const Header: React.FC<{
               </button>
 
               {showQuestPanel && (
-                <div className="absolute right-0 top-full mt-2 z-[300] animate-in zoom-in-95 slide-in-from-top-1 duration-150">
+                <div className="fixed sm:absolute left-4 right-4 sm:left-auto sm:right-0 top-[calc(100%+8px)] sm:top-full mt-2 z-[300] animate-in zoom-in-95 slide-in-from-top-1 duration-150">
                   <QuestPanel 
                     isDocked
                     onUndock={() => {

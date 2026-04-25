@@ -112,7 +112,7 @@ export const QuestPanel: React.FC<QuestPanelProps> = ({
         scale: 0.95 
       }}
       transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-      className="w-80 bg-white border border-slate-100 rounded-[40px] shadow-[0_20px_60px_rgba(0,0,0,0.12)] overflow-hidden pointer-events-auto"
+      className="w-full sm:w-80 max-w-[320px] mx-auto sm:mx-0 bg-white border border-slate-100 rounded-[40px] shadow-[0_20px_60px_rgba(0,0,0,0.12)] overflow-hidden pointer-events-auto"
     >
       {/* Header */}
       <div className="bg-slate-50/50 border-b border-slate-100 px-8 py-7 flex items-center justify-between relative overflow-hidden">

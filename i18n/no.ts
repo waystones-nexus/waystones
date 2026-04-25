@@ -35,7 +35,7 @@ export const no = {
     whatCanIDo2: "Vis dataene dine på interaktive kart som kan brukes i nettlesere og GIS-verktøy.",
     whatCanIDo3: "Få Docker Compose og GitHub Actions CI/CD ut av boksen.",
     whatCanIDo4: "Valider datakvalitet på forhånd — oppdage feil før publisering.",
-    whatCanIDo5: "Del en live tjeneste-URL med kolleger eller publikum — ingen serveradministrasjon.",
+    whatCanIDo5: "Del en live tjeneste-URL med kolleger eller publikum.",
   },
   quickPublish: {
     backToStart: "Tilbake til start",
