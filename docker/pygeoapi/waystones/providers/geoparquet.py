@@ -81,40 +81,39 @@ class GeoParquetDuckDBProvider(BaseProvider):
             
             # Must LOAD extensions before setting their specific parameters
             conn.execute("LOAD httpfs")
-            try:
-                # DuckDB 1.5+ persistent cache extension
-                conn.execute("LOAD cache")
-            except Exception:
-                LOGGER.warning("DuckDB 'cache' extension not found, persistent disk cache may be disabled")
 
             # Persistent Metadata Cache (Fly.io optimization)
-            # Dropping warming time from 3.7s to <200ms
             cache_path = options.get('http_metadata_cache') or os.environ.get('DUCKDB_HTTP_METADATA_CACHE')
             if cache_path:
                 try:
-                    # In DuckDB 1.5, we point to the directory on the Fly Volume
                     cache_dir = os.path.dirname(cache_path)
                     if cache_dir and not os.path.exists(cache_dir):
                         os.makedirs(cache_dir, exist_ok=True)
                     
-                    # 1. Enable in-memory metadata caching
-                    conn.execute("SET parquet_metadata_cache = true")
-                    conn.execute("SET enable_http_metadata_cache = true")
-                    
-                    # 2. Configure persistent disk cache (DuckDB 1.5 style)
-                    try:
-                        # Try the direct metadata cache file first (as requested)
-                        conn.execute(f"SET http_metadata_cache = '{cache_path}'")
-                    except Exception:
+                    # Try possible names for persistent metadata cache in 1.5.x
+                    for cmd in [
+                        f"SET http_metadata_cache = '{cache_path}'",
+                        f"PRAGMA http_metadata_cache = '{cache_path}'",
+                        f"SET http_cache_file = '{cache_path}'",
+                        f"SET http_cache_directory = '{cache_dir}'",
+                        "SET enable_http_metadata_cache = true"
+                    ]:
                         try:
-                            # Try the modern 1.5 cache directory approach
-                            conn.execute(f"SET http_cache_directory = '{cache_dir}'")
-                        except Exception as e:
-                            LOGGER.warning(f"Could not set persistent cache directory: {e}")
+                            conn.execute(cmd)
+                            LOGGER.info(f"Successfully executed: {cmd}")
+                        except Exception:
+                            continue
                     
-                    LOGGER.info(f"Initialized persistent DuckDB metadata cache at: {cache_dir}")
+                    LOGGER.info(f"Initialized DuckDB metadata cache at: {cache_dir}")
                 except Exception as e:
                     LOGGER.warning(f"Failed to initialize metadata cache: {e}")
+
+            # Debug: List ALL settings to see what we're missing
+            try:
+                all_settings = conn.execute("SELECT name, value, description FROM duckdb_settings()").fetchall()
+                LOGGER.info(f"ALL available DuckDB settings: {all_settings}")
+            except Exception as e:
+                LOGGER.warning(f"Failed to query duckdb_settings: {e}")
 
             # DuckDB 1.5+ Native Advantage: Skip spatial for initial handshake
             ddb_version_str = duckdb.__version__
