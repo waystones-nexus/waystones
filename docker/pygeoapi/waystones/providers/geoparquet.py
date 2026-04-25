@@ -79,32 +79,40 @@ class GeoParquetDuckDBProvider(BaseProvider):
             ext_dir = os.environ.get('DUCKDB_EXTENSION_DIRECTORY', '/duckdb-extensions')
             conn.execute(f"SET extension_directory='{ext_dir}'")
             
-            # Must LOAD httpfs before setting http_metadata_cache
+            # Must LOAD extensions before setting their specific parameters
             conn.execute("LOAD httpfs")
+            try:
+                # DuckDB 1.5+ persistent cache extension
+                conn.execute("LOAD cache")
+            except Exception:
+                LOGGER.warning("DuckDB 'cache' extension not found, persistent disk cache may be disabled")
 
             # Persistent Metadata Cache (Fly.io optimization)
             # Dropping warming time from 3.7s to <200ms
             cache_path = options.get('http_metadata_cache') or os.environ.get('DUCKDB_HTTP_METADATA_CACHE')
             if cache_path:
                 try:
-                    # Ensure the directory for the cache file exists
+                    # In DuckDB 1.5, we point to the directory on the Fly Volume
                     cache_dir = os.path.dirname(cache_path)
                     if cache_dir and not os.path.exists(cache_dir):
                         os.makedirs(cache_dir, exist_ok=True)
                     
-                    # Try possible parameter names for persistent metadata cache
+                    # 1. Enable in-memory metadata caching
+                    conn.execute("SET parquet_metadata_cache = true")
+                    conn.execute("SET enable_http_metadata_cache = true")
+                    
+                    # 2. Configure persistent disk cache (DuckDB 1.5 style)
                     try:
+                        # Try the direct metadata cache file first (as requested)
                         conn.execute(f"SET http_metadata_cache = '{cache_path}'")
                     except Exception:
                         try:
-                            # In some 1.5.x builds this is the persistent file path
-                            conn.execute(f"SET http_metadata_cache_file = '{cache_path}'")
-                            conn.execute("SET enable_http_metadata_cache = true")
-                        except Exception:
-                            # Fallback to general http cache if available
+                            # Try the modern 1.5 cache directory approach
                             conn.execute(f"SET http_cache_directory = '{cache_dir}'")
+                        except Exception as e:
+                            LOGGER.warning(f"Could not set persistent cache directory: {e}")
                     
-                    LOGGER.info(f"Initialized persistent DuckDB metadata cache at: {cache_path}")
+                    LOGGER.info(f"Initialized persistent DuckDB metadata cache at: {cache_dir}")
                 except Exception as e:
                     LOGGER.warning(f"Failed to initialize metadata cache: {e}")
 
@@ -113,13 +121,6 @@ class GeoParquetDuckDBProvider(BaseProvider):
             LOGGER.info(f"DuckDB version: {ddb_version_str}")
             ddb_version = tuple(map(int, ddb_version_str.split('.')[:3]))
             self._is_ddb_15 = ddb_version >= (1, 5, 0)
-
-            # Debug: List settings containing 'cache' or 'http'
-            try:
-                settings = conn.execute("SELECT name, value, description FROM duckdb_settings() WHERE name LIKE '%cache%' OR name LIKE '%metadata%' OR name LIKE '%http%'").fetchall()
-                LOGGER.info(f"Available cache/metadata/http settings: {settings}")
-            except Exception as e:
-                LOGGER.warning(f"Failed to query duckdb_settings: {e}")
 
             # In DuckDB 1.5, we don't need 'spatial' just to read Parquet footers.
             # We'll load it only if we're on an older version or when needed spatial functions.
