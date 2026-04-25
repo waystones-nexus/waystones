@@ -76,6 +76,12 @@ class GeoParquetDuckDBProvider(BaseProvider):
             import duckdb
             conn = duckdb.connect(':memory:')
 
+            ext_dir = os.environ.get('DUCKDB_EXTENSION_DIRECTORY', '/duckdb-extensions')
+            conn.execute(f"SET extension_directory='{ext_dir}'")
+            
+            # Must LOAD httpfs before setting http_metadata_cache
+            conn.execute("LOAD httpfs")
+
             # Persistent Metadata Cache (Fly.io optimization)
             # Dropping warming time from 3.7s to <200ms
             cache_path = options.get('http_metadata_cache') or os.environ.get('DUCKDB_HTTP_METADATA_CACHE')
@@ -91,15 +97,13 @@ class GeoParquetDuckDBProvider(BaseProvider):
                     LOGGER.warning(f"Failed to set http_metadata_cache: {e}")
 
             # DuckDB 1.5+ Native Advantage: Skip spatial for initial handshake
-            ddb_version = tuple(map(int, duckdb.__version__.split('.')[:3]))
+            ddb_version_str = duckdb.__version__
+            LOGGER.info(f"DuckDB version: {ddb_version_str}")
+            ddb_version = tuple(map(int, ddb_version_str.split('.')[:3]))
             self._is_ddb_15 = ddb_version >= (1, 5, 0)
 
-            ext_dir = os.environ.get('DUCKDB_EXTENSION_DIRECTORY', '/duckdb-extensions')
-            conn.execute(f"SET extension_directory='{ext_dir}'")
-            conn.execute("LOAD httpfs")
-
             # In DuckDB 1.5, we don't need 'spatial' just to read Parquet footers.
-            # We'll load it only if we're on an older version or when needed.
+            # We'll load it only if we're on an older version or when needed spatial functions.
             if not self._is_ddb_15:
                 conn.execute("LOAD spatial")
 
