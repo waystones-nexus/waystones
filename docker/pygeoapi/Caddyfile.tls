@@ -1,0 +1,15 @@
+{
+    auto_https off
+}
+
+import /etc/caddy/Caddyfile
+
+# Public TLS terminator. Used by the SaaS path where each fly machine receives
+# the Cloudflare Origin wildcard cert via TLS_CERT_FILE / TLS_KEY_FILE. Visitors
+# hit Cloudflare's edge (Universal SSL) and CF connects here over the origin
+# cert; this block is what CF talks to. The reverse_proxy hands the request to
+# the existing :5000 plain-HTTP site that already does all the routing.
+:443 {
+    tls {$TLS_CERT_FILE} {$TLS_KEY_FILE}
+    reverse_proxy localhost:5000
+}

@@ -23,6 +23,15 @@ export HOME=/tmp
 export XDG_CONFIG_HOME=/tmp/caddy_config
 export XDG_DATA_HOME=/tmp/caddy_data
 
+# When the host injects a TLS cert (SaaS path: Cloudflare Origin wildcard cert
+# mounted by the provisioner), use the wrapper Caddyfile that adds a :443 TLS
+# site. Otherwise stick with the base Caddyfile (Railway / self-hosted / local).
+CADDY_CONFIG="/etc/caddy/Caddyfile"
+if [ -n "${TLS_CERT_FILE:-}" ] && [ -f "${TLS_CERT_FILE}" ] && [ -n "${TLS_KEY_FILE:-}" ] && [ -f "${TLS_KEY_FILE}" ]; then
+    echo "[startup] TLS cert detected at ${TLS_CERT_FILE}; using Caddyfile.tls"
+    CADDY_CONFIG="/etc/caddy/Caddyfile.tls"
+fi
+
 # ─── Proactive QGIS Wakeup ────────────────────────────────────────────────
 # Only runs if WMS is enabled AND a wakeup URL is provided by the host environment
 if [ "${DEPLOY_QGIS:-0}" = "1" ] && [ -n "${WMS_WAKEUP_URL:-}" ]; then
@@ -42,14 +51,14 @@ USE_SIDECAR="${DEPLOY_SIDE_GATEWAY:-0}"
 
 if [ "${DEPLOY_PYGEOAPI:-1}" = "0" ]; then
     echo "[startup] Gateway-only mode. Starting Caddy..."
-    exec caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
+    exec caddy run --config "$CADDY_CONFIG" --adapter caddyfile
 fi
 
 # If sidecar is requested OR we have a WMS Wakeup URL (implying cloud/SaaS routing)
 if [ "$USE_SIDECAR" = "1" ] || [ -n "${WMS_WAKEUP_URL:-}" ]; then
     echo "[startup] Starting Caddy Gateway (Sidecar)..."
     export GOMAXPROCS=1
-    caddy run --config /etc/caddy/Caddyfile --adapter caddyfile &
+    caddy run --config "$CADDY_CONFIG" --adapter caddyfile &
 
     echo "[startup] Routing pygeoapi to internal port 5001..."
     export CONTAINER_PORT=5001
