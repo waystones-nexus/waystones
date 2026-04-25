@@ -14,10 +14,9 @@ import { QUESTS } from '../constants/ambientManifest';
 const Header: React.FC<{
   t: any;
   lang: Language;
-  onLangChange: (lang: Language) => void;
   onShowGuide: () => void;
   onHome?: () => void;
-}> = ({ t, lang, onLangChange, onShowGuide, onHome }) => {
+}> = ({ t, lang, onShowGuide, onHome }) => {
   const [showAiPanel, setShowAiPanel] = React.useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -361,10 +360,6 @@ const Header: React.FC<{
           )}
         </AnimatePresence>
 
-        <div className="flex items-center bg-slate-50 rounded-2xl p-1 md:p-1.5 border border-slate-100 shrink-0">
-          <button onClick={() => onLangChange('no')} className={`px-2 md:px-4 py-1.5 text-[11px] font-black uppercase tracking-[0.2em] rounded-xl transition-all ${lang === 'no' ? 'bg-white shadow-sm border border-slate-100 text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}>NO</button>
-          <button onClick={() => onLangChange('en')} className={`px-2 md:px-4 py-1.5 text-[11px] font-black uppercase tracking-[0.2em] rounded-xl transition-all ${lang === 'en' ? 'bg-white shadow-sm border border-slate-100 text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}>EN</button>
-        </div>
       </div>
 
     </header>

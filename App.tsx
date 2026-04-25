@@ -42,8 +42,8 @@ import { ImportValidationResult as FullValidationResult } from './types';
 
 const App: React.FC = () => {
   const { triggerQuestWhisper, triggerWhisper, triggerActionWhisper, updateQuests, addLog } = useAmbient();
-  const [lang, setLang] = usePersistedState<Language>('lang', 'en');
-  const t = i18n[lang] || i18n.en;
+  const lang: Language = 'en';
+  const t = i18n.en;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isImporting, setIsImporting] = useState(false);
   const [showGuide, setShowGuide] = useState(() => !localStorage.getItem('guide_seen'));
@@ -525,7 +525,7 @@ const App: React.FC = () => {
           />
         )}
 
-        <Header t={t} lang={lang} onLangChange={setLang} onShowGuide={() => setShowGuide(true)} onHome={() => setActiveTab('landing')} />
+        <Header t={t} lang={lang} onShowGuide={() => setShowGuide(true)} onHome={() => setActiveTab('landing')} />
 
         {/* Landing screen — full width, no panels */}
         {activeTab === 'landing' && (
