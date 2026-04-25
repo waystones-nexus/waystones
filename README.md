@@ -166,8 +166,8 @@ waystones/
 └── types.ts           # TypeScript type definitions
 ```
 
-## 🇳🇴 Language Support
-Full UI translations for **English** and **Norwegian**.
+## 🌐 Language Support
+UI is in **English**. The AI assistant supports 29 languages for metadata and schema generation.
 
 ## 🤝 Contributing
 
