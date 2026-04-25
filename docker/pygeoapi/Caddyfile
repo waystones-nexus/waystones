@@ -15,8 +15,10 @@ http://:5000 {
     # --- Main Application Logic ---
     handle {
         # Private deployment guard: If IS_PRIVATE=1, require X-API-Key header
+        # matching one of the active keys. CADDY_API_KEYS_REGEX is a "|"-joined
+        # alternation of hex keys (e.g. "abc123|def456"); empty = reject all.
         @unauthorized {
-            not header X-API-Key {$CADDY_API_KEY}
+            not header_regexp X-API-Key ^({$CADDY_API_KEYS_REGEX})$
             expression `"{$IS_PRIVATE}" == "1"`
         }
         respond @unauthorized "Unauthorized" 401
