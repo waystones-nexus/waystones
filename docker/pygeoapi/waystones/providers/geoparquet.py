@@ -91,16 +91,35 @@ class GeoParquetDuckDBProvider(BaseProvider):
                     cache_dir = os.path.dirname(cache_path)
                     if cache_dir and not os.path.exists(cache_dir):
                         os.makedirs(cache_dir, exist_ok=True)
-                    conn.execute(f"SET http_metadata_cache = '{cache_path}'")
-                    LOGGER.info(f"Using persistent DuckDB metadata cache: {cache_path}")
+                    
+                    # Try possible parameter names for persistent metadata cache
+                    try:
+                        conn.execute(f"SET http_metadata_cache = '{cache_path}'")
+                    except Exception:
+                        try:
+                            # In some 1.5.x builds this is the persistent file path
+                            conn.execute(f"SET http_metadata_cache_file = '{cache_path}'")
+                            conn.execute("SET enable_http_metadata_cache = true")
+                        except Exception:
+                            # Fallback to general http cache if available
+                            conn.execute(f"SET http_cache_directory = '{cache_dir}'")
+                    
+                    LOGGER.info(f"Initialized persistent DuckDB metadata cache at: {cache_path}")
                 except Exception as e:
-                    LOGGER.warning(f"Failed to set http_metadata_cache: {e}")
+                    LOGGER.warning(f"Failed to initialize metadata cache: {e}")
 
             # DuckDB 1.5+ Native Advantage: Skip spatial for initial handshake
             ddb_version_str = duckdb.__version__
             LOGGER.info(f"DuckDB version: {ddb_version_str}")
             ddb_version = tuple(map(int, ddb_version_str.split('.')[:3]))
             self._is_ddb_15 = ddb_version >= (1, 5, 0)
+
+            # Debug: List settings containing 'cache' or 'http'
+            try:
+                settings = conn.execute("SELECT name, value, description FROM duckdb_settings() WHERE name LIKE '%cache%' OR name LIKE '%metadata%' OR name LIKE '%http%'").fetchall()
+                LOGGER.info(f"Available cache/metadata/http settings: {settings}")
+            except Exception as e:
+                LOGGER.warning(f"Failed to query duckdb_settings: {e}")
 
             # In DuckDB 1.5, we don't need 'spatial' just to read Parquet footers.
             # We'll load it only if we're on an older version or when needed spatial functions.
