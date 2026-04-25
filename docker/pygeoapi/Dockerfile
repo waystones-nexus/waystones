@@ -44,8 +44,10 @@ COPY warmup.py /warmup.py
 COPY cache_openapi.py /cache_openapi.py
 RUN chmod +x /boot.sh
 
-# Copy Caddy configuration
+# Copy Caddy configuration. Caddyfile.tls wraps the base Caddyfile and adds a
+# :443 TLS site; boot.sh picks it when TLS_CERT_FILE is set (SaaS path).
 COPY Caddyfile /etc/caddy/Caddyfile
+COPY Caddyfile.tls /etc/caddy/Caddyfile.tls
 
 # Bake in the Waystones branded Jinja2 HTML templates
 COPY html-templates/ /pygeoapi/local-templates/
