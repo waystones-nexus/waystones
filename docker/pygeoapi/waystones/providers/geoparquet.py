@@ -85,13 +85,13 @@ class GeoParquetDuckDBProvider(BaseProvider):
                 conn.execute("SET enable_http_metadata_cache = true")
                 conn.execute("SET enable_object_cache = true")
 
-                if self.data.startswith('s3://'):
-                    endpoint = (
-                        options.get('r2_endpoint') or
-                        os.environ.get('AWS_ENDPOINT_URL') or
-                        os.environ.get('S3_ENDPOINT') or
-                        os.environ.get('AWS_S3_ENDPOINT', '')
-                    )
+                endpoint = (
+                    options.get('r2_endpoint') or
+                    os.environ.get('AWS_ENDPOINT_URL') or
+                    os.environ.get('S3_ENDPOINT') or
+                    os.environ.get('AWS_S3_ENDPOINT', '')
+                )
+                if endpoint:
                     if '://' in endpoint:
                         endpoint = endpoint.split('://')[-1]
                     endpoint = endpoint.rstrip('/')
