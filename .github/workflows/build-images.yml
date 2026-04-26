@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - unstable
       - "dev"
       - "feature/**"
     tags:
@@ -36,6 +37,8 @@ jobs:
         run: |
           if [[ "${{ github.ref }}" == refs/heads/main ]] || [[ "${{ github.ref }}" == refs/tags/v* ]]; then
             echo "image_repo=waystones-keystone" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == refs/heads/unstable ]]; then
+            echo "image_repo=waystones-shard" >> $GITHUB_OUTPUT
           else
             echo "image_repo=waystones-void" >> $GITHUB_OUTPUT
           fi

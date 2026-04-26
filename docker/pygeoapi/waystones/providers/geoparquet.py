@@ -85,6 +85,10 @@ class GeoParquetDuckDBProvider(BaseProvider):
                 conn.execute("SET enable_http_metadata_cache = true")
                 conn.execute("SET enable_object_cache = true")
 
+                ddb_version_str = duckdb.__version__
+                LOGGER.info(f"DuckDB version: {ddb_version_str}")
+                ddb_version = tuple(map(int, ddb_version_str.split('.')[:3]))
+
                 endpoint = (
                     options.get('r2_endpoint') or
                     os.environ.get('AWS_ENDPOINT_URL') or
@@ -98,16 +102,30 @@ class GeoParquetDuckDBProvider(BaseProvider):
 
                     key = options.get('r2_access_key_id') or os.environ.get('AWS_ACCESS_KEY_ID', '')
                     secret = options.get('r2_secret_access_key') or os.environ.get('AWS_SECRET_ACCESS_KEY', '')
-                    conn.execute(f"SET s3_endpoint='{endpoint}'")
-                    conn.execute(f"SET s3_access_key_id='{key}'")
-                    conn.execute(f"SET s3_secret_access_key='{secret}'")
-                    conn.execute("SET s3_url_style='path'")
-                    conn.execute("SET s3_region='auto'")
-                    conn.execute("SET s3_use_ssl=true")
 
-                ddb_version_str = duckdb.__version__
-                LOGGER.info(f"DuckDB version: {ddb_version_str}")
-                ddb_version = tuple(map(int, ddb_version_str.split('.')[:3]))
+                    if ddb_version >= (1, 5, 0):
+                        # DuckDB 1.5+ credential scope change: SET s3_* only applies to
+                        # connection.execute(), not cursor.execute(). CREATE SECRET applies
+                        # to all execution contexts, including cursors used in query().
+                        conn.execute(f"""
+                            CREATE OR REPLACE SECRET r2_s3_secret (
+                                TYPE S3,
+                                KEY_ID '{key}',
+                                SECRET '{secret}',
+                                ENDPOINT '{endpoint}',
+                                URL_STYLE 'path',
+                                REGION 'auto',
+                                USE_SSL true
+                            )
+                        """)
+                    else:
+                        conn.execute(f"SET s3_endpoint='{endpoint}'")
+                        conn.execute(f"SET s3_access_key_id='{key}'")
+                        conn.execute(f"SET s3_secret_access_key='{secret}'")
+                        conn.execute("SET s3_url_style='path'")
+                        conn.execute("SET s3_region='auto'")
+                        conn.execute("SET s3_use_ssl=true")
+
                 # On <1.5 we need spatial loaded eagerly to even DESCRIBE a GeoParquet file.
                 if ddb_version < (1, 5, 0):
                     conn.execute("LOAD spatial")
