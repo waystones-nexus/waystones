@@ -27,10 +27,14 @@ _DUCK_TO_OGC = {
     'BOOLEAN': 'boolean', 'BOOL': 'boolean',
 }
 
-# Module-level caches — shared across all requests within the same gunicorn worker process.
-# Keyed on the Parquet data URL.
-_CONN_CACHE: dict = {}   # data_url → duckdb connection
-_META_CACHE: dict = {}   # data_url → {geom_col, geom_is_native, source_crs, fields_cache, count_cache, ...}
+# ------------------------------------------------------------------
+# SHARED ENGINE STATE — one DuckDB engine per Gunicorn worker process.
+# All collections share the engine so they share the HTTP keep-alive
+# pool and the in-memory metadata/object caches.
+# ------------------------------------------------------------------
+_SHARED_CONN = None
+_SPATIAL_LOADED = False
+_META_CACHE: dict = {}   # data_url → metadata dict
 _LOCK = threading.Lock()
 
 
@@ -66,81 +70,58 @@ class GeoParquetDuckDBProvider(BaseProvider):
         else:
             self._static_fields = None
 
+        global _SHARED_CONN
+
         with _LOCK:
-            if self.data in _CONN_CACHE and self.data in _META_CACHE:
-                self._conn = _CONN_CACHE[self.data]
-                self._apply_metadata(_META_CACHE[self.data])
-                self._fields = self.get_fields()
-                return
+            if _SHARED_CONN is None:
+                import duckdb
+                LOGGER.info("Booting shared DuckDB engine for worker...")
+                conn = duckdb.connect(':memory:')
 
-            import duckdb
-            conn = duckdb.connect(':memory:')
+                ext_dir = os.environ.get('DUCKDB_EXTENSION_DIRECTORY', '/duckdb-extensions')
+                conn.execute(f"SET extension_directory='{ext_dir}'")
+                conn.execute("LOAD httpfs")
 
-            ext_dir = os.environ.get('DUCKDB_EXTENSION_DIRECTORY', '/duckdb-extensions')
-            conn.execute(f"SET extension_directory='{ext_dir}'")
-            
-            # Must LOAD extensions before setting their specific parameters
-            conn.execute("LOAD httpfs")
+                conn.execute("SET enable_http_metadata_cache = true")
+                conn.execute("SET enable_object_cache = true")
 
-            # Persistent Metadata Cache (Fly.io optimization)
-            cache_path = options.get('http_metadata_cache') or os.environ.get('DUCKDB_HTTP_METADATA_CACHE')
-            if cache_path:
-                try:
-                    cache_dir = os.path.dirname(cache_path)
-                    if cache_dir and not os.path.exists(cache_dir):
-                        os.makedirs(cache_dir, exist_ok=True)
-                    
-                    # Confirmed settings available in DuckDB 1.5.2
-                    conn.execute("SET enable_http_metadata_cache = true")
-                    conn.execute("SET parquet_metadata_cache = true")
-                    
-                    # Point home_directory to the Fly Volume as a best-effort for extension persistence
-                    try:
-                        conn.execute(f"SET home_directory = '{cache_dir}'")
-                    except Exception:
-                        pass
-                    
-                    LOGGER.info(f"Initialized DuckDB metadata cache settings (Home: {cache_dir})")
-                except Exception as e:
-                    LOGGER.warning(f"Failed to initialize metadata cache: {e}")
+                if self.data.startswith('s3://'):
+                    endpoint = (
+                        options.get('r2_endpoint') or
+                        os.environ.get('AWS_ENDPOINT_URL') or
+                        os.environ.get('S3_ENDPOINT') or
+                        os.environ.get('AWS_S3_ENDPOINT', '')
+                    )
+                    if '://' in endpoint:
+                        endpoint = endpoint.split('://')[-1]
+                    endpoint = endpoint.rstrip('/')
 
-            # DuckDB 1.5+ Native Advantage: Skip spatial for initial handshake
-            ddb_version_str = duckdb.__version__
-            LOGGER.info(f"DuckDB version: {ddb_version_str}")
-            ddb_version = tuple(map(int, ddb_version_str.split('.')[:3]))
-            self._is_ddb_15 = ddb_version >= (1, 5, 0)
+                    key = options.get('r2_access_key_id') or os.environ.get('AWS_ACCESS_KEY_ID', '')
+                    secret = options.get('r2_secret_access_key') or os.environ.get('AWS_SECRET_ACCESS_KEY', '')
+                    conn.execute(f"SET s3_endpoint='{endpoint}'")
+                    conn.execute(f"SET s3_access_key_id='{key}'")
+                    conn.execute(f"SET s3_secret_access_key='{secret}'")
+                    conn.execute("SET s3_url_style='path'")
+                    conn.execute("SET s3_region='auto'")
+                    conn.execute("SET s3_use_ssl=true")
 
-            # In DuckDB 1.5, we don't need 'spatial' just to read Parquet footers.
-            # We'll load it only if we're on an older version or when needed spatial functions.
-            if not self._is_ddb_15:
-                conn.execute("LOAD spatial")
+                ddb_version_str = duckdb.__version__
+                LOGGER.info(f"DuckDB version: {ddb_version_str}")
+                ddb_version = tuple(map(int, ddb_version_str.split('.')[:3]))
+                # On <1.5 we need spatial loaded eagerly to even DESCRIBE a GeoParquet file.
+                if ddb_version < (1, 5, 0):
+                    conn.execute("LOAD spatial")
+                    global _SPATIAL_LOADED
+                    _SPATIAL_LOADED = True
 
-            if self.data.startswith('s3://'):
-                endpoint = (
-                    options.get('r2_endpoint') or 
-                    os.environ.get('AWS_ENDPOINT_URL') or 
-                    os.environ.get('S3_ENDPOINT') or
-                    os.environ.get('AWS_S3_ENDPOINT', '')
-                )
-                if '://' in endpoint:
-                    endpoint = endpoint.split('://')[-1]
-                endpoint = endpoint.rstrip('/')
+                _SHARED_CONN = conn
 
-                key = options.get('r2_access_key_id') or os.environ.get('AWS_ACCESS_KEY_ID', '')
-                secret = options.get('r2_secret_access_key') or os.environ.get('AWS_SECRET_ACCESS_KEY', '')
-                conn.execute(f"SET s3_endpoint='{endpoint}'")
-                conn.execute(f"SET s3_access_key_id='{key}'")
-                conn.execute(f"SET s3_secret_access_key='{secret}'")
-                conn.execute("SET s3_url_style='path'")
-                conn.execute("SET s3_region='auto'")
-                conn.execute("SET s3_use_ssl=true")
+            self._conn = _SHARED_CONN
 
-            self._conn = conn
-            meta = self._init_metadata()
+            if self.data not in _META_CACHE:
+                _META_CACHE[self.data] = self._init_metadata()
 
-            _CONN_CACHE[self.data] = conn
-            _META_CACHE[self.data] = meta
-            self._apply_metadata(meta)
+            self._apply_metadata(_META_CACHE[self.data])
             self._fields = self.get_fields()
 
     def _apply_metadata(self, meta: dict):
@@ -149,7 +130,6 @@ class GeoParquetDuckDBProvider(BaseProvider):
         self._source_crs      = meta['source_crs']
         self._fields_cache    = meta['fields_cache']
         self._count_cache     = meta['count_cache']
-        # Metadata flags for spatial pushdown
         self._has_bbox_struct = meta.get('has_bbox_struct', False)
         self._has_bbox_cols   = meta.get('has_bbox_cols', False)
 
@@ -158,15 +138,11 @@ class GeoParquetDuckDBProvider(BaseProvider):
     # ------------------------------------------------------------------
 
     def _init_metadata(self) -> dict:
-        """Fetch all Parquet metadata in two S3 round trips."""
-        
-        # REVERTED OPTIMIZATION 3: Use DESCRIBE to get logical schema columns 
-        # (This prevents None type errors from physical struct/group nodes)
+        """Fetch all Parquet metadata via DESCRIBE (logical schema)."""
         schema = self._conn.execute(
             f"DESCRIBE SELECT * FROM read_parquet('{self.data}')"
         ).fetchall()
 
-        # Round trip 2: GeoParquet geo metadata (primary column + CRS)
         geo_meta: dict = {}
         try:
             row = self._conn.execute(
@@ -177,7 +153,6 @@ class GeoParquetDuckDBProvider(BaseProvider):
         except Exception:
             pass
 
-        # Geometry column name
         primary_col = geo_meta.get('primary_column', '')
         if primary_col:
             geom_col = primary_col
@@ -190,13 +165,11 @@ class GeoParquetDuckDBProvider(BaseProvider):
                 'geometry',
             )
 
-        # Is geometry a native DuckDB GEOMETRY (decoded from GeoParquet), or raw WKB BLOB?
         geom_is_native = any(
             name == geom_col and dtype and dtype.upper().startswith('GEOMETRY')
             for name, dtype, *_ in schema
         )
 
-        # Source CRS — None means WGS84 / no transform needed
         source_crs = None
         col_crs = geo_meta.get('columns', {}).get(geom_col, {}).get('crs')
         if col_crs is not None:
@@ -209,12 +182,10 @@ class GeoParquetDuckDBProvider(BaseProvider):
                 if tag not in ('EPSG:4326', 'OGC:CRS84'):
                     source_crs = tag
 
-        # OPTIMIZATION 1: Safely check for bounding box columns
         schema_names = [name.lower() for name, *_ in schema]
         has_bbox_struct = 'bbox' in schema_names
         has_bbox_cols = all(c in schema_names for c in ['bbox_xmin', 'bbox_ymin', 'bbox_xmax', 'bbox_ymax'])
 
-        # Fields (exclude geometry + ogc_fid + bounding box columns)
         exclude_fields = {geom_col.lower(), 'ogc_fid', 'bbox', 'bbox_xmin', 'bbox_ymin', 'bbox_xmax', 'bbox_ymax'}
         fields_cache = {
             name: {'type': _ogc_type(dtype), 'title': name}
@@ -237,13 +208,16 @@ class GeoParquetDuckDBProvider(BaseProvider):
     # ------------------------------------------------------------------
 
     def _ensure_spatial(self):
-        """Lazy load spatial extension if not already loaded (for DuckDB 1.5 optimization)."""
-        try:
-            # We check for a common spatial function to see if it's loaded
-            self._conn.execute("SELECT ST_AsGeoJSON(NULL)")
-        except Exception:
+        """Lazy-load spatial extension once per worker (DuckDB 1.5 optimization)."""
+        global _SPATIAL_LOADED
+        if _SPATIAL_LOADED:
+            return
+        with _LOCK:
+            if _SPATIAL_LOADED:
+                return
             LOGGER.info("Lazy loading spatial extension...")
             self._conn.execute("LOAD spatial")
+            _SPATIAL_LOADED = True
 
     def _geom_to_json(self) -> str:
         self._ensure_spatial()
@@ -269,42 +243,32 @@ class GeoParquetDuckDBProvider(BaseProvider):
         params: list = []
         if len(bbox) == 4:
             minx, miny, maxx, maxy = bbox
-            
-            # OPTIMIZATION: Parquet row group pruning
-            # Instantly drops chunks outside the bounding box using native numeric columns
-            if getattr(self, '_has_bbox_struct', False):
+
+            # Parquet row-group pruning on raw numeric bbox columns: this is what
+            # actually skips chunk downloads on R2. Must precede ST_Intersects.
+            if self._has_bbox_struct:
                 clauses.append("bbox.xmin <= ? AND bbox.xmax >= ? AND bbox.ymin <= ? AND bbox.ymax >= ?")
                 params.extend([maxx, minx, maxy, miny])
-            elif getattr(self, '_has_bbox_cols', False):
+            elif self._has_bbox_cols:
                 clauses.append("bbox_xmin <= ? AND bbox_xmax >= ? AND bbox_ymin <= ? AND bbox_ymax >= ?")
                 params.extend([maxx, minx, maxy, miny])
 
-            # Exact spatial intersection (filters the surviving features precisely)
-            poly_wkt = f"POLYGON(({minx} {miny}, {maxx} {miny}, {maxx} {maxy}, {minx} {maxy}, {minx} {miny}))"
-            clauses.append(f"ST_Intersects({self._geom_for_filter()}, ST_GeomFromText(?))")
-            params.append(poly_wkt)
+            # ST_MakeEnvelope is the optimized envelope path. Do NOT replace with a
+            # WKT POLYGON via ST_GeomFromText — that defeats the bbox shortcut.
+            clauses.append(f"ST_Intersects({self._geom_for_filter()}, ST_MakeEnvelope(?, ?, ?, ?))")
+            params.extend([minx, miny, maxx, maxy])
 
-        # OGC API Part 1: Basic exact-match properties
         for name, value in (properties or []):
             clauses.append(f'"{name}" = ?')
             params.append(value)
 
-        # OGC API Part 3: CQL2 filter
         if filterq is not None:
             if to_sql_where is not None:
-                # Map fields natively first so pygeofilter doesn't over-quote our SQL functions
                 field_mapping = {f: f for f in self.get_fields().keys()}
-                
                 try:
-                    # Generate the base SQL (e.g., "osm_id" < 5)
+                    # Pass through as-is. Wrapping columns in TRY_CAST blinds Parquet
+                    # row-group statistics and forces full-file scans.
                     cql_sql = to_sql_where(filterq, field_mapping)
-                    
-                    # Post-process the SQL string to inject DuckDB TRY_CAST for numeric fields
-                    for f, info in self.get_fields().items():
-                        if info.get('type') in ('number', 'integer'):
-                            # Replace the quoted identifier with the casted identifier
-                            cql_sql = cql_sql.replace(f'"{f}"', f'TRY_CAST("{f}" AS DOUBLE)')
-                            
                     clauses.append(f"({cql_sql})")
                 except Exception as e:
                     LOGGER.error(f"Failed to compile CQL2 to SQL: {e}")
@@ -316,7 +280,8 @@ class GeoParquetDuckDBProvider(BaseProvider):
     def _count(self, where: str, params: list) -> int:
         cache_key = f"{where}|{params}"
         if cache_key not in self._count_cache:
-            row = self._conn.execute(
+            cur = self._conn.cursor()
+            row = cur.execute(
                 f"SELECT COUNT(*) FROM read_parquet('{self.data}') {where}", params
             ).fetchone()
             self._count_cache[cache_key] = int(row[0]) if row else 0
@@ -329,8 +294,8 @@ class GeoParquetDuckDBProvider(BaseProvider):
             col_names.insert(0, f'"{self.id_field}"')
         return ', '.join(col_names)
 
-    def _row_to_feature(self, row: tuple) -> dict:
-        cols = [d[0] for d in (self._conn.description or [])]
+    def _row_to_feature(self, cur, row: tuple) -> dict:
+        cols = [d[0] for d in (cur.description or [])]
         geom_idx = next((i for i, c in enumerate(cols) if c == '__geom_json'), None)
         id_idx   = cols.index(self.id_field)
         _exclude = {self._geom_col, '__geom_json', self.id_field, 'ogc_fid', 'OGC_FID'}
@@ -368,8 +333,8 @@ class GeoParquetDuckDBProvider(BaseProvider):
         return self._fields_cache
 
     def get(self, identifier, **kwargs):
-        # OPTIMIZATION 2: Replaced SELECT * with dynamic selection
-        row = self._conn.execute(
+        cur = self._conn.cursor()
+        row = cur.execute(
             f"""
             SELECT {self._get_select_clause()}, {self._geom_to_json()} AS __geom_json
             FROM read_parquet('{self.data}')
@@ -380,7 +345,7 @@ class GeoParquetDuckDBProvider(BaseProvider):
         ).fetchone()
         if not row:
             raise ProviderItemNotFoundError()
-        return self._row_to_feature(row)
+        return self._row_to_feature(cur, row)
 
     def query(self, offset=0, limit=10, resulttype='results',
               bbox=[], properties=[], skip_geometry=False, filterq=None, **kwargs):
@@ -396,9 +361,9 @@ class GeoParquetDuckDBProvider(BaseProvider):
             }
 
         geom_expr = 'NULL AS __geom_json' if skip_geometry else f'{self._geom_to_json()} AS __geom_json'
-        
-        # OPTIMIZATION 2: Replaced SELECT * with dynamic selection
-        rows = self._conn.execute(
+
+        cur = self._conn.cursor()
+        rows = cur.execute(
             f"""
             SELECT {self._get_select_clause()}, {geom_expr}
             FROM read_parquet('{self.data}')
@@ -411,7 +376,7 @@ class GeoParquetDuckDBProvider(BaseProvider):
 
         return {
             'type': 'FeatureCollection',
-            'features': [self._row_to_feature(r) for r in rows],
+            'features': [self._row_to_feature(cur, r) for r in rows],
             'numberMatched': number_matched,
             'numberReturned': len(rows),
         }

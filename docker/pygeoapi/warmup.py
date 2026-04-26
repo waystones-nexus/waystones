@@ -81,13 +81,13 @@ def main():
         print('[warmup] No GeoParquet collections found', flush=True)
         return
 
-    # Sequential warmup (max_workers=1): fire one request at a time so workers
-    # initialize serially. DuckDB extension .so files are already in the OS page
-    # cache (pre-loaded by boot.sh), so Worker 2's spatial load is fast after
-    # Worker 1 completes. Avoids concurrent R2 fetches fighting the single core.
+    # Concurrent warmup: fan out requests so Gunicorn is forced to wake every
+    # worker simultaneously. With sequential warmup Gunicorn routes everything
+    # to Worker 1 (fastest-idle wins), leaving Workers 2..N cold for live
+    # traffic. Each worker boots its shared DuckDB engine exactly once.
     all_targets = collections * WORKERS
-    print(f'[warmup] Warming {len(collections)} collection(s) × {WORKERS} workers (sequential)...', flush=True)
-    with ThreadPoolExecutor(max_workers=1) as executor:
+    print(f'[warmup] Warming {len(collections)} collection(s) × {WORKERS} workers (concurrent)...', flush=True)
+    with ThreadPoolExecutor(max_workers=WORKERS) as executor:
         list(executor.map(warm_collection, all_targets))
 
     print('[warmup] Done.', flush=True)
