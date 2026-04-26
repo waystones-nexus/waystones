@@ -100,21 +100,10 @@ else
     echo "[startup] Warning: No pygeoapi config found at $PYGEOAPI_CONFIG"
 fi
 
-# ─── Pre-load DuckDB Extensions ───────────────────────────────────────────
-# Load httpfs + spatial into a throw-away connection so both .so files enter the
-# OS page cache before Gunicorn workers fork. Workers then load from memory
-# instead of cold disk, eliminating the concurrent I/O spike during warmup.
-echo "[startup] Pre-loading DuckDB extensions..."
-python3 -c "
-import duckdb, os
-c = duckdb.connect(':memory:')
-c.execute(\"SET extension_directory='\" + os.environ.get('DUCKDB_EXTENSION_DIRECTORY', '/duckdb-extensions') + \"'\")
-c.execute('LOAD httpfs')
-c.execute('LOAD spatial')
-c.close()
-" 2>/dev/null || true
-
 # ─── Start Gunicorn ───────────────────────────────────────────────────────
+# DuckDB extensions are loaded lazily by the provider on first use, and
+# warmup.py pulls them into the OS page cache after Gunicorn is bound.
+# Pre-loading here would block port 5001 and fail Fly health checks.
 echo "[startup] Starting Gunicorn on port ${CONTAINER_PORT}..."
 exec gunicorn \
     --workers "${CONTAINER_WORKERS:-2}" \
