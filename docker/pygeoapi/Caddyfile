@@ -17,11 +17,18 @@ http://:5000 {
         # Private deployment guard: If IS_PRIVATE=1, require X-API-Key header
         # matching one of the active keys. CADDY_API_KEYS_REGEX is a "|"-joined
         # alternation of hex keys (e.g. "abc123|def456"); empty = reject all.
-        @unauthorized {
-            not header_regexp X-API-Key ^({$CADDY_API_KEYS_REGEX})$
-            expression `"{$IS_PRIVATE}" == "1"`
+        @isPrivate expression `"{$IS_PRIVATE}" == "1"`
+        @missingKey {
+            match @isPrivate
+            not header X-API-Key *
         }
-        respond @unauthorized "Unauthorized" 401
+        @wrongKey {
+            match @isPrivate
+            header X-API-Key *
+            not header_regexp X-API-Key ^({$CADDY_API_KEYS_REGEX})$
+        }
+        respond @missingKey "Unauthorized" 401
+        respond @wrongKey "Unauthorized" 401
 
         # Private deployments must never be cached by Cloudflare or any CDN.
         # Overrides pygeoapi's own Cache-Control header on the way out.
