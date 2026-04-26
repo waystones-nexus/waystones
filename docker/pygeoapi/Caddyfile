@@ -14,27 +14,27 @@ http://:5000 {
 
     # --- Main Application Logic ---
     handle {
-        # Private deployment guard: when IS_PRIVATE=1, require X-API-Key matching
-        # one of the active keys. CADDY_API_KEYS_REGEX is a "|"-joined alternation
-        # of hex keys; "__no_active_keys__" sentinel means "reject all".
-        # Split into "missing header" and "wrong header" cases — each named matcher
-        # block AND's its own lines, avoiding the composition bug seen when mixing
-        # `expression` with `not header_regexp` in one block.
+        # Private deployment guard: require X-API-Key unless IS_PRIVATE is explicitly
+        # "0" (public). Fail-closed: missing or wrong IS_PRIVATE denies access.
+        # CADDY_API_KEYS_REGEX is a "|"-joined alternation of hex keys;
+        # "__no_active_keys__" sentinel rejects all keys until one is created.
+        # Split into "missing header" and "wrong header" matchers — each AND's its
+        # own lines, avoiding the composition bug with `expression` + `not header_regexp`.
         @privateNoHeader {
-            expression `"{$IS_PRIVATE}" == "1"`
+            not expression `"{$IS_PRIVATE}" == "0"`
             not header X-API-Key *
         }
         @privateBadHeader {
-            expression `"{$IS_PRIVATE}" == "1"`
+            not expression `"{$IS_PRIVATE}" == "0"`
             header X-API-Key *
             not header_regexp X-API-Key ^({$CADDY_API_KEYS_REGEX})$
         }
         respond @privateNoHeader "Unauthorized" 401
         respond @privateBadHeader "Unauthorized" 401
 
-        # Private deployments must never be cached by Cloudflare or any CDN.
+        # Non-public deployments must never be cached by Cloudflare or any CDN.
         # Overrides pygeoapi's own Cache-Control header on the way out.
-        @private expression `"{$IS_PRIVATE}" == "1"`
+        @private not expression `"{$IS_PRIVATE}" == "0"`
         header @private Cache-Control "no-store"
 
         # WMS via QGIS Server (only if DEPLOY_QGIS=1)
