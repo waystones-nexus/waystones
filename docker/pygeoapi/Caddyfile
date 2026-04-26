@@ -13,7 +13,7 @@ http://:5000 {
     }
 
     # --- Main Application Logic ---
-    handle {
+    route {
         # Private deployment guard: require X-API-Key unless IS_PRIVATE is explicitly
         # "0" (public). Fail-closed: missing or wrong IS_PRIVATE denies access.
         # CADDY_API_KEYS_REGEX is a "|"-joined alternation of hex keys;
