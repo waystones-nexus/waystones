@@ -24,6 +24,18 @@ export default defineConfig(({ mode }) => {
       },
       plugins: [
         react(),
+        {
+          name: 'robots-meta',
+          transformIndexHtml(html) {
+            if (env.HIDE_FROM_GOOGLE === 'true') {
+              return html.replace(
+                '<head>',
+                '<head>\n    <meta name="robots" content="noindex, nofollow">'
+              );
+            }
+            return html;
+          }
+        },
         // Dev-only: handle /api/github-oauth token exchange server-side so the secret never reaches the browser
         {
           name: 'github-oauth-dev',
