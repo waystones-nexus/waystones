@@ -281,7 +281,7 @@ const Header: React.FC<{
 
         <div className="flex items-center gap-1 md:gap-2">
           <a
-            href="https://github.com/henrik716/waystones"
+            href="https://github.com/waystones-nexus/waystones"
             target="_blank"
             rel="noopener noreferrer"
             title="GitHub - View Source Code"

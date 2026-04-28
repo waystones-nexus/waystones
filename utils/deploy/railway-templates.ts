@@ -13,7 +13,7 @@ export function generateDockerfile(isGpkg: boolean, gpkgFilename?: string): stri
         cp /tmp/build-context/data/${gpkgFilename} /input/data.gpkg; \\
     fi` : '';
 
-  return `FROM ghcr.io/henrik716/waystones-keystone:pygeoapi-latest
+  return `FROM ghcr.io/waystones-nexus/waystones-keystone:pygeoapi-latest
 
 USER root
 
@@ -68,7 +68,7 @@ ENTRYPOINT ["/railway-boot.sh"]
 }
 
 
-export const dockerfileQgis = `FROM ghcr.io/henrik716/waystones-keystone:qgis-latest
+export const dockerfileQgis = `FROM ghcr.io/waystones-nexus/waystones-keystone:qgis-latest
 
 USER root
 

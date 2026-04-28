@@ -80,7 +80,7 @@ export function generateBaseHtml(brand: string, brandDark: string, title: string
   <footer class="gf-footer">
     <div class="container d-flex justify-content-between align-items-center flex-wrap gap-3">
       <span>Powered by <a href="https://pygeoapi.io" class="fw-bold">pygeoapi</a> {{ version }}</span>
-      <a href="https://github.com/henrik716/waystones" style="color:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:0.4rem;font-weight:500;transition:opacity 0.2s;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
+      <a href="https://github.com/waystones-nexus/waystones" style="color:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:0.4rem;font-weight:500;transition:opacity 0.2s;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
         <span style="display:inline-flex;width:24px;height:24px;">
           ${WAYSTONES_LOGO_SVG}
         </span>

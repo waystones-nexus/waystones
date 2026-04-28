@@ -25,7 +25,7 @@ const renderHeader = (ctx: RenderContext): string => {
   let md = `<div align="center">\n`;
   md += `<h1>${model.name}</h1>\n\n`;
   md += `**${s.deployKit} — ${targetLabel}**\n\n`;
-  md += `[![Waystones](https://img.shields.io/badge/Powered%20by-Waystones-blueviolet)](https://github.com/henrik716/waystones)\n`;
+  md += `[![Waystones](https://img.shields.io/badge/Powered%20by-Waystones-blueviolet)](https://github.com/waystones-nexus/waystones)\n`;
   md += `[![OGC](https://img.shields.io/badge/Standards-OGC%20API-blue)](https://ogcapi.ogc.org)\n`;
   md += `[![Docker](https://img.shields.io/badge/Container-Docker-2496ed?logo=docker)](https://www.docker.com)\n`;
   md += `</div>\n\n---\n\n`;

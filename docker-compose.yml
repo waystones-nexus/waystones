@@ -1,6 +1,6 @@
 services:
   pygeoapi:
-    image: ghcr.io/henrik716/waystones-keystone:pygeoapi-latest
+    image: ghcr.io/waystones-nexus/waystones-keystone:pygeoapi-latest
     ports:
       - "5000:5000"
     environment:
@@ -14,7 +14,7 @@ services:
       # - ./data:/data:ro
 
   qgis:
-    image: ghcr.io/henrik716/waystones-keystone:qgis-latest
+    image: ghcr.io/waystones-nexus/waystones-keystone:qgis-latest
     ports:
       - "8080:80"
     environment:
