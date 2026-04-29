@@ -1,0 +1,16 @@
+{
+  "short_name": "Waystones",
+  "name": "Waystones | FROM DATA TO SERVICE",
+  "description": "Open-source spatial data engine for design and publishing.",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#6366F1",
+  "background_color": "#F8FAFC"
+}
