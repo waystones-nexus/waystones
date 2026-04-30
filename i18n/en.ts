@@ -448,7 +448,11 @@ export const en = {
       'docker-composeDesc': "Run on your own server with Docker. Full control, requires SSH.",
       'railway': "Railway",
       'railwayDesc': "Connect your GitHub repo and deploy with one click. Zero configuration.",
+      'waystones-cloud': "Waystones Cloud",
+      'waystones-cloudDesc': "Fully managed hosting. Opens in a new tab — no GitHub required.",
     },
+    cloudHandoffDesc: "Your model will be sent to Waystones Cloud where you can configure hosting, access controls, and deployment.",
+    cloudHandoffBtn: "Open in Waystones Cloud",
     // Shared
     kitTitle: "Deploy configuration for",
     readyToGenerate: "Ready to publish",

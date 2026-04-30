@@ -448,7 +448,11 @@ export const no = {
       'docker-composeDesc': "Kjør på egen server med Docker. Full kontroll, krever SSH-tilgang.",
       'railway': "Railway",
       'railwayDesc': "Koble GitHub-repo og deploy med ett klikk. Null konfigurasjon.",
+      'waystones-cloud': "Waystones Cloud",
+      'waystones-cloudDesc': "Fullt administrert hosting. Åpnes i ny fane — ingen GitHub nødvendig.",
     },
+    cloudHandoffDesc: "Modellen din sendes til Waystones Cloud, der du kan konfigurere hosting, tilgangsstyring og publisering.",
+    cloudHandoffBtn: "Åpne i Waystones Cloud",
     // Shared
     kitTitle: "Deploy-konfigurasjon for",
     readyToGenerate: "Klar til å publisere",

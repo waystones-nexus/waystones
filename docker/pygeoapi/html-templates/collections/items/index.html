@@ -104,6 +104,7 @@
       Filter
     </button>
     <a href="?f=json" class="btn btn-json">JSON</a>
+    <a href="{{ config.server.url }}/collections/{{ data.id }}/schema" class="btn btn-json">Schema</a>
   </div>
 </div>
 
@@ -409,12 +410,28 @@
         });
     };
 
+    function buildValueWidget(attr, op, val) {
+      var noValOps = { 'IS NULL': true, 'IS NOT NULL': true };
+      var q = window.GF.queryables[attr] || {};
+      if (noValOps[op]) {
+        return '<div class="filter-row-val" style="display:none"><input type="text" class="qf-val"></div>';
+      }
+      if (q.enum && Array.isArray(q.enum) && q.enum.length > 0) {
+        var opts = q.enum.map(function(v) {
+          return '<option value="' + v + '"' + (String(val) === String(v) ? ' selected' : '') + '>' + v + '</option>';
+        }).join('');
+        return '<div class="filter-row-val"><label>Value</label><select class="qf-val">' + opts + '</select></div>';
+      }
+      var placeholder = op === 'BETWEEN' ? 'min, max' : (op === 'IN' || op === 'NOT IN') ? 'val1, val2, …' : 'Value...';
+      return '<div class="filter-row-val"><label>Value</label><input type="text" class="qf-val" value="' + (val || '') + '" placeholder="' + placeholder + '"></div>';
+    }
+
     window.GF.addRow = function(data) {
       data = data || { attr: '', op: '=', val: '' };
       var list = document.getElementById('filter-list');
       var row = document.createElement('div');
       row.className = 'filter-row';
-      
+
       var attrOptions = Object.keys(window.GF.queryables).map(function(key) {
         var q = window.GF.queryables[key];
         return '<option value="' + key + '"' + (data.attr === key ? ' selected' : '') + '>' + (q.title || key) + '</option>';
@@ -424,19 +441,16 @@
       var opOptions = ops.map(function(o) {
         return '<option value="' + o + '"' + (data.op === o ? ' selected' : '') + '>' + o + '</option>';
       }).join('');
-      // Hide value input for IS NULL / IS NOT NULL
-      var noValOps = { 'IS NULL': true, 'IS NOT NULL': true };
 
-      var valPlaceholder = data.op === 'BETWEEN' ? 'min, max' : data.op === 'IN' || data.op === 'NOT IN' ? 'val1, val2, …' : 'Value...';
-      var valHidden = noValOps[data.op] ? ' style="display:none"' : '';
+      var selectedAttr = data.attr || Object.keys(window.GF.queryables)[0] || '';
 
       row.innerHTML =
-        '<div class="filter-row-field"><label>Attribute</label><select class="qf-attr">' + attrOptions + '</select></div>' +
+        '<div class="filter-row-field"><label>Attribute</label><select class="qf-attr" onchange="GF.onAttrChange(this)">' + attrOptions + '</select></div>' +
         '<div class="filter-row-op"><label>Op</label><select class="qf-op" onchange="GF.onOpChange(this)">' + opOptions + '</select></div>' +
-        '<div class="filter-row-val"' + valHidden + '><label>Value</label><input type="text" class="qf-val" value="' + (data.val || '') + '" placeholder="' + valPlaceholder + '"></div>' +
+        buildValueWidget(selectedAttr, data.op, data.val) +
         '<button class="btn-remove-row" title="Remove" onclick="this.parentElement.remove(); GF.updateFilterCount();">' +
         '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
-      
+
       list.appendChild(row);
       window.GF.updateFilterCount();
     };
@@ -512,19 +526,28 @@
     };
 
     window.GF.onOpChange = function(select) {
-      var noValOps = { 'IS NULL': true, 'IS NOT NULL': true };
-      var op = select.value;
       var row = select.closest('.filter-row');
-      var valDiv = row ? row.querySelector('.filter-row-val') : null;
-      var valInput = row ? row.querySelector('.qf-val') : null;
-      if (!valDiv) return;
-      if (noValOps[op]) {
-        valDiv.style.display = 'none';
-      } else {
-        valDiv.style.display = '';
-        if (valInput) {
-          valInput.placeholder = op === 'BETWEEN' ? 'min, max' : (op === 'IN' || op === 'NOT IN') ? 'val1, val2, \u2026' : 'Value...';
-        }
+      if (!row) return;
+      var attr = (row.querySelector('.qf-attr') || {}).value || '';
+      var curVal = (row.querySelector('.qf-val') || {}).value || '';
+      var valDiv = row.querySelector('.filter-row-val');
+      if (valDiv) {
+        var tmp = document.createElement('div');
+        tmp.innerHTML = buildValueWidget(attr, select.value, curVal);
+        valDiv.replaceWith(tmp.firstChild);
+      }
+      window.GF.updateFilterCount();
+    };
+
+    window.GF.onAttrChange = function(select) {
+      var row = select.closest('.filter-row');
+      if (!row) return;
+      var op = (row.querySelector('.qf-op') || {}).value || '=';
+      var valDiv = row.querySelector('.filter-row-val');
+      if (valDiv) {
+        var tmp = document.createElement('div');
+        tmp.innerHTML = buildValueWidget(select.value, op, '');
+        valDiv.replaceWith(tmp.firstChild);
       }
       window.GF.updateFilterCount();
     };

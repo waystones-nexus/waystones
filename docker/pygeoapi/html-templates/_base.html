@@ -195,12 +195,25 @@
     }
 
   </style>
+  {% if config.get('branding') %}
+  <style>
+    :root {
+      --brand: {{ config.branding.color }};
+      --brand-dark: {{ config.branding.color_dark }};
+      --brand-light: {{ config.branding.color_light }};
+      --brand-border: {{ config.branding.color_border }};
+    }
+  </style>
+  {% endif %}
   {% block extrahead %}{% endblock %}
 </head>
 <body>
   <nav class="navbar navbar-expand-md navbar-light">
     <div class="container">
       <a class="navbar-brand" href="{{ config.server.url }}">
+        {% if config.get('branding') and config.branding.get('logo_url') %}
+        <img src="{{ config.branding.logo_url }}" width="32" height="32" style="object-fit:contain;border-radius:8px;flex-shrink:0" class="me-2" alt="">
+        {% else %}
         <span style="display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;flex-shrink:0" class="me-2">
           
 <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 200 200">
@@ -280,6 +293,7 @@
 </svg>
 
         </span>
+        {% endif %}
         {{ config.metadata.identification.title }}
       </a>
       <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">

@@ -7,6 +7,7 @@ import {
 import { DataModel, ModelMetadata, DeployTarget, SourceConnection, LayerSourceMapping } from '../../types';
 import { InferredDataSummary } from '../../utils/importUtils';
 import { generateDeployFiles, exportDeployKit } from '../../utils/deployUtils';
+import { scrubModelForExport } from '../../utils/modelUtils';
 import { pushDeployKit, checkRepoAccess, DeployPushResult } from '../../utils/githubService';
 import GitHubAuth from '../GitHubAuth';
 import GitHubRepoBrowser from '../GitHubRepoBrowser';
@@ -193,6 +194,14 @@ const PublishStep: React.FC<PublishStepProps> = ({ model, summary, selectedLayer
     await exportDeployKit(publishModel, source, lang, deployTarget, binaryFilesForZip);
   };
 
+  const handleOpenCloud = () => {
+    const publishModel = buildPublishModel(model, selectedLayers);
+    const scrubbed = scrubModelForExport(publishModel);
+    const encoded = btoa(JSON.stringify(scrubbed));
+    const base = (import.meta as any).env?.VITE_WAYSTONES_CLOUD_URL ?? 'https://waystones.cloud';
+    window.open(`${base}/projects/new?model=${encoded}`, '_blank', 'noopener');
+  };
+
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-400">
       <div className="space-y-2">
@@ -271,11 +280,63 @@ const PublishStep: React.FC<PublishStepProps> = ({ model, summary, selectedLayer
             );
           })}
 
+          {/* Waystones Cloud — full-width row */}
+          {(() => {
+            const isActive = deployTarget === 'waystones-cloud';
+            return (
+              <button
+                onClick={() => setDeployTarget('waystones-cloud')}
+                className={`sm:col-span-2 flex items-center gap-4 p-4 rounded-2xl border-2 text-left transition-all ${
+                  isActive
+                    ? 'bg-white border-teal-400 shadow-md shadow-teal-50'
+                    : 'bg-slate-50 border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors overflow-hidden ${
+                  isActive ? 'bg-teal-50' : 'bg-slate-100'
+                }`}>
+                  <img
+                    src="/favicon.svg"
+                    alt=""
+                    className={`w-6 h-6 transition-all ${isActive ? 'grayscale-0 opacity-100' : 'grayscale opacity-40'}`}
+                  />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-black text-slate-900">{d.targets?.['waystones-cloud']}</p>
+                    <span className="px-1.5 py-0.5 rounded-md bg-teal-100 text-teal-700 text-[9px] font-black uppercase tracking-widest">Managed</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400 font-medium mt-0.5 leading-relaxed">{d.targets?.['waystones-cloudDesc']}</p>
+                </div>
+                <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
+                  isActive ? 'bg-teal-500 border-teal-500' : 'border-slate-300'
+                }`}>
+                  {isActive && <Check size={12} strokeWidth={3} className="text-white" />}
+                </div>
+              </button>
+            );
+          })()}
         </div>
       </div>
 
+      {/* Waystones Cloud action */}
+      {deployTarget === 'waystones-cloud' && (
+        <div className="p-5 bg-gradient-to-r from-teal-50 to-emerald-50 border-2 border-teal-200 rounded-2xl space-y-4">
+          <p className="text-sm text-teal-800 font-medium leading-relaxed">
+            {d.cloudHandoffDesc}
+          </p>
+          <button
+            type="button"
+            onClick={handleOpenCloud}
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-teal-600 hover:bg-teal-500 text-white font-black text-xs uppercase tracking-[0.15em] active:scale-95 transition-all shadow-lg shadow-teal-100 outline-none focus:ring-4 focus:ring-teal-500/20"
+          >
+            <ExternalLink size={14} /> {d.cloudHandoffBtn}
+          </button>
+        </div>
+      )}
+
       {/* GitHub config */}
-      <div className="space-y-4">
+      {deployTarget !== 'waystones-cloud' && <div className="space-y-4">
         {/* OAuth Authentication - Much more prominent */}
         <div className="space-y-4">
           {!useOAuth ? (
@@ -382,15 +443,15 @@ const PublishStep: React.FC<PublishStepProps> = ({ model, summary, selectedLayer
           <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{d.githubBasePath}</label>
           <input value={ghBasePath} onChange={e => setGhBasePath(e.target.value)} placeholder={d.githubBasePathPlaceholder} className="w-full bg-white border-2 border-slate-200 rounded-2xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-400 transition-all" />
         </div>
-      </div>
+      </div>}
 
       {/* Repo access info */}
-      {repoCheckStatus === 'checking' && (
+      {deployTarget !== 'waystones-cloud' && repoCheckStatus === 'checking' && (
         <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-slate-100 text-xs font-bold text-slate-500">
           <RefreshCw size={14} className="animate-spin" /> {d.repoChecking}
         </div>
       )}
-      {repoCheckStatus === 'done' && repoAccess && (
+      {deployTarget !== 'waystones-cloud' && repoCheckStatus === 'done' && repoAccess && (
         <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold ${
           willCreatePR ? 'bg-amber-50 text-amber-700 border border-amber-200' : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
         }`}>
@@ -398,14 +459,14 @@ const PublishStep: React.FC<PublishStepProps> = ({ model, summary, selectedLayer
           {willCreatePR ? d.repoAccessPR?.replace('{owner}', repoAccess.ownerLogin) : d.repoAccessDirect?.replace('{branch}', ghBranch)}
         </div>
       )}
-      {repoCheckStatus === 'error' && (
+      {deployTarget !== 'waystones-cloud' && repoCheckStatus === 'error' && (
         <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-red-50 text-xs font-bold text-red-600 border border-red-200">
           <Info size={14} /> {d.repoAccessError}
         </div>
       )}
 
       {/* Publish result */}
-      {publishStatus === 'success' && publishResult?.success && (
+      {deployTarget !== 'waystones-cloud' && publishStatus === 'success' && publishResult?.success && (
         <div className="p-6 bg-indigo-50 border border-indigo-200 rounded-2xl space-y-4 animate-in zoom-in-95 duration-500">
           <div className="flex items-center gap-2 text-indigo-700">
             <Check size={20} strokeWidth={3} />
@@ -426,7 +487,7 @@ const PublishStep: React.FC<PublishStepProps> = ({ model, summary, selectedLayer
           )}
         </div>
       )}
-      {publishStatus === 'error' && (
+      {deployTarget !== 'waystones-cloud' && publishStatus === 'error' && (
         <div className="p-6 bg-red-50 border border-red-200 rounded-2xl space-y-2">
           <span className="text-sm font-black text-red-700">{d.publishError}</span>
           <p className="text-xs text-red-500 font-mono">{publishResult?.error}</p>
@@ -434,7 +495,7 @@ const PublishStep: React.FC<PublishStepProps> = ({ model, summary, selectedLayer
       )}
 
       {/* Include data toggle */}
-      {dataBlob && (
+      {deployTarget !== 'waystones-cloud' && dataBlob && (
         <div className={`p-5 rounded-2xl border-2 transition-all ${includeData ? 'bg-amber-50 border-amber-300' : 'bg-slate-50 border-slate-200'}`}>
           <label className="flex items-start gap-4 cursor-pointer">
             <input
@@ -476,30 +537,32 @@ const PublishStep: React.FC<PublishStepProps> = ({ model, summary, selectedLayer
             {q.back}
           </button>
         )}
-        <div className="flex items-center gap-3">
-          <button 
-            type="button"
-            onClick={handleDownloadZip} 
-            className="px-4 py-3 rounded-2xl border-2 border-slate-200 text-slate-400 font-black text-[10px] uppercase tracking-widest hover:text-slate-600 active:scale-95 transition-all flex items-center gap-2 outline-none focus:ring-4 focus:ring-slate-500/10"
-          >
-            <Download size={14} /> {d.downloadZip}
-          </button>
-          <button
-            id={`${idPrefix}-publish-button`}
-            type="button"
-            onClick={handlePublish}
-            disabled={!ghRepo || !getEffectiveToken() || publishStatus === 'loading'}
-            className="px-8 py-3.5 rounded-2xl bg-indigo-600 text-white font-black text-xs uppercase tracking-[0.15em] hover:bg-indigo-500 active:scale-95 transition-all shadow-lg shadow-indigo-200 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 outline-none focus:ring-4 focus:ring-indigo-500/20"
-          >
-            {publishStatus === 'loading' ? (
-              <React.Fragment><RefreshCw size={16} className="animate-spin" /> {d.publishing}</React.Fragment>
-            ) : publishStatus === 'success' ? (
-              <React.Fragment><Check size={16} strokeWidth={3} /> {d.publishSuccess}</React.Fragment>
-            ) : (
-              <React.Fragment><Github size={16} /> {d.publishBtn}</React.Fragment>
-            )}
-          </button>
-        </div>
+        {deployTarget !== 'waystones-cloud' && (
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleDownloadZip}
+              className="px-4 py-3 rounded-2xl border-2 border-slate-200 text-slate-400 font-black text-[10px] uppercase tracking-widest hover:text-slate-600 active:scale-95 transition-all flex items-center gap-2 outline-none focus:ring-4 focus:ring-slate-500/10"
+            >
+              <Download size={14} /> {d.downloadZip}
+            </button>
+            <button
+              id={`${idPrefix}-publish-button`}
+              type="button"
+              onClick={handlePublish}
+              disabled={!ghRepo || !getEffectiveToken() || publishStatus === 'loading'}
+              className="px-8 py-3.5 rounded-2xl bg-indigo-600 text-white font-black text-xs uppercase tracking-[0.15em] hover:bg-indigo-500 active:scale-95 transition-all shadow-lg shadow-indigo-200 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 outline-none focus:ring-4 focus:ring-indigo-500/20"
+            >
+              {publishStatus === 'loading' ? (
+                <React.Fragment><RefreshCw size={16} className="animate-spin" /> {d.publishing}</React.Fragment>
+              ) : publishStatus === 'success' ? (
+                <React.Fragment><Check size={16} strokeWidth={3} /> {d.publishSuccess}</React.Fragment>
+              ) : (
+                <React.Fragment><Github size={16} /> {d.publishBtn}</React.Fragment>
+              )}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
