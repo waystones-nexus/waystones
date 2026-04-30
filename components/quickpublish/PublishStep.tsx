@@ -288,12 +288,12 @@ const PublishStep: React.FC<PublishStepProps> = ({ model, summary, selectedLayer
                 onClick={() => setDeployTarget('waystones-cloud')}
                 className={`sm:col-span-2 flex items-center gap-4 p-4 rounded-2xl border-2 text-left transition-all ${
                   isActive
-                    ? 'bg-white border-teal-400 shadow-md shadow-teal-50'
+                    ? 'bg-white border-indigo-400 shadow-md shadow-indigo-50'
                     : 'bg-slate-50 border-slate-200 hover:border-slate-300'
                 }`}
               >
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors overflow-hidden ${
-                  isActive ? 'bg-teal-50' : 'bg-slate-100'
+                  isActive ? 'bg-indigo-50' : 'bg-slate-100'
                 }`}>
                   <img
                     src="/favicon.svg"
@@ -304,12 +304,12 @@ const PublishStep: React.FC<PublishStepProps> = ({ model, summary, selectedLayer
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-black text-slate-900">{d.targets?.['waystones-cloud']}</p>
-                    <span className="px-1.5 py-0.5 rounded-md bg-teal-100 text-teal-700 text-[9px] font-black uppercase tracking-widest">Managed</span>
+                    <span className="px-1.5 py-0.5 rounded-md bg-indigo-100 text-indigo-700 text-[9px] font-black uppercase tracking-widest">Managed</span>
                   </div>
                   <p className="text-[10px] text-slate-400 font-medium mt-0.5 leading-relaxed">{d.targets?.['waystones-cloudDesc']}</p>
                 </div>
                 <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                  isActive ? 'bg-teal-500 border-teal-500' : 'border-slate-300'
+                  isActive ? 'bg-indigo-500 border-indigo-500' : 'border-slate-300'
                 }`}>
                   {isActive && <Check size={12} strokeWidth={3} className="text-white" />}
                 </div>
@@ -321,14 +321,14 @@ const PublishStep: React.FC<PublishStepProps> = ({ model, summary, selectedLayer
 
       {/* Waystones Cloud action */}
       {deployTarget === 'waystones-cloud' && (
-        <div className="p-5 bg-gradient-to-r from-teal-50 to-emerald-50 border-2 border-teal-200 rounded-2xl space-y-4">
-          <p className="text-sm text-teal-800 font-medium leading-relaxed">
+        <div className="p-5 bg-gradient-to-r from-indigo-50 to-violet-50 border-2 border-indigo-200 rounded-2xl space-y-4">
+          <p className="text-sm text-indigo-800 font-medium leading-relaxed">
             {d.cloudHandoffDesc}
           </p>
           <button
             type="button"
             onClick={handleOpenCloud}
-            className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-teal-600 hover:bg-teal-500 text-white font-black text-xs uppercase tracking-[0.15em] active:scale-95 transition-all shadow-lg shadow-teal-100 outline-none focus:ring-4 focus:ring-teal-500/20"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs uppercase tracking-[0.15em] active:scale-95 transition-all shadow-lg shadow-indigo-100 outline-none focus:ring-4 focus:ring-indigo-500/20"
           >
             <ExternalLink size={14} /> {d.cloudHandoffBtn}
           </button>

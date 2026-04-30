@@ -1,7 +1,7 @@
 {
   "short_name": "Waystones",
-  "name": "Waystones | FROM DATA TO SERVICE",
-  "description": "Open-source spatial data engine for design and publishing.",
+  "name": "Waystones | Geospatial Orchestration",
+  "description": "Open-source geospatial orchestration engine for design and publishing.",
   "icons": [
     {
       "src": "/favicon.svg",
