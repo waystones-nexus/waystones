@@ -39,6 +39,26 @@ def parse_pg_uri(uri: str) -> dict:
     }
 
 
+def report_error(message: str) -> None:
+    """Send an error callback to the Cloud API so the user sees the failure."""
+    app_url = os.environ.get("APP_URL")
+    secret   = os.environ.get("PEON_CALLBACK_SECRET")
+    proj_id  = os.environ.get("PROJECT_ID")
+    if not (app_url and secret and proj_id):
+        return
+    try:
+        import urllib.request, json as _json
+        url  = f"{app_url.rstrip('/')}/api/projects/{proj_id}/tiles/report-error"
+        body = _json.dumps({"errorMessage": message}).encode()
+        rq   = urllib.request.Request(url, data=body,
+                                      headers={"Content-Type": "application/json",
+                                               "X-Peon-Secret": secret},
+                                      method="POST")
+        urllib.request.urlopen(rq, timeout=10)
+    except Exception as exc:
+        print(f"[main] Warning: could not report error to cloud: {exc}", flush=True)
+
+
 def main() -> None:
     input_type  = os.environ.get("INPUT_TYPE",  "").strip().lower()
     input_uri   = os.environ.get("INPUT_URI",   "").strip()
@@ -53,24 +73,21 @@ def main() -> None:
         ("OUTPUT_URI",  output_uri),
     ] if not val]
     if missing:
-        print(
-            f"[main] ERROR: Missing required environment variable(s): {', '.join(missing)}",
-            file=sys.stderr, flush=True,
-        )
+        msg = f"Missing required environment variable(s): {', '.join(missing)}"
+        print(f"[main] ERROR: {msg}", file=sys.stderr, flush=True)
+        report_error(msg)
         sys.exit(1)
 
     if input_type not in ("gpkg", "postgis"):
-        print(
-            f"[main] ERROR: Unsupported INPUT_TYPE={input_type!r}. Must be 'gpkg' or 'postgis'.",
-            file=sys.stderr, flush=True,
-        )
+        msg = f"Unsupported INPUT_TYPE={input_type!r}. Must be 'gpkg' or 'postgis'."
+        print(f"[main] ERROR: {msg}", file=sys.stderr, flush=True)
+        report_error(msg)
         sys.exit(1)
 
     if output_type not in ("local", "s3"):
-        print(
-            f"[main] ERROR: Unsupported OUTPUT_TYPE={output_type!r}. Must be 'local' or 's3'.",
-            file=sys.stderr, flush=True,
-        )
+        msg = f"Unsupported OUTPUT_TYPE={output_type!r}. Must be 'local' or 's3'."
+        print(f"[main] ERROR: {msg}", file=sys.stderr, flush=True)
+        report_error(msg)
         sys.exit(1)
 
     # The Parquet/FlatGeobuf pipeline must always output WGS84 so that bbox columns
@@ -158,10 +175,9 @@ def main() -> None:
     result = subprocess.run(cmd, env=env)
 
     if result.returncode != 0:
-        print(
-            f"[main] ERROR: Worker script exited with code {result.returncode}.",
-            file=sys.stderr, flush=True,
-        )
+        msg = f"Worker script exited with code {result.returncode}."
+        print(f"[main] ERROR: {msg}", file=sys.stderr, flush=True)
+        report_error(msg)
         sys.exit(result.returncode)
 
     print("[main] Worker completed successfully.", flush=True)
