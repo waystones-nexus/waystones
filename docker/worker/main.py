@@ -11,6 +11,7 @@ Reads 4 environment variables and routes to the appropriate conversion script:
   OUTPUT_URI   Destination: local dir (/data/) or s3://bucket/prefix
   MODEL_PATH   Optional: Path to model.json for layer mapping/naming
   TARGET_CRS   Optional: Target CRS (default EPSG:4326) for normalization
+  TASK_TYPE    Optional: "snapshot" (default) or "tiles"
 
 For INPUT_TYPE=postgis the URI is parsed and individual PG_* env vars are
 injected so postgis-snapshot.py's build_pg_connection_string() works unchanged.
@@ -85,8 +86,35 @@ def main() -> None:
 
     env = os.environ.copy()
     env["TARGET_CRS"] = target_crs
+    task_type = os.environ.get("TASK_TYPE", "snapshot").strip().lower()
 
-    if input_type == "gpkg":
+    if task_type == "tiles":
+        script = os.path.join(SCRIPTS_DIR, "vector-tile-generator.py")
+        cmd = [
+            sys.executable, script,
+            f"--output-prefix={output_uri}",
+            "--user-id=local",
+        ]
+        if input_type == "gpkg":
+            cmd.append(f"--source={input_uri}")
+        else: # postgis
+            try:
+                pg_vars = parse_pg_uri(input_uri)
+                env.update(pg_vars)
+            except Exception as exc:
+                print(f"[main] ERROR: {exc}", file=sys.stderr, flush=True)
+                sys.exit(1)
+        
+        if model_path:
+            cmd.append(f"--model={model_path}")
+        
+        # Pass zoom levels if provided
+        min_z = os.environ.get("MIN_ZOOM")
+        max_z = os.environ.get("MAX_ZOOM")
+        if min_z: cmd.append(f"--min-zoom={min_z}")
+        if max_z: cmd.append(f"--max-zoom={max_z}")
+
+    elif input_type == "gpkg":
         script = os.path.join(SCRIPTS_DIR, "gpkg-converter.py")
         cmd = [
             sys.executable, script,

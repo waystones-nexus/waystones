@@ -11,7 +11,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 \
     curl \
     unzip \
+    build-essential \
+    libsqlite3-dev \
+    zlib1g-dev \
     && rm -rf /var/lib/apt/lists/*
+
+# Install tippecanoe (felt/tippecanoe fork) for vector tile generation
+RUN curl -L https://github.com/felt/tippecanoe/archive/refs/tags/2.72.0.tar.gz -o /tmp/tippecanoe.tar.gz \
+    && tar -xzf /tmp/tippecanoe.tar.gz -C /tmp \
+    && cd /tmp/tippecanoe-2.72.0 \
+    && make -j$(nproc) \
+    && make install \
+    && rm -rf /tmp/tippecanoe.tar.gz /tmp/tippecanoe-2.72.0
 
 # Install AWS CLI for `aws s3 cp` uploads
 RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip \
