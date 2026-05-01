@@ -149,8 +149,8 @@
       </div>
       {% endif %}
       <div class="sidebar-row" style="margin-top:0.5rem;padding-top:0.9rem;border-top:1px solid #e2e8f0;flex-wrap:wrap;gap:0.5rem;">
-        <a href="{{ config.server.url }}/collections/{{ data.id }}/queryables" style="font-size:0.83rem;color:var(--brand);font-weight:600;">Queryables &rarr;</a>
-        <a href="{{ config.server.url }}/collections/{{ data.id }}/schema" style="font-size:0.83rem;color:var(--brand);font-weight:600;">Schema &rarr;</a>
+        <a href="{{ data.dataset_path | default(config.server.url + '/collections/' + (data.id | string)) }}/queryables" style="font-size:0.83rem;color:var(--brand);font-weight:600;">Queryables &rarr;</a>
+        <a href="{{ data.dataset_path | default(config.server.url + '/collections/' + (data.id | string)) }}/schema" style="font-size:0.83rem;color:var(--brand);font-weight:600;">Schema &rarr;</a>
       </div>
     </div>
   </div>

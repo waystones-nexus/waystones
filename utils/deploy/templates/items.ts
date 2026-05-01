@@ -107,6 +107,7 @@ export function generateItemsHtml(_model: DataModel): string {
       Filter
     </button>
     <a href="?f=json" class="btn btn-json">JSON</a>
+    <a href="{{ data.dataset_path | default(config.server.url + '/collections/' + (data.id | string)) }}/schema" class="btn btn-json">Schema</a>
   </div>
 </div>
 

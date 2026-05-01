@@ -104,7 +104,7 @@
       Filter
     </button>
     <a href="?f=json" class="btn btn-json">JSON</a>
-    <a href="{{ config.server.url }}/collections/{{ data.id }}/schema" class="btn btn-json">Schema</a>
+    <a href="{{ data.dataset_path | default(config.server.url + '/collections/' + (data.id | string)) }}/schema" class="btn btn-json">Schema</a>
   </div>
 </div>
 
