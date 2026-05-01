@@ -86,50 +86,8 @@ def list_layers(src_conn: str) -> list:
     return layers
 
 # ---------------------------------------------------------------------------
-# Tiling logic
+# Tiling logic — all layers extracted to GeoJSONSeq first, then one tippecanoe pass
 # ---------------------------------------------------------------------------
-
-def generate_pmtiles(src_conn: str, layer_name: str, safe_name: str, out_path: str, min_z: int, max_z: int):
-    """Extract layer to GeoJSONSeq and tile via tippecanoe."""
-    print(f"[tiles] Processing layer '{layer_name}' (Z{min_z}-Z{max_z})", flush=True)
-    
-    # We pipe ogr2ogr (GeoJSONSeq) directly into tippecanoe to save disk space
-    # and improve performance.
-    
-    # 1. Extraction command (ogr2ogr)
-    # Note: We reproject to EPSG:4326 for tippecanoe
-    extract_cmd = [
-        "ogr2ogr",
-        "-f", "GeoJSONSeq",
-        "/vsistdout/",
-        src_conn,
-        layer_name,
-        "-t_srs", "EPSG:4326",
-        "-lco", "RS=YES" # Use newline delimiting
-    ]
-
-    # 2. Tiling command (tippecanoe)
-    tile_cmd = [
-        "tippecanoe",
-        "-o", out_path,
-        "-z", str(max_z),
-        "-Z", str(min_z),
-        "--layer", safe_name,
-        "--drop-densest-as-needed",
-        "--extend-zooms-if-still-dropping",
-        "--force"
-    ]
-
-    print(f"[tiles] Executing: {' '.join(extract_cmd)} | {' '.join(tile_cmd)}", flush=True)
-    
-    p1 = subprocess.Popen(extract_cmd, stdout=subprocess.PIPE)
-    p2 = subprocess.Popen(tile_cmd, stdin=p1.stdout)
-    
-    p1.stdout.close()
-    p2.communicate()
-
-    if p2.returncode != 0:
-        raise RuntimeError(f"Tiling failed for layer '{layer_name}'")
 
 # ---------------------------------------------------------------------------
 # Main
@@ -176,44 +134,71 @@ def main():
         print(f"[tiles] ERROR: No layers found to process in {src_conn}", file=sys.stderr)
         sys.exit(1)
 
-    print(f"[tiles] Starting generation for {len(tables_to_process)} layer(s)", flush=True)
+    print(f"[tiles] Extracting {len(tables_to_process)} layer(s) then tiling in one pass", flush=True)
 
     with tempfile.TemporaryDirectory() as work_dir:
-        manifest_layers = []
-        total_bytes = 0
-        
+        # Step 1: Extract each layer to a GeoJSONSeq file
+        extracted = []  # (orig_name, safe_name, geojsonseq_path)
         for orig_name, safe_name in tables_to_process:
-            pmtiles_name = f"{safe_name}.pmtiles"
-            local_pmtiles = os.path.join(work_dir, pmtiles_name)
-            
-            try:
-                generate_pmtiles(src_conn, orig_name, safe_name, local_pmtiles, args.min_zoom, args.max_zoom)
-                
-                # Calculate size
-                file_size = os.path.getsize(local_pmtiles)
-                total_bytes += file_size
-                
-                # Deliver output
-                if is_s3_output:
-                    dst_path = f"{output_prefix.rstrip('/')}/{pmtiles_name}"
-                    print(f"[tiles] Uploading {pmtiles_name} ({file_size} bytes) to {dst_path}...", flush=True)
-                    s3_cp(local_pmtiles, dst_path)
-                else:
-                    os.makedirs(output_prefix, exist_ok=True)
-                    shutil.copy2(local_pmtiles, os.path.join(output_prefix, pmtiles_name))
-                
-                manifest_layers.append({
-                    "name": orig_name,
-                    "safe_name": safe_name,
-                    "pmtiles": pmtiles_name,
-                    "size": file_size
-                })
-                
-            except Exception as e:
-                print(f"[tiles] ERROR: Failed to tile '{orig_name}': {e}", file=sys.stderr, flush=True)
+            geojsonseq_path = os.path.join(work_dir, f"{safe_name}.geojsonseq")
+            print(f"[tiles] Extracting '{orig_name}'...", flush=True)
+            extract_cmd = [
+                "ogr2ogr",
+                "-f", "GeoJSONSeq",
+                geojsonseq_path,
+                src_conn,
+                orig_name,
+                "-t_srs", "EPSG:4326",
+                "-lco", "RS=YES",
+            ]
+            result = subprocess.run(extract_cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                print(f"[tiles] ERROR: ogr2ogr failed for '{orig_name}': {result.stderr.strip()}", file=sys.stderr, flush=True)
+                continue
+            extracted.append((orig_name, safe_name, geojsonseq_path))
+
+        if not extracted:
+            print("[tiles] ERROR: No layers extracted successfully.", file=sys.stderr, flush=True)
+            sys.exit(1)
+
+        # Step 2: Single tippecanoe pass — all layers → one combined.pmtiles
+        combined_pmtiles = os.path.join(work_dir, "combined.pmtiles")
+        tile_cmd = [
+            "tippecanoe",
+            "-o", combined_pmtiles,
+            "-z", str(args.max_zoom),
+            "-Z", str(args.min_zoom),
+            "--drop-densest-as-needed",
+            "--extend-zooms-if-still-dropping",
+            "--force",
+        ]
+        for orig_name, safe_name, geojsonseq_path in extracted:
+            tile_cmd.extend(["-L", f"{safe_name}:{geojsonseq_path}"])
+
+        print(f"[tiles] Tiling {len(extracted)} layer(s) into combined.pmtiles (Z{args.min_zoom}-Z{args.max_zoom})...", flush=True)
+        result = subprocess.run(tile_cmd)
+        if result.returncode != 0:
+            print("[tiles] ERROR: tippecanoe failed.", file=sys.stderr, flush=True)
+            sys.exit(1)
+
+        total_bytes = os.path.getsize(combined_pmtiles)
+
+        # Step 3: Deliver output
+        if is_s3_output:
+            dst_path = f"{output_prefix.rstrip('/')}/combined.pmtiles"
+            print(f"[tiles] Uploading combined.pmtiles ({total_bytes} bytes) to {dst_path}...", flush=True)
+            s3_cp(combined_pmtiles, dst_path)
+        else:
+            os.makedirs(output_prefix, exist_ok=True)
+            shutil.copy2(combined_pmtiles, os.path.join(output_prefix, "combined.pmtiles"))
 
         # Write manifest
-        manifest = {"layers": manifest_layers, "type": "pmtiles", "total_size": total_bytes}
+        manifest = {
+            "type": "pmtiles",
+            "pmtiles": "combined.pmtiles",
+            "layers": [{"name": orig_name, "safe_name": safe_name} for orig_name, safe_name, _ in extracted],
+            "total_size": total_bytes,
+        }
         if is_s3_output:
             bucket = output_prefix.split("//")[1].split("/")[0]
             prefix = "/".join(output_prefix.split("//")[1].split("/")[1:])
