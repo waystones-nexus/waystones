@@ -232,25 +232,18 @@ def main():
 
         # ── Callback to Cloud API for storage metering ────────────────────────
         app_url = os.environ.get("APP_URL", "").strip()
-        secret  = os.environ.get("PEON_CALLBACK_SECRET", "").strip()
         proj_id = os.environ.get("PROJECT_ID", "").strip()
 
         if not app_url or not proj_id:
             print("[tiles] Warning: APP_URL or PROJECT_ID not set — skipping size callback.", flush=True)
         else:
-            if not secret:
-                print("[tiles] Warning: PEON_CALLBACK_SECRET not set — sending unauthenticated callback.", flush=True)
             try:
                 import requests
                 callback_url = f"{app_url.rstrip('/')}/api/projects/{proj_id}/tiles/report-size"
                 print(f"[tiles] Reporting total size ({total_bytes} bytes) to {callback_url}...", flush=True)
-                headers = {"Content-Type": "application/json"}
-                if secret:
-                    headers["X-Peon-Secret"] = secret
                 resp = requests.post(
                     callback_url,
                     json={"totalBytes": total_bytes},
-                    headers=headers,
                     timeout=10
                 )
                 print(f"[tiles] Callback response: {resp.status_code}", flush=True)

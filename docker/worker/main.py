@@ -42,18 +42,16 @@ def parse_pg_uri(uri: str) -> dict:
 def report_error(message: str) -> None:
     """Send an error callback to the Cloud API so the user sees the failure."""
     app_url = os.environ.get("APP_URL", "").strip()
-    secret   = os.environ.get("PEON_CALLBACK_SECRET", "").strip()
-    proj_id  = os.environ.get("PROJECT_ID", "").strip()
+    proj_id = os.environ.get("PROJECT_ID", "").strip()
     if not app_url or not proj_id:
         return
     try:
         import urllib.request, json as _json
         url  = f"{app_url.rstrip('/')}/api/projects/{proj_id}/tiles/report-error"
         body = _json.dumps({"errorMessage": message}).encode()
-        headers = {"Content-Type": "application/json"}
-        if secret:
-            headers["X-Peon-Secret"] = secret
-        rq   = urllib.request.Request(url, data=body, headers=headers, method="POST")
+        rq   = urllib.request.Request(url, data=body,
+                                      headers={"Content-Type": "application/json"},
+                                      method="POST")
         urllib.request.urlopen(rq, timeout=10)
     except Exception as exc:
         print(f"[main] Warning: could not report error to cloud: {exc}", flush=True)
