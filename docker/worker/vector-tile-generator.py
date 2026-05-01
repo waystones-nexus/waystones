@@ -180,6 +180,7 @@ def main():
 
     with tempfile.TemporaryDirectory() as work_dir:
         manifest_layers = []
+        total_bytes = 0
         
         for orig_name, safe_name in tables_to_process:
             pmtiles_name = f"{safe_name}.pmtiles"
@@ -188,10 +189,14 @@ def main():
             try:
                 generate_pmtiles(src_conn, orig_name, safe_name, local_pmtiles, args.min_zoom, args.max_zoom)
                 
+                # Calculate size
+                file_size = os.path.getsize(local_pmtiles)
+                total_bytes += file_size
+                
                 # Deliver output
                 if is_s3_output:
                     dst_path = f"{output_prefix.rstrip('/')}/{pmtiles_name}"
-                    print(f"[tiles] Uploading {pmtiles_name} to {dst_path}...", flush=True)
+                    print(f"[tiles] Uploading {pmtiles_name} ({file_size} bytes) to {dst_path}...", flush=True)
                     s3_cp(local_pmtiles, dst_path)
                 else:
                     os.makedirs(output_prefix, exist_ok=True)
@@ -200,14 +205,15 @@ def main():
                 manifest_layers.append({
                     "name": orig_name,
                     "safe_name": safe_name,
-                    "pmtiles": pmtiles_name
+                    "pmtiles": pmtiles_name,
+                    "size": file_size
                 })
                 
             except Exception as e:
                 print(f"[tiles] ERROR: Failed to tile '{orig_name}': {e}", file=sys.stderr, flush=True)
 
         # Write manifest
-        manifest = {"layers": manifest_layers, "type": "pmtiles"}
+        manifest = {"layers": manifest_layers, "type": "pmtiles", "total_size": total_bytes}
         if is_s3_output:
             bucket = output_prefix.split("//")[1].split("/")[0]
             prefix = "/".join(output_prefix.split("//")[1].split("/")[1:])
@@ -223,6 +229,26 @@ def main():
         else:
             with open(os.path.join(output_prefix, ".tiles.json"), "w") as f:
                 json.dump(manifest, f)
+
+        # ── Callback to Cloud API for storage metering ────────────────────────
+        app_url = os.environ.get("APP_URL")
+        secret  = os.environ.get("PEON_CALLBACK_SECRET")
+        proj_id = os.environ.get("PROJECT_ID")
+        
+        if app_url and secret and proj_id:
+            try:
+                import requests
+                callback_url = f"{app_url.rstrip('/')}/api/projects/{proj_id}/tiles/report-size"
+                print(f"[tiles] Reporting total size ({total_bytes} bytes) to {callback_url}...", flush=True)
+                resp = requests.post(
+                    callback_url,
+                    json={"totalBytes": total_bytes},
+                    headers={"X-Peon-Secret": secret},
+                    timeout=10
+                )
+                print(f"[tiles] Callback response: {resp.status_code}", flush=True)
+            except Exception as e:
+                print(f"[tiles] Warning: Failed to report size to cloud: {e}", flush=True)
 
     print("[tiles] Done.", flush=True)
 

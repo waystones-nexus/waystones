@@ -30,7 +30,7 @@ RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awsc
     && /tmp/aws/install \
     && rm -rf /tmp/awscliv2.zip /tmp/aws
 
-RUN pip install --no-cache-dir duckdb
+RUN pip install --no-cache-dir duckdb requests
 
 ENV DUCKDB_EXTENSION_DIRECTORY=/duckdb-extensions
 RUN mkdir -p /duckdb-extensions && chmod 777 /duckdb-extensions
