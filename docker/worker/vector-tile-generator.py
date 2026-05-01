@@ -240,13 +240,20 @@ def main():
             try:
                 import requests
                 callback_url = f"{app_url.rstrip('/')}/api/projects/{proj_id}/tiles/report-size"
+                secret = os.environ.get("PEON_CALLBACK_SECRET", "").strip()
+                headers = {"Content-Type": "application/json"}
+                if secret:
+                    headers["Authorization"] = f"Bearer {secret}"
                 print(f"[tiles] Reporting total size ({total_bytes} bytes) to {callback_url}...", flush=True)
                 resp = requests.post(
                     callback_url,
                     json={"totalBytes": total_bytes},
+                    headers=headers,
                     timeout=10
                 )
                 print(f"[tiles] Callback response: {resp.status_code}", flush=True)
+                if not resp.ok:
+                    print(f"[tiles] Warning: Callback returned non-2xx: {resp.text[:200]}", flush=True)
             except Exception as e:
                 print(f"[tiles] Warning: Failed to report size to cloud: {e}", flush=True)
 
