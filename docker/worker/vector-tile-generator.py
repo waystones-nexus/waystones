@@ -161,8 +161,10 @@ def main():
             print("[tiles] ERROR: No layers extracted successfully.", file=sys.stderr, flush=True)
             sys.exit(1)
 
-        # Step 2: Single tippecanoe pass — all layers → one combined.pmtiles
-        combined_pmtiles = os.path.join(work_dir, "combined.pmtiles")
+        # Step 2: Single tippecanoe pass — all layers → one named .pmtiles
+        project_name = os.environ.get("PROJECT_NAME", "").strip() or "combined"
+        output_filename = f"{project_name}.pmtiles"
+        combined_pmtiles = os.path.join(work_dir, output_filename)
         tile_cmd = [
             "tippecanoe",
             "-o", combined_pmtiles,
@@ -185,17 +187,17 @@ def main():
 
         # Step 3: Deliver output
         if is_s3_output:
-            dst_path = f"{output_prefix.rstrip('/')}/combined.pmtiles"
-            print(f"[tiles] Uploading combined.pmtiles ({total_bytes} bytes) to {dst_path}...", flush=True)
+            dst_path = f"{output_prefix.rstrip('/')}/{output_filename}"
+            print(f"[tiles] Uploading {output_filename} ({total_bytes} bytes) to {dst_path}...", flush=True)
             s3_cp(combined_pmtiles, dst_path)
         else:
             os.makedirs(output_prefix, exist_ok=True)
-            shutil.copy2(combined_pmtiles, os.path.join(output_prefix, "combined.pmtiles"))
+            shutil.copy2(combined_pmtiles, os.path.join(output_prefix, output_filename))
 
         # Write manifest
         manifest = {
             "type": "pmtiles",
-            "pmtiles": "combined.pmtiles",
+            "pmtiles": output_filename,
             "layers": [{"name": orig_name, "safe_name": safe_name} for orig_name, safe_name, _ in extracted],
             "total_size": total_bytes,
         }
