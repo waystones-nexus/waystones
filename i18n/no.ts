@@ -1,6 +1,6 @@
 export const no = {
   appTitle: "Waystones",
-  appSubtitle: "Den åpne motoren for geografisk infrastruktur",
+  appSubtitle: "Fra data til tjeneste",
   newModel: "Ny modell", models: "Modeller", noModels: "Ingen modeller ennå",
   noModelsHint: "Opprett en ny modell for å komme i gang",
   abstract: "«abstrakt»",

@@ -1,6 +1,6 @@
 export const en = {
   appTitle: "Waystones",
-  appSubtitle: "The open-source geospatial orchestration engine",
+  appSubtitle: "From Data to Service",
   newModel: "New model", models: "Models", noModels: "No models yet",
   noModelsHint: "Create a new model to get started",
   abstract: "«abstract»",
