@@ -129,6 +129,40 @@ def main() -> None:
         if min_z: cmd.append(f"--min-zoom={min_z}")
         if max_z: cmd.append(f"--max-zoom={max_z}")
 
+    elif task_type == "stac":
+        script = os.path.join(SCRIPTS_DIR, "duckdb-stac-generator.py")
+        cmd = [
+            sys.executable, script,
+            f"--source={input_uri}",
+            f"--source-type={input_type}",
+            f"--output={output_uri}",
+        ]
+        
+        # Pass optional args
+        strategy = os.environ.get("STRATEGY")
+        if strategy: cmd.append(f"--strategy={strategy}")
+            
+        column = os.environ.get("COLUMN")
+        if column: cmd.append(f"--column={column}")
+            
+        fmt = os.environ.get("FORMAT", "all")
+        if fmt: cmd.append(f"--format={fmt}")
+            
+        tables = os.environ.get("TABLES")
+        if tables: cmd.append(f"--layers={tables}")
+            
+        model_b64 = os.environ.get("MODEL_B64")
+        if model_b64: cmd.append(f"--model={model_b64}")
+
+        # Postgis vars just in case DuckDB native connection wants them
+        if input_type == "postgis":
+            try:
+                pg_vars = parse_pg_uri(input_uri)
+                env.update(pg_vars)
+            except Exception as exc:
+                print(f"[main] ERROR: {exc}", file=sys.stderr, flush=True)
+                sys.exit(1)
+
     elif input_type == "gpkg":
         script = os.path.join(SCRIPTS_DIR, "gpkg-converter.py")
         cmd = [
