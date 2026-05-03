@@ -22,7 +22,8 @@ jobs:
       matrix:
         include:
           - context: docker/pygeoapi
-            tag: pygeoapi
+            tag: minimal
+            target: minimal
           - context: docker/qgis
             tag: qgis
           - context: docker/worker
@@ -68,6 +69,7 @@ jobs:
             ghcr.io/${{ github.repository_owner }}/${{ steps.repo_info.outputs.image_repo }}:${{ matrix.tag }}-${{ github.ref_name }}
             ghcr.io/${{ github.repository_owner }}/${{ steps.repo_info.outputs.image_repo }}:${{ matrix.tag }}-latest
             deploy.cloudflare.com/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/${{ steps.repo_info.outputs.image_repo }}:${{ matrix.tag }}-latest
+          target: ${{ matrix.target }}
           push: true
           cache-from: type=gha,scope=${{ matrix.tag }}
           cache-to: type=gha,mode=max,scope=${{ matrix.tag }}
