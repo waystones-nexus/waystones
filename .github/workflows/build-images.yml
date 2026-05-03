@@ -6,7 +6,6 @@ on:
       - main
       - unstable
       - "dev"
-      - "feature/**"
     tags:
       - "v*"
   workflow_dispatch:
@@ -22,11 +21,8 @@ jobs:
       matrix:
         include:
           - context: docker/pygeoapi
-            tag: pygeoapi-minimal
+            tag: minimal
             target: minimal
-          - context: docker/pygeoapi
-            tag: pygeoapi-gateway
-            target: gateway
           - context: docker/qgis
             tag: qgis
           - context: docker/worker
@@ -34,18 +30,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Determine Image Repository
-        id: repo_info
-        shell: bash
-        run: |
-          if [[ "${{ github.ref }}" == refs/heads/main ]] || [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            echo "image_repo=waystones-keystone" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.ref }}" == refs/heads/unstable ]]; then
-            echo "image_repo=waystones-shard" >> $GITHUB_OUTPUT
-          else
-            echo "image_repo=waystones-void" >> $GITHUB_OUTPUT
-          fi
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -57,22 +41,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Log in to Cloudflare Registry
-        uses: docker/login-action@v3
+      - name: Upload to Cloudflare Container Registry
+        uses: cloudflare/wrangler-action@v3
         with:
-          registry: deploy.cloudflare.com
-          username: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          password: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-
-      - name: Build and push ${{ matrix.tag }}
-        uses: docker/build-push-action@v6
-        with:
-          context: ${{ matrix.context }}
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ steps.repo_info.outputs.image_repo }}:${{ matrix.tag }}-${{ github.ref_name }}
-            ghcr.io/${{ github.repository_owner }}/${{ steps.repo_info.outputs.image_repo }}:${{ matrix.tag }}-latest
-            deploy.cloudflare.com/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/${{ steps.repo_info.outputs.image_repo }}:${{ matrix.tag }}-latest
-          target: ${{ matrix.target }}
-          push: true
-          cache-from: type=gha,scope=${{ matrix.tag }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.tag }}
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: beta
+          command: |
+            containers image upload \
+            --file ${{ matrix.context }}/Dockerfile \
+            --tag ${{ matrix.tag }}-latest \
+            --project waystones-proxy-staging
