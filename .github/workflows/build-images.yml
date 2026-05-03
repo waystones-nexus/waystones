@@ -57,7 +57,7 @@ jobs:
       - name: Log in to Cloudflare Registry
         uses: docker/login-action@v3
         with:
-          registry: containers.cloudflare.com
+          registry: registry.cloudflare.com
           username: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           password: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
@@ -68,7 +68,7 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository_owner }}/${{ steps.repo_info.outputs.image_repo }}:${{ matrix.tag }}-${{ github.ref_name }}
             ghcr.io/${{ github.repository_owner }}/${{ steps.repo_info.outputs.image_repo }}:${{ matrix.tag }}-latest
-            containers.cloudflare.com/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/${{ steps.repo_info.outputs.image_repo }}:${{ matrix.tag }}-latest
+            registry.cloudflare.com/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/waystones-proxy-staging:${{ matrix.tag }}-latest
           target: ${{ matrix.target }}
           push: true
           cache-from: type=gha,scope=${{ matrix.tag }}
