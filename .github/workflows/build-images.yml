@@ -41,14 +41,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload to Cloudflare Container Registry
+      - name: Build local image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          tags: waystones-${{ matrix.tag }}:latest
+          target: ${{ matrix.target }}
+          load: true
+          push: false
+          cache-from: type=gha,scope=${{ matrix.tag }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.tag }}
+
+      - name: Push to Cloudflare
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          wranglerVersion: beta
-          command: |
-            containers image upload \
-            --file ${{ matrix.context }}/Dockerfile \
-            --tag ${{ matrix.tag }}-latest \
-            --project waystones-proxy-staging
+          command: containers push waystones-${{ matrix.tag }}:latest
