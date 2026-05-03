@@ -58,7 +58,7 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: registry.cloudflare.com
-          username: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          username: api-token
           password: ${{ secrets.CLOUDFLARE_API_TOKEN }}
 
       - name: Build and push ${{ matrix.tag }}
