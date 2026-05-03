@@ -1,7 +1,4 @@
-FROM geopython/pygeoapi:latest
-
-# Install Caddy from official image (available for SaaS injection; unused in community mode)
-COPY --from=caddy:latest /usr/bin/caddy /usr/bin/caddy
+FROM geopython/pygeoapi:latest as base
 
 # Install system dependencies
 USER root
@@ -66,6 +63,18 @@ ENV CONTAINER_HOST=0.0.0.0
 
 EXPOSE 5000
 
+# ---------------------------------------------------------
+# Target: minimal (No Caddy sidecar included)
+# ---------------------------------------------------------
+FROM base as minimal
 USER nobody
+ENTRYPOINT ["/boot.sh"]
 
+# ---------------------------------------------------------
+# Target: gateway (Includes Caddy for bundled gateway/TLS)
+# ---------------------------------------------------------
+FROM base as gateway
+USER root
+COPY --from=caddy:latest /usr/bin/caddy /usr/bin/caddy
+USER nobody
 ENTRYPOINT ["/boot.sh"]
