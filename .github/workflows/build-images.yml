@@ -22,8 +22,11 @@ jobs:
       matrix:
         include:
           - context: docker/pygeoapi
-            tag: minimal
+            tag: pygeoapi-minimal
             target: minimal
+          - context: docker/pygeoapi
+            tag: pygeoapi-gateway
+            target: gateway
           - context: docker/qgis
             tag: qgis
           - context: docker/worker
@@ -54,13 +57,22 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload to Cloudflare Container Registry
-        uses: cloudflare/wrangler-action@v3
+      - name: Log in to Cloudflare Registry
+        uses: docker/login-action@v3
         with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: |
-            container image upload \
-            --file ${{ matrix.context }}/Dockerfile \
-            --tag ${{ matrix.tag }}-latest \
-            --project waystones-proxy-staging
+          registry: deploy.cloudflare.com
+          username: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          password: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      - name: Build and push ${{ matrix.tag }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/${{ steps.repo_info.outputs.image_repo }}:${{ matrix.tag }}-${{ github.ref_name }}
+            ghcr.io/${{ github.repository_owner }}/${{ steps.repo_info.outputs.image_repo }}:${{ matrix.tag }}-latest
+            deploy.cloudflare.com/${{ secrets.CLOUDFLARE_ACCOUNT_ID }}/${{ steps.repo_info.outputs.image_repo }}:${{ matrix.tag }}-latest
+          target: ${{ matrix.target }}
+          push: true
+          cache-from: type=gha,scope=${{ matrix.tag }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.tag }}
