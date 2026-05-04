@@ -63,13 +63,11 @@ def force_ipv4_for_endpoint(endpoint_url: str):
 # ---------------------------------------------------------------------------
 
 def get_endpoint_url() -> str:
-    url = (
+    return (
         os.environ.get("AWS_ENDPOINT_URL") or
-        os.environ.get("S3_ENDPOINT", "")
+        os.environ.get("S3_ENDPOINT") or
+        None
     )
-    if not url:
-        raise RuntimeError("Neither AWS_ENDPOINT_URL nor S3_ENDPOINT environment variable is set")
-    return url
 
 _ipv4_patched = False
 
@@ -87,30 +85,31 @@ def _ensure_ipv4():
     _ipv4_patched = True
 
 def _boto3_client():
-    _ensure_ipv4()
+    if os.environ.get("FORCE_S3_IPV4"):
+        _ensure_ipv4()
     import boto3
-    return boto3.client(
-        "s3",
-        endpoint_url=get_endpoint_url(),
-        aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
-        aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
-        region_name=os.environ.get("AWS_DEFAULT_REGION", "auto"),
-    )
+    # Only pass credentials if explicitly provided; otherwise let boto3 use its default provider chain.
+    kwargs = {
+        "endpoint_url": get_endpoint_url(),
+        "region_name": os.environ.get("AWS_DEFAULT_REGION", "auto"),
+    }
+    if os.environ.get("AWS_ACCESS_KEY_ID"):
+        kwargs["aws_access_key_id"] = os.environ.get("AWS_ACCESS_KEY_ID")
+    if os.environ.get("AWS_SECRET_ACCESS_KEY"):
+        kwargs["aws_secret_access_key"] = os.environ.get("AWS_SECRET_ACCESS_KEY")
+    
+    return boto3.client("s3", **kwargs)
 
 def s3_cp(src: str, dst: str) -> None:
-    if os.environ.get("FORCE_S3_IPV4"):
-        client = _boto3_client()
-        if src.startswith("s3://"):
-            p = urlparse(src)
-            client.download_file(p.netloc, p.path.lstrip("/"), dst)
-        else:
-            p = urlparse(dst)
-            client.upload_file(src, p.netloc, p.path.lstrip("/"))
-        return
-    cmd = ["aws", "s3", "cp", src, dst, "--endpoint-url", get_endpoint_url(), "--no-progress"]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        raise RuntimeError(f"aws s3 cp failed: {result.stderr.strip()}")
+    # Use boto3 exclusively for better endpoint/IPv4 control and to avoid
+    # the 'aws' CLI which may be misconfigured or an old version in this image.
+    client = _boto3_client()
+    if src.startswith("s3://"):
+        p = urlparse(src)
+        client.download_file(p.netloc, p.path.lstrip("/"), dst)
+    else:
+        p = urlparse(dst)
+        client.upload_file(src, p.netloc, p.path.lstrip("/"))
 
 def s3_put_json(bucket: str, key: str, data: dict) -> None:
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:

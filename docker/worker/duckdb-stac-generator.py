@@ -89,33 +89,17 @@ def _boto3_client():
     )
 
 def s3_copy(src, dest, timeout=300, retries=3):
-    """Copy a file using boto3 (FORCE_S3_IPV4) or AWS CLI, routing to Cloudflare R2."""
-    if os.environ.get("FORCE_S3_IPV4"):
-        client = _boto3_client()
-        if src.startswith("s3://"):
-            p = urlparse(src)
-            client.download_file(p.netloc, p.path.lstrip("/"), dest)
-        else:
-            p = urlparse(dest)
-            client.upload_file(src, p.netloc, p.path.lstrip("/"))
-        return
-    cmd = ["aws", "s3", "cp", src, dest]
-    endpoint = os.environ.get('S3_ENDPOINT')
-    if endpoint:
-        endpoint_url = endpoint if endpoint.startswith('https://') else f"https://{endpoint}"
-        cmd.extend(["--endpoint-url", endpoint_url, "--region", "auto"])
-    logging.info(f"Running AWS CLI: {' '.join(cmd)}")
-    for attempt in range(1, retries + 1):
-        try:
-            subprocess.run(cmd, check=True, timeout=timeout)
-            return
-        except subprocess.TimeoutExpired:
-            logging.warning(f"s3 cp timed out after {timeout}s (attempt {attempt}/{retries})")
-        except subprocess.CalledProcessError as e:
-            logging.warning(f"s3 cp failed with exit code {e.returncode} (attempt {attempt}/{retries})")
-        if attempt < retries:
-            time.sleep(5 * attempt)
-    raise RuntimeError(f"s3 cp failed after {retries} attempts: {src} -> {dest}")
+    """Copy a file using boto3, routing to Cloudflare R2.
+    Exclusive boto3 usage ensures better endpoint/IPv4 control and avoids
+    the 'aws' CLI which may be misconfigured or an old version in this image.
+    """
+    client = _boto3_client()
+    if src.startswith("s3://"):
+        p = urlparse(src)
+        client.download_file(p.netloc, p.path.lstrip("/"), dest)
+    else:
+        p = urlparse(dest)
+        client.upload_file(src, p.netloc, p.path.lstrip("/"))
 
 
 def stage_or_copy(local_path, rel_path, out_dir, staging_dir, *, log_label=""):

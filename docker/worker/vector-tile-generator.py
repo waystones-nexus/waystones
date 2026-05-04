@@ -76,19 +76,15 @@ def _boto3_client():
     )
 
 def s3_cp(src: str, dst: str) -> None:
-    if os.environ.get("FORCE_S3_IPV4"):
-        client = _boto3_client()
-        if src.startswith("s3://"):
-            p = urlparse(src)
-            client.download_file(p.netloc, p.path.lstrip("/"), dst)
-        else:
-            p = urlparse(dst)
-            client.upload_file(src, p.netloc, p.path.lstrip("/"))
-        return
-    cmd = ["aws", "s3", "cp", src, dst, "--endpoint-url", get_endpoint_url(), "--no-progress"]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        raise RuntimeError(f"aws s3 cp failed: {result.stderr.strip()}")
+    # Use boto3 exclusively for better endpoint/IPv4 control and to avoid
+    # the 'aws' CLI which may be misconfigured or an old version in this image.
+    client = _boto3_client()
+    if src.startswith("s3://"):
+        p = urlparse(src)
+        client.download_file(p.netloc, p.path.lstrip("/"), dst)
+    else:
+        p = urlparse(dst)
+        client.upload_file(src, p.netloc, p.path.lstrip("/"))
 
 def to_safe_name(name: str) -> str:
     safe = re.sub(r"[^a-z0-9]", "_", name.lower())
