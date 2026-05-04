@@ -15,11 +15,22 @@ logger = logging.getLogger("peon-wrapper")
 
 app = FastAPI(title="Waystones Peon Worker Wrapper")
 
+import threading
+
+# Thread-safe counter for active tasks
+active_tasks_lock = threading.Lock()
+active_tasks_count = 0
+
 def run_task_subprocess(env_vars: dict):
     """
     Runs the main.py script in a subprocess with the provided environment variables.
     """
-    logger.info(f"--- Starting task execution ---")
+    global active_tasks_count
+    
+    with active_tasks_lock:
+        active_tasks_count += 1
+        
+    logger.info(f"--- Starting task execution (Active tasks: {active_tasks_count}) ---")
     
     # Prepare environment
     task_env = os.environ.copy()
@@ -32,7 +43,6 @@ def run_task_subprocess(env_vars: dict):
     
     try:
         # Execute main.py
-        # We use sys.executable to ensure we use the same Python environment
         process = subprocess.Popen(
             [sys.executable, "/app/main.py"],
             env=task_env,
@@ -57,6 +67,22 @@ def run_task_subprocess(env_vars: dict):
             
     except Exception as e:
         logger.exception(f"Unexpected error during task execution: {e}")
+    finally:
+        with active_tasks_lock:
+            active_tasks_count -= 1
+            logger.info(f"Task finished. Remaining active tasks: {active_tasks_count}")
+            
+            if active_tasks_count == 0:
+                logger.info("No more active tasks. Shutting down container now...")
+                # We use a short delay to ensure the log is flushed before the process dies
+                # and to allow a tiny window for another request to hit before we die.
+                def delayed_exit():
+                    import time
+                    time.sleep(2)
+                    logger.info("Goodbye!")
+                    os._exit(0)
+                
+                threading.Thread(target=delayed_exit, daemon=True).start()
 
 @app.post("/internal-task")
 async def handle_internal_task(request: Request, background_tasks: BackgroundTasks):
