@@ -85,12 +85,12 @@ def _ensure_ipv4():
     _ipv4_patched = True
 
 def _boto3_client():
-    if os.environ.get("FORCE_S3_IPV4"):
-        _ensure_ipv4()
     import boto3
     from botocore.config import Config
-    
+
     endpoint = os.environ.get('AWS_ENDPOINT_URL') or os.environ.get('S3_ENDPOINT')
+    if endpoint:
+        _ensure_ipv4()
     endpoint_url = None
     if endpoint:
         endpoint_url = endpoint if endpoint.startswith('https://') else f"https://{endpoint}"
@@ -123,15 +123,17 @@ def _boto3_client():
     return boto3.client("s3", **kwargs)
 
 def s3_cp(src: str, dst: str) -> None:
-    # Use boto3 exclusively for better endpoint/IPv4 control and to avoid
-    # the 'aws' CLI which may be misconfigured or an old version in this image.
     client = _boto3_client()
-    if src.startswith("s3://"):
-        p = urlparse(src)
-        client.download_file(p.netloc, p.path.lstrip("/"), dst)
-    else:
-        p = urlparse(dst)
-        client.upload_file(src, p.netloc, p.path.lstrip("/"))
+    try:
+        if src.startswith("s3://"):
+            p = urlparse(src)
+            client.download_file(p.netloc, p.path.lstrip("/"), dst)
+        else:
+            p = urlparse(dst)
+            client.upload_file(src, p.netloc, p.path.lstrip("/"))
+    except Exception as e:
+        print(f"[converter] S3 ERROR ({type(e).__name__}): {e}", flush=True)
+        raise
 
 def s3_put_json(bucket: str, key: str, data: dict) -> None:
     with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
@@ -249,13 +251,6 @@ def main() -> None:
     is_s3_output  = output_prefix.startswith("s3://")
     is_s3_source  = args.source.startswith("s3://")
 
-    # DNS fix is only relevant when communicating with S3
-    if is_s3_source or is_s3_output:
-        try:
-            force_ipv4_for_endpoint(get_endpoint_url())
-        except Exception as e:
-            print(f"[converter] Warning: Failed DNS override: {e}", flush=True)
-
     bucket = os.environ.get("S3_BUCKET_NAME") or os.environ.get("R2_BUCKET", "")
     if is_s3_output and not bucket:
         raise RuntimeError("Neither S3_BUCKET_NAME nor R2_BUCKET environment variable is set")
@@ -348,23 +343,13 @@ def main() -> None:
                 entry["fgb_key"] = f"{prefix_key}/{entry['safe_name']}.fgb"
 
             print(f"[converter] Uploading all layers to {output_prefix} ...", flush=True)
-            if os.environ.get("FORCE_S3_IPV4"):
-                client = _boto3_client()
-                p = urlparse(output_prefix)
-                pfx = p.path.lstrip("/")
-                for fname in os.listdir(fgb_dir):
-                    fpath = os.path.join(fgb_dir, fname)
-                    if os.path.isfile(fpath):
-                        client.upload_file(fpath, p.netloc, f"{pfx}/{fname}")
-            else:
-                sync_cmd = [
-                    "aws", "s3", "sync", fgb_dir + "/", output_prefix + "/",
-                    "--endpoint-url", get_endpoint_url(),
-                    "--no-progress",
-                ]
-                sync_res = subprocess.run(sync_cmd, capture_output=True, text=True)
-                if sync_res.returncode != 0:
-                    raise RuntimeError(f"aws s3 sync failed: {sync_res.stderr.strip()}")
+            client = _boto3_client()
+            p = urlparse(output_prefix)
+            pfx = p.path.lstrip("/")
+            for fname in os.listdir(fgb_dir):
+                fpath = os.path.join(fgb_dir, fname)
+                if os.path.isfile(fpath):
+                    client.upload_file(fpath, p.netloc, f"{pfx}/{fname}")
 
             manifest_key = f"{prefix_key}/.manifest.json"
             print(f"[converter] Writing manifest to s3://{bucket}/{manifest_key} ...", flush=True)

@@ -76,12 +76,12 @@ def _ensure_ipv4():
     _ipv4_patched = True
 
 def _boto3_client():
-    if os.environ.get("FORCE_S3_IPV4"):
-        _ensure_ipv4()
     import boto3
     from botocore.config import Config
-    
+
     endpoint = os.environ.get('AWS_ENDPOINT_URL') or os.environ.get('S3_ENDPOINT')
+    if endpoint:
+        _ensure_ipv4()
     endpoint_url = None
     if endpoint:
         endpoint_url = endpoint if endpoint.startswith('https://') else f"https://{endpoint}"
@@ -111,17 +111,17 @@ def _boto3_client():
     return boto3.client("s3", **kwargs)
 
 def s3_copy(src, dest, timeout=300, retries=3):
-    """Copy a file using boto3, routing to Cloudflare R2.
-    Exclusive boto3 usage ensures better endpoint/IPv4 control and avoids
-    the 'aws' CLI which may be misconfigured or an old version in this image.
-    """
     client = _boto3_client()
-    if src.startswith("s3://"):
-        p = urlparse(src)
-        client.download_file(p.netloc, p.path.lstrip("/"), dest)
-    else:
-        p = urlparse(dest)
-        client.upload_file(src, p.netloc, p.path.lstrip("/"))
+    try:
+        if src.startswith("s3://"):
+            p = urlparse(src)
+            client.download_file(p.netloc, p.path.lstrip("/"), dest)
+        else:
+            p = urlparse(dest)
+            client.upload_file(src, p.netloc, p.path.lstrip("/"))
+    except Exception as e:
+        logging.error(f"S3 ERROR ({type(e).__name__}): {e}")
+        raise
 
 
 def stage_or_copy(local_path, rel_path, out_dir, staging_dir, *, log_label=""):
@@ -1004,22 +1004,14 @@ def main():
     # with one `aws s3 sync` that reuses the same connection for all files.
     if staging_dir and out_dir.startswith("s3://"):
         logging.info(f"Uploading all staged files to {out_dir} via s3 sync...")
-        if os.environ.get("FORCE_S3_IPV4"):
-            import glob as _glob
-            client = _boto3_client()
-            p = urlparse(out_dir)
-            pfx = p.path.lstrip("/")
-            for fpath in _glob.glob(os.path.join(staging_dir, "**", "*"), recursive=True):
-                if os.path.isfile(fpath):
-                    rel = os.path.relpath(fpath, staging_dir).replace("\\", "/")
-                    client.upload_file(fpath, p.netloc, f"{pfx}/{rel}" if pfx else rel)
-        else:
-            sync_cmd = ["aws", "s3", "sync", staging_dir + "/", out_dir + "/"]
-            endpoint = os.environ.get('S3_ENDPOINT')
-            if endpoint:
-                endpoint_url = endpoint if endpoint.startswith('https://') else f"https://{endpoint}"
-                sync_cmd.extend(["--endpoint-url", endpoint_url, "--region", "auto"])
-            subprocess.run(sync_cmd, check=True, timeout=600)
+        import glob as _glob
+        client = _boto3_client()
+        p = urlparse(out_dir)
+        pfx = p.path.lstrip("/")
+        for fpath in _glob.glob(os.path.join(staging_dir, "**", "*"), recursive=True):
+            if os.path.isfile(fpath):
+                rel = os.path.relpath(fpath, staging_dir).replace("\\", "/")
+                client.upload_file(fpath, p.netloc, f"{pfx}/{rel}" if pfx else rel)
         logging.info("Bulk upload complete.")
 
     logging.info("STAC generation complete.")
