@@ -277,32 +277,12 @@ def main():
             with open(os.path.join(output_prefix, ".tiles.json"), "w") as f:
                 json.dump(manifest, f)
 
-        # ── Callback to Cloud API for storage metering ────────────────────────
-        app_url = os.environ.get("APP_URL", "").strip()
-        proj_id = os.environ.get("PROJECT_ID", "").strip()
-
-        if not app_url or not proj_id:
-            print("[tiles] Warning: APP_URL or PROJECT_ID not set — skipping size callback.", flush=True)
-        else:
-            try:
-                import requests
-                callback_url = f"{app_url.rstrip('/')}/api/projects/{proj_id}/tiles/report-size"
-                secret = os.environ.get("PEON_CALLBACK_SECRET", "").strip()
-                headers = {"Content-Type": "application/json"}
-                if secret:
-                    headers["Authorization"] = f"Bearer {secret}"
-                print(f"[tiles] Reporting total size ({total_bytes} bytes) to {callback_url}...", flush=True)
-                resp = requests.post(
-                    callback_url,
-                    json={"totalBytes": total_bytes},
-                    headers=headers,
-                    timeout=10
-                )
-                print(f"[tiles] Callback response: {resp.status_code}", flush=True)
-                if not resp.ok:
-                    print(f"[tiles] Warning: Callback returned non-2xx: {resp.text[:200]}", flush=True)
-            except Exception as e:
-                print(f"[tiles] Warning: Failed to report size to cloud: {e}", flush=True)
+        # ── Write Metrics for main.py callback ───────────────────────────────
+        try:
+            with open(".peon-metrics.json", "w") as f:
+                json.dump({"totalBytes": total_bytes}, f)
+        except Exception as e:
+            print(f"[tiles] Warning: Failed to write metrics file: {e}", flush=True)
 
     print("[tiles] Done.", flush=True)
 

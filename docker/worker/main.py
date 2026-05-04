@@ -39,22 +39,54 @@ def parse_pg_uri(uri: str) -> dict:
     }
 
 
-def report_error(message: str) -> None:
-    """Send an error callback to the Cloud API so the user sees the failure."""
+def report_done(status, error_msg=None):
     app_url = os.environ.get("APP_URL", "").strip()
     proj_id = os.environ.get("PROJECT_ID", "").strip()
+    task_type = os.environ.get("TASK_TYPE", "snapshot").strip().lower()
+    
     if not app_url or not proj_id:
         return
+
     try:
         import urllib.request, json as _json
-        url  = f"{app_url.rstrip('/')}/api/projects/{proj_id}/tiles/report-error"
-        body = _json.dumps({"errorMessage": message}).encode()
-        rq   = urllib.request.Request(url, data=body,
-                                      headers={"Content-Type": "application/json"},
-                                      method="POST")
+        
+        payload = {}
+        if status == "success":
+            # Try to read metrics from sub-scripts
+            if os.path.exists(".peon-metrics.json"):
+                try:
+                    with open(".peon-metrics.json", "r") as f:
+                        payload = _json.load(f)
+                except:
+                    pass
+        else:
+            payload = {"error": error_msg or "Unknown error"}
+
+        callback_url = f"{app_url.rstrip('/')}/api/projects/{proj_id}/worker/report-done"
+        secret = os.environ.get("PEON_CALLBACK_SECRET", "").strip()
+        headers = {"Content-Type": "application/json"}
+        if secret:
+            headers["Authorization"] = f"Bearer {secret}"
+        
+        body = _json.dumps({
+            "taskType": task_type,
+            "status": status,
+            "payload": payload
+        }).encode()
+        
+        print(f"[main] Reporting {status} to {callback_url}...", flush=True)
+        rq = urllib.request.Request(callback_url, data=body, headers=headers, method="POST")
         urllib.request.urlopen(rq, timeout=10)
-    except Exception as exc:
-        print(f"[main] Warning: could not report error to cloud: {exc}", flush=True)
+    except Exception as e:
+        print(f"[main] Warning: Failed to report {status} to cloud: {e}", flush=True)
+
+
+def report_success(app_url, proj_id, task_type):
+    report_done("success")
+
+
+def report_error(message: str) -> None:
+    report_done("error", error_msg=message)
 
 
 def main() -> None:
@@ -214,6 +246,9 @@ def main() -> None:
         sys.exit(result.returncode)
 
     print("[main] Worker completed successfully.", flush=True)
+    app_url = os.environ.get("APP_URL", "").strip()
+    proj_id = os.environ.get("PROJECT_ID", "").strip()
+    report_success(app_url, proj_id, task_type)
 
 
 if __name__ == "__main__":

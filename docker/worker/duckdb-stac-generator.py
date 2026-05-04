@@ -1028,22 +1028,12 @@ def main():
                 except OSError:
                     pass
 
-    app_url = os.environ.get("APP_URL", "")
-    secret  = os.environ.get("PEON_CALLBACK_SECRET", "")
-    proj_id = os.environ.get("PROJECT_ID", "")
-    if app_url and secret and proj_id:
-        import urllib.request as _urllib
-        try:
-            body = json.dumps({"stacCatalogSizeBytes": total_output_bytes}).encode()
-            url  = f"{app_url}/api/projects/{proj_id}/stac/report-size"
-            _req = _urllib.Request(url, data=body, headers={
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {secret}",
-            })
-            with _urllib.urlopen(_req, timeout=10) as resp:
-                logging.info(f"Reported STAC output size: {total_output_bytes} bytes (HTTP {resp.status})")
-        except Exception as cb_err:
-            logging.warning(f"Failed to report STAC catalog size: {cb_err}")
+    # ── Write Metrics for main.py callback ───────────────────────────────
+    try:
+        with open(".peon-metrics.json", "w") as f:
+            json.dump({"stacCatalogSizeBytes": total_output_bytes}, f)
+    except Exception as e:
+        logging.warning(f"Failed to write metrics file: {e}")
 
 
 if __name__ == "__main__":
