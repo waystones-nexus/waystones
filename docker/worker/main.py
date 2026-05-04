@@ -52,11 +52,14 @@ def report_done(status, error_msg=None):
         
         payload = {}
         if status == "success":
-            # Try to read metrics from sub-scripts
-            if os.path.exists(".peon-metrics.json"):
+            # Try to read metrics from sub-scripts - use absolute path in /tmp for reliability
+            metrics_path = "/tmp/.peon-metrics.json"
+            if os.path.exists(metrics_path):
                 try:
-                    with open(".peon-metrics.json", "r") as f:
+                    with open(metrics_path, "r") as f:
                         payload = _json.load(f)
+                    # Clean up after reading
+                    os.remove(metrics_path)
                 except:
                     pass
         else:
