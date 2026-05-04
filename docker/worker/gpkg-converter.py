@@ -88,16 +88,34 @@ def _boto3_client():
     if os.environ.get("FORCE_S3_IPV4"):
         _ensure_ipv4()
     import boto3
-    # Only pass credentials if explicitly provided; otherwise let boto3 use its default provider chain.
+    from botocore.config import Config
+    
+    endpoint = os.environ.get('AWS_ENDPOINT_URL') or os.environ.get('S3_ENDPOINT')
+    endpoint_url = None
+    if endpoint:
+        endpoint_url = endpoint if endpoint.startswith('https://') else f"https://{endpoint}"
+    
+    # R2 requires s3v4 signature version. 
+    # It also often requires 'us-east-1' or 'auto' as the region name for signing.
+    region = os.environ.get("AWS_DEFAULT_REGION")
+    if not region and endpoint_url and "r2.cloudflarestorage.com" in endpoint_url:
+        region = "us-east-1"
+        
+    config = Config(
+        signature_version='s3v4',
+        retries={'max_attempts': 3, 'mode': 'standard'}
+    )
+    
     kwargs = {
-        "endpoint_url": get_endpoint_url(),
-        "region_name": os.environ.get("AWS_DEFAULT_REGION", "auto"),
+        "endpoint_url": endpoint_url,
+        "region_name": region,
+        "config": config,
     }
     if os.environ.get("AWS_ACCESS_KEY_ID"):
         kwargs["aws_access_key_id"] = os.environ.get("AWS_ACCESS_KEY_ID")
     if os.environ.get("AWS_SECRET_ACCESS_KEY"):
         kwargs["aws_secret_access_key"] = os.environ.get("AWS_SECRET_ACCESS_KEY")
-    
+        
     return boto3.client("s3", **kwargs)
 
 def s3_cp(src: str, dst: str) -> None:

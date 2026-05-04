@@ -79,14 +79,26 @@ def _boto3_client():
     if os.environ.get("FORCE_S3_IPV4"):
         _ensure_ipv4()
     import boto3
+    from botocore.config import Config
+    
     endpoint = os.environ.get('AWS_ENDPOINT_URL') or os.environ.get('S3_ENDPOINT')
     endpoint_url = None
     if endpoint:
         endpoint_url = endpoint if endpoint.startswith('https://') else f"https://{endpoint}"
     
+    region = os.environ.get("AWS_DEFAULT_REGION")
+    if not region and endpoint_url and "r2.cloudflarestorage.com" in endpoint_url:
+        region = "us-east-1"
+        
+    config = Config(
+        signature_version='s3v4',
+        retries={'max_attempts': 3, 'mode': 'standard'}
+    )
+    
     kwargs = {
         "endpoint_url": endpoint_url,
-        "region_name": os.environ.get("AWS_DEFAULT_REGION", "auto"),
+        "region_name": region,
+        "config": config,
     }
     if os.environ.get("AWS_ACCESS_KEY_ID"):
         kwargs["aws_access_key_id"] = os.environ.get("AWS_ACCESS_KEY_ID")
