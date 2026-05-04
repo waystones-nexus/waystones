@@ -30,7 +30,7 @@ RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awsc
     && /tmp/aws/install \
     && rm -rf /tmp/awscliv2.zip /tmp/aws
 
-RUN pip install --no-cache-dir duckdb requests boto3
+RUN pip install --no-cache-dir duckdb requests boto3 fastapi uvicorn
 
 ENV DUCKDB_EXTENSION_DIRECTORY=/duckdb-extensions
 RUN mkdir -p /duckdb-extensions && chmod 777 /duckdb-extensions
@@ -50,4 +50,4 @@ WORKDIR /app
 # Build from docker/worker/: docker build -t waystones-worker .
 COPY *.py /app/
 
-ENTRYPOINT ["python3", "/app/main.py"]
+ENTRYPOINT ["python3", "/app/server_wrapper.py"]
