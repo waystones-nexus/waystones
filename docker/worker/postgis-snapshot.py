@@ -64,13 +64,11 @@ def force_ipv4_for_endpoint(endpoint_url: str):
 # ---------------------------------------------------------------------------
 
 def get_endpoint_url() -> str:
-    url = (
+    return (
         os.environ.get("AWS_ENDPOINT_URL") or
-        os.environ.get("S3_ENDPOINT", "")
+        os.environ.get("S3_ENDPOINT") or
+        None
     )
-    if not url:
-        raise RuntimeError("Neither AWS_ENDPOINT_URL nor S3_ENDPOINT environment variable is set")
-    return url
 
 _ipv4_patched = False
 
@@ -88,15 +86,18 @@ def _ensure_ipv4():
     _ipv4_patched = True
 
 def _boto3_client():
-    _ensure_ipv4()
+    if os.environ.get("FORCE_S3_IPV4"):
+        _ensure_ipv4()
     import boto3
-    return boto3.client(
-        "s3",
-        endpoint_url=get_endpoint_url(),
-        aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
-        aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
-        region_name=os.environ.get("AWS_DEFAULT_REGION", "auto"),
-    )
+    kwargs = {
+        "endpoint_url": get_endpoint_url(),
+        "region_name": os.environ.get("AWS_DEFAULT_REGION", "auto"),
+    }
+    if os.environ.get("AWS_ACCESS_KEY_ID"):
+        kwargs["aws_access_key_id"] = os.environ.get("AWS_ACCESS_KEY_ID")
+    if os.environ.get("AWS_SECRET_ACCESS_KEY"):
+        kwargs["aws_secret_access_key"] = os.environ.get("AWS_SECRET_ACCESS_KEY")
+    return boto3.client("s3", **kwargs)
 
 def s3_cp(src: str, dst: str) -> None:
     # Use boto3 exclusively for better endpoint/IPv4 control and to avoid

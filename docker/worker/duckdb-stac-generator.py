@@ -76,17 +76,24 @@ def _ensure_ipv4():
     _ipv4_patched = True
 
 def _boto3_client():
-    _ensure_ipv4()
+    if os.environ.get("FORCE_S3_IPV4"):
+        _ensure_ipv4()
     import boto3
-    endpoint = os.environ.get('S3_ENDPOINT', '')
-    endpoint_url = endpoint if endpoint.startswith('https://') else f"https://{endpoint}" if endpoint else None
-    return boto3.client(
-        "s3",
-        endpoint_url=endpoint_url,
-        aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
-        aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
-        region_name=os.environ.get("AWS_DEFAULT_REGION", "auto"),
-    )
+    endpoint = os.environ.get('AWS_ENDPOINT_URL') or os.environ.get('S3_ENDPOINT')
+    endpoint_url = None
+    if endpoint:
+        endpoint_url = endpoint if endpoint.startswith('https://') else f"https://{endpoint}"
+    
+    kwargs = {
+        "endpoint_url": endpoint_url,
+        "region_name": os.environ.get("AWS_DEFAULT_REGION", "auto"),
+    }
+    if os.environ.get("AWS_ACCESS_KEY_ID"):
+        kwargs["aws_access_key_id"] = os.environ.get("AWS_ACCESS_KEY_ID")
+    if os.environ.get("AWS_SECRET_ACCESS_KEY"):
+        kwargs["aws_secret_access_key"] = os.environ.get("AWS_SECRET_ACCESS_KEY")
+        
+    return boto3.client("s3", **kwargs)
 
 def s3_copy(src, dest, timeout=300, retries=3):
     """Copy a file using boto3, routing to Cloudflare R2.
