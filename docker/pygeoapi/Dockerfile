@@ -39,6 +39,7 @@ ENV PYTHONPATH=/opt
 COPY boot.sh /boot.sh
 COPY warmup.py /warmup.py
 COPY cache_openapi.py /cache_openapi.py
+COPY waystones_wsgi.py /waystones_wsgi.py
 RUN chmod +x /boot.sh
 
 # Copy Caddy configuration. Caddyfile.tls wraps the base Caddyfile and adds a

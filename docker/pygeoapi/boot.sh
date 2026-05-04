@@ -114,4 +114,5 @@ exec gunicorn \
     --bind "${CONTAINER_HOST:-0.0.0.0}:${CONTAINER_PORT}" \
     --access-logfile - \
     --timeout 6000 \
-    pygeoapi.flask_app:APP
+    --pythonpath / \
+    waystones_wsgi:application
