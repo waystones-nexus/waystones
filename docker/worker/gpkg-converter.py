@@ -73,6 +73,8 @@ def get_endpoint_url() -> str:
 
 def s3_cp(src: str, dst: str) -> None:
     cmd = ["aws", "s3", "cp", src, dst, "--endpoint-url", get_endpoint_url(), "--no-progress"]
+    if os.environ.get("AWS_NO_VERIFY_SSL"):
+        cmd.append("--no-verify-ssl")
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         raise RuntimeError(f"aws s3 cp failed: {result.stderr.strip()}")
@@ -297,6 +299,8 @@ def main() -> None:
                 "--endpoint-url", get_endpoint_url(),
                 "--no-progress",
             ]
+            if os.environ.get("AWS_NO_VERIFY_SSL"):
+                sync_cmd.append("--no-verify-ssl")
             sync_res = subprocess.run(sync_cmd, capture_output=True, text=True)
             if sync_res.returncode != 0:
                 raise RuntimeError(f"aws s3 sync failed: {sync_res.stderr.strip()}")

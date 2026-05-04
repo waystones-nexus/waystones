@@ -67,6 +67,8 @@ def s3_copy(src, dest, timeout=300, retries=3):
     if endpoint:
         endpoint_url = endpoint if endpoint.startswith('https://') else f"https://{endpoint}"
         cmd.extend(["--endpoint-url", endpoint_url, "--region", "auto"])
+    if os.environ.get("AWS_NO_VERIFY_SSL"):
+        cmd.append("--no-verify-ssl")
     logging.info(f"Running AWS CLI: {' '.join(cmd)}")
     for attempt in range(1, retries + 1):
         try:
@@ -966,6 +968,8 @@ def main():
         if endpoint:
             endpoint_url = endpoint if endpoint.startswith('https://') else f"https://{endpoint}"
             sync_cmd.extend(["--endpoint-url", endpoint_url, "--region", "auto"])
+        if os.environ.get("AWS_NO_VERIFY_SSL"):
+            sync_cmd.append("--no-verify-ssl")
         subprocess.run(sync_cmd, check=True, timeout=600)
         logging.info("Bulk upload complete.")
 
