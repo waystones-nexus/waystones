@@ -78,7 +78,7 @@ def run_task_subprocess(env_vars: dict):
                 # and to allow a tiny window for another request to hit before we die.
                 def delayed_exit():
                     import time
-                    time.sleep(10)
+                    time.sleep(20)
                     logger.info("Goodbye!")
                     os._exit(0)
                 

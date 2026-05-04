@@ -74,16 +74,27 @@ def report_done(status, error_msg=None):
             "payload": payload
         }).encode()
         
-        print(f"[main] Reporting {status} to {callback_url}...", flush=True)
-        rq = urllib.request.Request(callback_url, data=body, headers=headers, method="POST")
-        with urllib.request.urlopen(rq, timeout=10) as resp:
-            print(f"[main] Cloud reported: {resp.status} {resp.reason}", flush=True)
+        # Simple retry logic for the cloud callback
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                print(f"[main] Reporting {status} to {callback_url} (Attempt {attempt+1}/{max_retries})...", flush=True)
+                rq = urllib.request.Request(callback_url, data=body, headers=headers, method="POST")
+                with urllib.request.urlopen(rq, timeout=15) as resp:
+                    print(f"[main] Cloud reported: {resp.status} {resp.reason}", flush=True)
+                    return # Success!
+            except Exception as e:
+                status_code = getattr(e, 'code', 'N/A')
+                print(f"[main] Attempt {attempt+1} failed ({status_code}). Retrying in 2s...", flush=True)
+                if attempt < max_retries - 1:
+                    time.sleep(2)
+                else:
+                    raise e
     except Exception as e:
-        # Check if it's an HTTPError to get the status code
         if hasattr(e, 'code'):
-            print(f"[main] Error: Cloud rejected callback with status {e.code}: {e.reason}", flush=True)
+            print(f"[main] Error: Cloud rejected callback after {max_retries} attempts with status {e.code}: {e.reason}", flush=True)
         else:
-            print(f"[main] Warning: Failed to report {status} to cloud: {e}", flush=True)
+            print(f"[main] Warning: Failed to report {status} to cloud after {max_retries} attempts: {e}", flush=True)
 
 
 def report_success(app_url, proj_id, task_type):
