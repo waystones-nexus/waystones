@@ -49,10 +49,43 @@ def force_ipv4_for_endpoint(endpoint_url: str):
 def get_endpoint_url() -> str:
     return os.environ.get("AWS_ENDPOINT_URL") or os.environ.get("S3_ENDPOINT", "")
 
+_ipv4_patched = False
+
+def _ensure_ipv4():
+    global _ipv4_patched
+    if _ipv4_patched:
+        return
+    _orig = socket.getaddrinfo
+    def _ipv4_only(host, port, family=0, type=0, proto=0, flags=0):
+        try:
+            return _orig(host, port, socket.AF_INET, type, proto, flags)
+        except Exception:
+            return _orig(host, port, family, type, proto, flags)
+    socket.getaddrinfo = _ipv4_only
+    _ipv4_patched = True
+
+def _boto3_client():
+    _ensure_ipv4()
+    import boto3
+    return boto3.client(
+        "s3",
+        endpoint_url=get_endpoint_url(),
+        aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
+        region_name=os.environ.get("AWS_DEFAULT_REGION", "auto"),
+    )
+
 def s3_cp(src: str, dst: str) -> None:
+    if os.environ.get("FORCE_S3_IPV4"):
+        client = _boto3_client()
+        if src.startswith("s3://"):
+            p = urlparse(src)
+            client.download_file(p.netloc, p.path.lstrip("/"), dst)
+        else:
+            p = urlparse(dst)
+            client.upload_file(src, p.netloc, p.path.lstrip("/"))
+        return
     cmd = ["aws", "s3", "cp", src, dst, "--endpoint-url", get_endpoint_url(), "--no-progress"]
-    if os.environ.get("AWS_NO_VERIFY_SSL"):
-        cmd.append("--no-verify-ssl")
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         raise RuntimeError(f"aws s3 cp failed: {result.stderr.strip()}")

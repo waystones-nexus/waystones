@@ -60,15 +60,50 @@ def force_ipv4_for_endpoint(endpoint_url: str):
         logging.warning(f"Could not override DNS for IPv4: {e}")
 
 
+_ipv4_patched = False
+
+def _ensure_ipv4():
+    global _ipv4_patched
+    if _ipv4_patched:
+        return
+    _orig = socket.getaddrinfo
+    def _ipv4_only(host, port, family=0, type=0, proto=0, flags=0):
+        try:
+            return _orig(host, port, socket.AF_INET, type, proto, flags)
+        except Exception:
+            return _orig(host, port, family, type, proto, flags)
+    socket.getaddrinfo = _ipv4_only
+    _ipv4_patched = True
+
+def _boto3_client():
+    _ensure_ipv4()
+    import boto3
+    endpoint = os.environ.get('S3_ENDPOINT', '')
+    endpoint_url = endpoint if endpoint.startswith('https://') else f"https://{endpoint}" if endpoint else None
+    return boto3.client(
+        "s3",
+        endpoint_url=endpoint_url,
+        aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID"),
+        aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY"),
+        region_name=os.environ.get("AWS_DEFAULT_REGION", "auto"),
+    )
+
 def s3_copy(src, dest, timeout=300, retries=3):
-    """Copy a file using AWS CLI, routing to Cloudflare R2. Retries on failure."""
+    """Copy a file using boto3 (FORCE_S3_IPV4) or AWS CLI, routing to Cloudflare R2."""
+    if os.environ.get("FORCE_S3_IPV4"):
+        client = _boto3_client()
+        if src.startswith("s3://"):
+            p = urlparse(src)
+            client.download_file(p.netloc, p.path.lstrip("/"), dest)
+        else:
+            p = urlparse(dest)
+            client.upload_file(src, p.netloc, p.path.lstrip("/"))
+        return
     cmd = ["aws", "s3", "cp", src, dest]
     endpoint = os.environ.get('S3_ENDPOINT')
     if endpoint:
         endpoint_url = endpoint if endpoint.startswith('https://') else f"https://{endpoint}"
         cmd.extend(["--endpoint-url", endpoint_url, "--region", "auto"])
-    if os.environ.get("AWS_NO_VERIFY_SSL"):
-        cmd.append("--no-verify-ssl")
     logging.info(f"Running AWS CLI: {' '.join(cmd)}")
     for attempt in range(1, retries + 1):
         try:
@@ -963,14 +998,22 @@ def main():
     # with one `aws s3 sync` that reuses the same connection for all files.
     if staging_dir and out_dir.startswith("s3://"):
         logging.info(f"Uploading all staged files to {out_dir} via s3 sync...")
-        sync_cmd = ["aws", "s3", "sync", staging_dir + "/", out_dir + "/"]
-        endpoint = os.environ.get('S3_ENDPOINT')
-        if endpoint:
-            endpoint_url = endpoint if endpoint.startswith('https://') else f"https://{endpoint}"
-            sync_cmd.extend(["--endpoint-url", endpoint_url, "--region", "auto"])
-        if os.environ.get("AWS_NO_VERIFY_SSL"):
-            sync_cmd.append("--no-verify-ssl")
-        subprocess.run(sync_cmd, check=True, timeout=600)
+        if os.environ.get("FORCE_S3_IPV4"):
+            import glob as _glob
+            client = _boto3_client()
+            p = urlparse(out_dir)
+            pfx = p.path.lstrip("/")
+            for fpath in _glob.glob(os.path.join(staging_dir, "**", "*"), recursive=True):
+                if os.path.isfile(fpath):
+                    rel = os.path.relpath(fpath, staging_dir).replace("\\", "/")
+                    client.upload_file(fpath, p.netloc, f"{pfx}/{rel}" if pfx else rel)
+        else:
+            sync_cmd = ["aws", "s3", "sync", staging_dir + "/", out_dir + "/"]
+            endpoint = os.environ.get('S3_ENDPOINT')
+            if endpoint:
+                endpoint_url = endpoint if endpoint.startswith('https://') else f"https://{endpoint}"
+                sync_cmd.extend(["--endpoint-url", endpoint_url, "--region", "auto"])
+            subprocess.run(sync_cmd, check=True, timeout=600)
         logging.info("Bulk upload complete.")
 
     logging.info("STAC generation complete.")

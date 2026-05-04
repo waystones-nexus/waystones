@@ -102,23 +102,6 @@ def main() -> None:
     env = os.environ.copy()
     env["TARGET_CRS"] = target_crs
 
-    if os.environ.get("FORCE_S3_IPV4"):
-        _endpoint = os.environ.get("AWS_ENDPOINT_URL") or os.environ.get("S3_ENDPOINT", "")
-        if _endpoint:
-            try:
-                from urllib.parse import urlparse as _urlparse
-                import socket as _socket
-                _parsed = _urlparse(_endpoint)
-                if _parsed.hostname:
-                    _ipv4 = _socket.gethostbyname(_parsed.hostname)
-                    _ipv4_endpoint = _endpoint.replace(f"://{_parsed.hostname}", f"://{_ipv4}", 1)
-                    env["AWS_ENDPOINT_URL"] = _ipv4_endpoint
-                    env["S3_ENDPOINT"] = _ipv4_endpoint
-                    env["AWS_NO_VERIFY_SSL"] = "1"
-                    print(f"[main] FORCE_S3_IPV4: resolved {_parsed.hostname} → {_ipv4}", flush=True)
-            except Exception as _e:
-                print(f"[main] Warning: FORCE_S3_IPV4 resolution failed: {_e}", flush=True)
-
     task_type = os.environ.get("TASK_TYPE", "snapshot").strip().lower()
 
     if task_type == "tiles":
