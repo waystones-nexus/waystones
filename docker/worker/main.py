@@ -76,9 +76,14 @@ def report_done(status, error_msg=None):
         
         print(f"[main] Reporting {status} to {callback_url}...", flush=True)
         rq = urllib.request.Request(callback_url, data=body, headers=headers, method="POST")
-        urllib.request.urlopen(rq, timeout=10)
+        with urllib.request.urlopen(rq, timeout=10) as resp:
+            print(f"[main] Cloud reported: {resp.status} {resp.reason}", flush=True)
     except Exception as e:
-        print(f"[main] Warning: Failed to report {status} to cloud: {e}", flush=True)
+        # Check if it's an HTTPError to get the status code
+        if hasattr(e, 'code'):
+            print(f"[main] Error: Cloud rejected callback with status {e.code}: {e.reason}", flush=True)
+        else:
+            print(f"[main] Warning: Failed to report {status} to cloud: {e}", flush=True)
 
 
 def report_success(app_url, proj_id, task_type):
