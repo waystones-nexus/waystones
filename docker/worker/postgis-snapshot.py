@@ -97,8 +97,11 @@ def _boto3_client():
         endpoint_url = endpoint if endpoint.startswith('https://') else f"https://{endpoint}"
     
     region = os.environ.get("AWS_DEFAULT_REGION")
-    if not region and endpoint_url and "r2.cloudflarestorage.com" in endpoint_url:
-        region = "us-east-1"
+    if not region:
+        if endpoint_url and "r2.cloudflarestorage.com" in endpoint_url:
+            region = "auto"
+        else:
+            region = "europe-west"
         
     config = Config(
         signature_version='s3v4',

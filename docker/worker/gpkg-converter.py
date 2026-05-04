@@ -96,10 +96,14 @@ def _boto3_client():
         endpoint_url = endpoint if endpoint.startswith('https://') else f"https://{endpoint}"
     
     # R2 requires s3v4 signature version. 
-    # It also often requires 'us-east-1' or 'auto' as the region name for signing.
+    # For signing, R2 prefers 'auto' or 'us-east-1'.
+    # We default to 'europe-west' to reflect the project's base, but switch to 'auto' for R2.
     region = os.environ.get("AWS_DEFAULT_REGION")
-    if not region and endpoint_url and "r2.cloudflarestorage.com" in endpoint_url:
-        region = "us-east-1"
+    if not region:
+        if endpoint_url and "r2.cloudflarestorage.com" in endpoint_url:
+            region = "auto"
+        else:
+            region = "europe-west"
         
     config = Config(
         signature_version='s3v4',
