@@ -31,6 +31,18 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Determine Image Repository
+        id: repo_info
+        shell: bash
+        run: |
+          if [[ "${{ github.ref }}" == refs/heads/main ]] || [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            echo "image_repo=waystones-keystone" >> $GITHUB_OUTPUT
+          elif [[ "${{ github.ref }}" == refs/heads/unstable ]]; then
+            echo "image_repo=waystones-shard" >> $GITHUB_OUTPUT
+          else
+            echo "image_repo=waystones-void" >> $GITHUB_OUTPUT
+          fi
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -45,7 +57,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ${{ matrix.context }}
-          tags: waystones-${{ matrix.tag }}:latest
+          tags: ${{ steps.repo_info.outputs.image_repo }}-${{ matrix.tag }}:latest
           target: ${{ matrix.target }}
           load: true
           push: false
@@ -58,4 +70,4 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           wranglerVersion: "4"
-          command: containers push waystones-${{ matrix.tag }}:latest
+          command: containers push ${{ steps.repo_info.outputs.image_repo }}-${{ matrix.tag }}:latest
