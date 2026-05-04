@@ -41,7 +41,7 @@ if [ "${DEPLOY_QGIS:-0}" = "1" ] && [ -n "${WMS_WAKEUP_URL:-}" ]; then
 fi
 
 # ─── Config Injection Fallback ────────────────────────────────────────────
-if [ ! -s "$PYGEOAPI_CONFIG" ] && [ -n "${PYGEOAPI_CONFIG_B64:-}" ]; then
+if [ -n "${PYGEOAPI_CONFIG_B64:-}" ]; then
     echo "[startup] Writing pygeoapi config from PYGEOAPI_CONFIG_B64..."
     echo "$PYGEOAPI_CONFIG_B64" | base64 -d > "$PYGEOAPI_CONFIG"
 fi
