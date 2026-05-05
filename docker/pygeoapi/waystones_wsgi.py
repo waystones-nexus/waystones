@@ -9,14 +9,15 @@ _CONFIG_LOADED = False
 _pygeoapi_app = None
 
 CONFIG_PATH = os.environ.get("PYGEOAPI_CONFIG", "/pygeoapi/local.config.yml")
+OPENAPI_PATH = os.environ.get("PYGEOAPI_OPENAPI", "/pygeoapi/local.openapi.yml")
 _TASKS_FLAG = "/tmp/waystones_tasks_triggered"
 
 
 def _inject_machine_env(raw_config_json: str) -> None:
-    """Inject machine_env credentials from the X-Waystones-Config JSON into os.environ.
+    """Inject machine_env credentials into os.environ before pygeoapi loads.
 
-    This is the fallback path for when this.start({ envVars }) in the CF Container
-    Durable Object fails to inject environment variables on cold start.
+    Fallback for when this.start({ envVars }) in the CF Container Durable Object
+    fails to inject environment variables on cold start.
     """
     try:
         payload = json.loads(raw_config_json)
@@ -32,8 +33,58 @@ def _inject_machine_env(raw_config_json: str) -> None:
         print(f"[waystones_wsgi] Warning: could not parse machine_env: {e}", flush=True)
 
 
-def _trigger_background_tasks():
-    """Fire cache/warmup tasks once per container boot (best-effort dedup via flag file)."""
+def _is_stub_openapi() -> bool:
+    """Return True if local.openapi.yml is still the baked-in 'booting' placeholder."""
+    try:
+        with open(OPENAPI_PATH, "r") as f:
+            head = f.read(256)
+        return "booting" in head or "paths: {}" in head
+    except OSError:
+        return True
+
+
+def _ensure_openapi_ready() -> None:
+    """Guarantee a real openapi.yml exists before Flask loads.
+
+    Fast path: try S3/local cache download (already done by boot.sh on non-CF paths,
+    but skipped there when config didn't exist yet). Falls back to synchronous
+    generation — this blocks the first request but ensures correct UI on cold start.
+    The background task (_trigger_background_tasks) then uploads to S3 so future
+    cold starts hit the cache instead.
+    """
+    # Fast path: pull from S3/local cache
+    subprocess.run(
+        ["python3", "/cache_openapi.py", "--download-only"],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    )
+
+    if not _is_stub_openapi():
+        print("[waystones_wsgi] OpenAPI ready (from cache)", flush=True)
+        return
+
+    # Slow path: generate synchronously from the config we just wrote
+    print("[waystones_wsgi] Cache miss — generating OpenAPI spec (blocking)...", flush=True)
+    tmp = OPENAPI_PATH + ".tmp"
+    openapi_dir = os.path.dirname(OPENAPI_PATH)
+    os.makedirs(openapi_dir, exist_ok=True)
+    try:
+        with open(tmp, "w") as f:
+            subprocess.run(
+                ["pygeoapi", "openapi", "generate", CONFIG_PATH],
+                stdout=f, check=True,
+            )
+        os.replace(tmp, OPENAPI_PATH)
+        print("[waystones_wsgi] OpenAPI spec generated", flush=True)
+    except Exception as e:
+        print(f"[waystones_wsgi] Warning: OpenAPI generation failed: {e}", flush=True)
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+
+
+def _trigger_background_tasks() -> None:
+    """Fire cache upload + asyncapi + warmup once per container boot."""
     if os.path.exists(_TASKS_FLAG):
         return
     try:
@@ -43,7 +94,7 @@ def _trigger_background_tasks():
 
     devnull = {"stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
 
-    # Generates openapi.yml (from S3 cache or live), then sends SIGHUP to reload workers.
+    # Uploads the generated openapi.yml to S3 and sends SIGHUP to reload workers.
     subprocess.Popen(["python3", "/cache_openapi.py", "--generate-and-reload"], **devnull)
 
     subprocess.Popen(
@@ -99,11 +150,17 @@ def application(environ, start_response):
                     os.replace(tmp, CONFIG_PATH)
 
                     print(f"[waystones_wsgi] Config written to {CONFIG_PATH}", flush=True)
+
+                    # Ensure openapi.yml is real before Flask loads — pygeoapi uses it
+                    # to build the collections index and API spec on startup.
+                    _ensure_openapi_ready()
+
+                    # Background: upload openapi to S3 cache, asyncapi, warmup
                     _trigger_background_tasks()
 
                 elif os.path.exists(CONFIG_PATH):
                     # No header but config on disk: worker restarted after SIGHUP,
-                    # previous worker already wrote the real config in this container.
+                    # previous worker already wrote the real config and openapi.
                     print(f"[waystones_wsgi] Using existing config at {CONFIG_PATH}", flush=True)
 
                 else:
