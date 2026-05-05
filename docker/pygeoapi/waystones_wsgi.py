@@ -52,6 +52,11 @@ def _ensure_openapi_ready() -> None:
     The background task (_trigger_background_tasks) then uploads to S3 so future
     cold starts hit the cache instead.
     """
+    # Trivial fast path: real OpenAPI already on disk (SIGHUP reload, or second worker
+    # calling this after the first worker already generated it).
+    if not _is_stub_openapi():
+        return
+
     # Fast path: pull from S3/local cache
     subprocess.run(
         ["python3", "/cache_openapi.py", "--download-only"],
@@ -159,9 +164,10 @@ def application(environ, start_response):
                     _trigger_background_tasks()
 
                 elif os.path.exists(CONFIG_PATH):
-                    # No header but config on disk: worker restarted after SIGHUP,
-                    # previous worker already wrote the real config and openapi.
+                    # No header but config on disk: SIGHUP reload, or a second worker
+                    # that raced past the first before openapi.yml was fully generated.
                     print(f"[waystones_wsgi] Using existing config at {CONFIG_PATH}", flush=True)
+                    _ensure_openapi_ready()
 
                 else:
                     start_response("503 Service Unavailable", [
