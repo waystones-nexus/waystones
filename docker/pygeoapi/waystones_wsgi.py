@@ -46,26 +46,16 @@ def application(environ, start_response):
     if not _CONFIG_LOADED:
         with _lock:
             if not _CONFIG_LOADED:
-                # Worker restarted after SIGHUP: config already on disk.
-                if os.path.exists(CONFIG_PATH):
-                    _pygeoapi_app = _load_app()
-                    _CONFIG_LOADED = True
-                else:
-                    b64 = environ.get("HTTP_X_WAYSTONES_CONFIG_B64")
-                    if not b64:
-                        start_response("503 Service Unavailable", [
-                            ("Content-Type", "text/plain"),
-                            ("Retry-After", "5"),
-                        ])
-                        return [b"Service initializing. Missing X-Waystones-Config-B64 header."]
+                b64 = environ.get("HTTP_X_WAYSTONES_CONFIG_B64")
 
+                if b64:
+                    # Header present: always write so we overwrite any base-image demo config.
                     try:
                         config_bytes = base64.b64decode(b64)
                     except Exception:
                         start_response("400 Bad Request", [("Content-Type", "text/plain")])
                         return [b"Invalid X-Waystones-Config-B64: not valid base64."]
 
-                    # Atomic write — never leaves a half-written config.
                     tmp = CONFIG_PATH + ".tmp"
                     os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
                     with open(tmp, "wb") as f:
@@ -73,9 +63,21 @@ def application(environ, start_response):
                     os.replace(tmp, CONFIG_PATH)
 
                     print(f"[waystones_wsgi] Config written to {CONFIG_PATH}", flush=True)
-
                     _trigger_background_tasks()
-                    _pygeoapi_app = _load_app()
-                    _CONFIG_LOADED = True
+
+                elif os.path.exists(CONFIG_PATH):
+                    # No header but real config on disk: worker restarted after SIGHUP,
+                    # config was already written by a previous worker in this container.
+                    print(f"[waystones_wsgi] Using existing config at {CONFIG_PATH}", flush=True)
+
+                else:
+                    start_response("503 Service Unavailable", [
+                        ("Content-Type", "text/plain"),
+                        ("Retry-After", "5"),
+                    ])
+                    return [b"Service initializing. Missing X-Waystones-Config-B64 header."]
+
+                _pygeoapi_app = _load_app()
+                _CONFIG_LOADED = True
 
     return _pygeoapi_app(environ, start_response)

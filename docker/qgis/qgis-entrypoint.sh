@@ -6,14 +6,16 @@ set -euo pipefail
 # ─── Ensure /data directory exists ────────────────────────────────────────
 mkdir -p /data
 
-# Decode QGIS project from env
+# Decode QGIS project from env var (backward-compat: Fly.io / Railway / local dev).
+# In Cloudflare Containers this env var may not be set; the proxy handles it via
+# the X-Waystones-Qgis-B64 request header instead.
 if [ -n "${QGIS_PROJECT_B64:-}" ] && [ ! -f "/data/project.qgs" ]; then
     echo "[qgis-startup] Writing QGIS project from env..."
     echo "$QGIS_PROJECT_B64" | base64 -d > /data/project.qgs
 fi
 
 chown -R www-data:www-data /data
-chmod 644 /data/project.qgs
+[ -f "/data/project.qgs" ] && chmod 644 /data/project.qgs || true
 
 # ─── BULLETPROOF ENVIRONMENT DUMP ─────────────────────────────────────────
 echo "[qgis-startup] Capturing root environment for FastCGI..."
@@ -21,10 +23,11 @@ env | grep -E '^(AWS_|QGIS_|CPL_|GDAL_|QT_)' | sed 's/^/export /' > /tmp/qgis-en
 chmod 644 /tmp/qgis-env.sh
 
 # ─── GDAL /vsis3/ Pre-flight ──────────────────────────────────────────────
-FIRST_FGB=$(grep -oP '/vsis3/[^<"]+\.fgb' /data/project.qgs 2>/dev/null | head -1 || true)
-if [ -n "$FIRST_FGB" ]; then
-    echo "[qgis-startup] Testing GDAL access to: $FIRST_FGB"
-    cat <<'PYEOF' > /tmp/test.py
+if [ -f "/data/project.qgs" ]; then
+    FIRST_FGB=$(grep -oP '/vsis3/[^<"]+\.fgb' /data/project.qgs 2>/dev/null | head -1 || true)
+    if [ -n "$FIRST_FGB" ]; then
+        echo "[qgis-startup] Testing GDAL access to: $FIRST_FGB"
+        cat <<'PYEOF' > /tmp/test.py
 import sys
 try:
     from osgeo import ogr, gdal
@@ -37,11 +40,11 @@ try:
 except Exception as e:
     print(f"[qgis-startup] Pre-flight: FAILED — {e}", flush=True)
 PYEOF
-    su -s /bin/bash www-data -c "source /tmp/qgis-env.sh && python3 /tmp/test.py \"$FIRST_FGB\""
+        su -s /bin/bash www-data -c "source /tmp/qgis-env.sh && python3 /tmp/test.py \"$FIRST_FGB\""
+    fi
 fi
 
-# ─── FIX: INJECT VARIABLES INTO NGINX ──────────────────────────────────────
-# Because QGIS Server wipes GDAL settings per request, Nginx MUST pass them!
+# ─── INJECT VARIABLES INTO NGINX ──────────────────────────────────────────
 echo "[qgis-startup] Injecting FastCGI parameters into Nginx..."
 for file in /etc/nginx/fastcgi_params /etc/nginx/fastcgi.conf; do
     if [ -f "$file" ]; then
@@ -55,6 +58,21 @@ for file in /etc/nginx/fastcgi_params /etc/nginx/fastcgi.conf; do
         echo "fastcgi_param AWS_HTTPS \"YES\";" >> "$file"
         echo "fastcgi_param CPL_VSIL_CURL_USE_HEAD \"FALSE\";" >> "$file"
     fi
+done
+
+# ─── Move nginx off port 80 so the proxy wrapper can own it ───────────────
+# The Python proxy (waystones_qgis_proxy.py) binds :80 and starts nginx
+# on NGINX_INTERNAL_PORT (default 8080) after the project file is ready.
+export NGINX_INTERNAL_PORT="${NGINX_INTERNAL_PORT:-8080}"
+echo "[qgis-startup] Reconfiguring nginx to listen on internal port ${NGINX_INTERNAL_PORT}..."
+for f in /etc/nginx/nginx.conf \
+          /etc/nginx/sites-enabled/default \
+          /etc/nginx/sites-available/default \
+          /etc/nginx/conf.d/default.conf; do
+    [ -f "$f" ] && sed -i \
+        "s/listen\s\+80\b/listen ${NGINX_INTERNAL_PORT}/g; \
+         s/listen\s\+\[::\]:80\b/listen [::]:${NGINX_INTERNAL_PORT}/g" \
+        "$f" || true
 done
 
 # ─── Generate QGIS FastCGI Wrapper ─────────────────────────────────────────
@@ -83,16 +101,11 @@ exec /usr/lib/cgi-bin/qgis_mapserv.fcgi
 EOF
 
 chmod +x /usr/local/bin/qgis-wrapper.sh
-
-# Prepare the log file
 touch /tmp/qgis-server.log
 chown www-data:www-data /tmp/qgis-server.log
 
-echo "[qgis-startup] Starting QGIS Server on port 9993..."
-spawn-fcgi -u www-data -g www-data -d /var/lib/qgis -p 9993 -- /usr/local/bin/qgis-wrapper.sh
-
-# Stream QGIS logs to Fly console
-tail -f /tmp/qgis-server.log &
-
-echo "[qgis-startup] Starting nginx..."
-exec nginx -g 'daemon off;'
+# ─── Hand off to the proxy wrapper ────────────────────────────────────────
+# The proxy writes the project file (if not already present), starts
+# spawn-fcgi + nginx, and proxies all traffic to nginx internally.
+echo "[qgis-startup] Starting proxy wrapper on port ${CONTAINER_PORT:-80}..."
+exec python3 /waystones_qgis_proxy.py
