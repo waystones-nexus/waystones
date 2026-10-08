@@ -66,6 +66,11 @@ describe('devcontainerJson', () => {
     expect(() => JSON.parse(devcontainerJson)).not.toThrow();
   });
 
+  it('pins the base image to a specific Ubuntu release, not the floating "ubuntu" tag — confirmed live that base:ubuntu moved to 26.04 ("resolute"), where docker-in-docker cannot install, so Codespaces silently fell back to a bare recovery container', () => {
+    const parsed = JSON.parse(devcontainerJson);
+    expect(parsed.image).toBe('mcr.microsoft.com/devcontainers/base:ubuntu-24.04');
+  });
+
   it('enables the docker-in-docker feature', () => {
     const parsed = JSON.parse(devcontainerJson);
     expect(Object.keys(parsed.features)).toContain('ghcr.io/devcontainers/features/docker-in-docker:2');

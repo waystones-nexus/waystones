@@ -46,7 +46,7 @@ import { MANUAL_EXTRAS_TILES_CMD, MANUAL_EXTRAS_STAC_CMD } from './readme';
 // ============================================================
 export const devcontainerJson = `{
   "name": "Waystones Codespaces Quickstart",
-  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
   "features": {
     "ghcr.io/devcontainers/features/docker-in-docker:2": {},
     "ghcr.io/devcontainers/features/python:1": { "version": "os-provided" }
