@@ -8,6 +8,17 @@ declare var initSqlJs: any;
 
 const isRequired = (f: any): boolean => f.multiplicity === '1..1' || f.multiplicity === '1..*';
 
+// Resolve codelist values for inline or shared codelists; sharedName is set when the values come from a shared enum
+const resolveCodeValues = (ft: any, model: DataModel): { values: CodeValue[]; sharedName?: string } => {
+  if (ft.kind !== 'codelist') return { values: [] };
+  if (ft.mode === 'inline') return { values: ft.values ?? [] };
+  if (ft.mode === 'shared' && ft.enumRef) {
+    const shared = model.sharedEnums?.find(e => e.id === ft.enumRef);
+    return { values: shared?.values ?? [], sharedName: shared?.name };
+  }
+  return { values: [] };
+};
+
 export const exportGeoPackage = async (model: DataModel, filename: string) => {
   const SQL = await initSqlJs({ locateFile: () => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.12.0/sql-wasm.wasm` });
   const db = new SQL.Database();
@@ -119,6 +130,9 @@ export const exportGeoPackage = async (model: DataModel, filename: string) => {
     ['gpkg_data_column_constraints', null, 'gpkg_schema', 'http://www.geopackage.org/spec120/#extension_schema', 'read-write']
   );
 
+  // Tracks enum constraint names already written, so shared enums are emitted once
+  const writtenConstraints = new Set<string>();
+
   for (const layer of model.layers) {
     if (layer.isAbstract) continue;
     const tbl = toTableName(layer.name);
@@ -152,17 +166,9 @@ export const exportGeoPackage = async (model: DataModel, filename: string) => {
 
       // Add CHECK constraints for codelist values
       if (ft.kind === 'codelist') {
-        let codeValues: string[] = [];
-        if (ft.mode === 'inline' && ft.values?.length > 0) {
-          codeValues = ft.values.map((v: CodeValue) => v.code);
-        } else if (ft.mode === 'shared' && ft.enumRef) {
-          const shared = model.sharedEnums?.find(e => e.id === ft.enumRef);
-          if (shared?.values?.length > 0) {
-            codeValues = shared.values.map((v: CodeValue) => v.code);
-          }
-        }
-        if (codeValues.length > 0) {
-          const vals = codeValues.map(c => `'${c.replace(/'/g, "''")}'`).join(', ');
+        const { values } = resolveCodeValues(ft, model);
+        if (values.length > 0) {
+          const vals = values.map(v => `'${v.code.replace(/'/g, "''")}'`).join(', ');
           colDef += ` CHECK ("${f.name}" IN (${vals}))`;
         }
       }
@@ -240,47 +246,39 @@ export const exportGeoPackage = async (model: DataModel, filename: string) => {
 
     // Register constrained fields for QGIS support via gpkg metadata tables
     effectiveProperties.forEach(f => {
-      let codeValues: string[] = [];
-
       // Case 1 & 2: Enumeration (from codelist or constraints.enumeration)
+      // value = code, description = label (GDAL/QGIS use description as the display name)
+      let enumEntries: { code: string; label: string | null }[] = [];
+      let constraintName = `${tbl}_${f.name}_enum`;
+
       if (f.fieldType.kind === 'codelist') {
-        const ft = f.fieldType;
-        if (ft.mode === 'inline' && ft.values?.length > 0) {
-          codeValues = ft.values.map((v: CodeValue) => v.code);
-        } else if (ft.mode === 'shared' && 'enumRef' in ft) {
-          const enumRef = (ft as any).enumRef;
-          const shared = model.sharedEnums?.find(e => e.id === enumRef);
-          if (shared?.values?.length > 0) {
-            codeValues = shared.values.map((v: CodeValue) => v.code);
-          }
-        }
+        const { values, sharedName } = resolveCodeValues(f.fieldType, model);
+        enumEntries = values.map(v => ({ code: v.code, label: v.label || v.description || null }));
+        // Shared enums get one constraint reused by every column that references them
+        if (sharedName) constraintName = toTableName(sharedName);
       } else if (f.constraints?.enumeration?.length > 0) {
-        codeValues = f.constraints.enumeration;
+        enumEntries = f.constraints.enumeration.map(code => ({ code, label: null }));
       }
 
-      if (codeValues.length > 0) {
-        const constraintName = `${tbl}_${f.name}_enum`;
-
-        // Insert one row per enum value into gpkg_data_column_constraints
-        // QGIS reads one row per value to build the dropdown list
-        codeValues.forEach(code => {
-          db.run(
-            `INSERT INTO gpkg_data_column_constraints (constraint_name, constraint_type, value) VALUES (?, ?, ?)`,
-            [constraintName, 'enum', code]
-          );
-        });
+      if (enumEntries.length > 0) {
+        // Insert one row per enum value into gpkg_data_column_constraints (once per constraint name)
+        if (!writtenConstraints.has(constraintName)) {
+          writtenConstraints.add(constraintName);
+          enumEntries.forEach(({ code, label }) => {
+            db.run(
+              `INSERT OR IGNORE INTO gpkg_data_column_constraints (constraint_name, constraint_type, value, description) VALUES (?, ?, ?, ?)`,
+              [constraintName, 'enum', code, label]
+            );
+          });
+        }
 
         // Insert into gpkg_data_columns to link the constraint to the column
         db.run(
           `INSERT INTO gpkg_data_columns (table_name, column_name, name, title, description, mime_type, constraint_name) VALUES (?, ?, ?, ?, ?, ?, ?)`,
           [tbl, f.name, null, f.title || f.name, f.description || '', null, constraintName]
         );
-
-        // Register this constrained column in gpkg_extensions
-        db.run(
-          `INSERT OR IGNORE INTO gpkg_extensions (table_name, column_name, extension_name, definition, scope) VALUES (?, ?, ?, ?, ?)`,
-          [tbl, f.name, 'gpkg_schema', 'http://www.geopackage.org/spec120/#extension_schema', 'read-write']
-        );
+        // A column can only reference one constraint; enum takes precedence over range
+        return;
       }
 
       // Case 3: Min/Max range constraint
@@ -289,18 +287,14 @@ export const exportGeoPackage = async (model: DataModel, filename: string) => {
       const hasRange = isNumeric && ((c?.min !== undefined && c.min !== null) || (c?.max !== undefined && c.max !== null));
 
       if (hasRange) {
-        const constraintName = `${tbl}_${f.name}_range`;
+        const rangeName = `${tbl}_${f.name}_range`;
         db.run(
           `INSERT INTO gpkg_data_column_constraints (constraint_name, constraint_type, value, min, min_is_inclusive, max, max_is_inclusive) VALUES (?, ?, NULL, ?, 1, ?, 1)`,
-          [constraintName, 'range', c.min ?? null, c.max ?? null]
+          [rangeName, 'range', c.min ?? null, c.max ?? null]
         );
         db.run(
           `INSERT INTO gpkg_data_columns (table_name, column_name, name, title, description, mime_type, constraint_name) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [tbl, f.name, null, f.title || f.name, f.description || '', null, constraintName]
-        );
-        db.run(
-          `INSERT OR IGNORE INTO gpkg_extensions (table_name, column_name, extension_name, definition, scope) VALUES (?, ?, ?, ?, ?)`,
-          [tbl, f.name, 'gpkg_schema', 'http://www.geopackage.org/spec120/#extension_schema', 'read-write']
+          [tbl, f.name, null, f.title || f.name, f.description || '', null, rangeName]
         );
       }
     });
