@@ -207,13 +207,21 @@ def get_table_geom_col(pg_conn: str, table_name: str, default: str = "geom") -> 
         print(f"[snapshot] Warning: ogrinfo timed out for '{table_name}' — using '{default}'", flush=True)
     return default
 
+def _conninfo_quote(value: str) -> str:
+    """Quote a libpq conninfo value so spaces and quotes survive."""
+    return "'" + value.replace("\\", "\\\\").replace("'", "\\'") + "'"
+
 def build_pg_connection_string() -> str:
-    host     = os.environ["PG_HOST"]
-    port     = os.environ.get("PG_PORT", "5432")
-    dbname   = os.environ["PG_DB"]
-    user     = os.environ["PG_USER"]
-    password = os.environ["PG_PASSWORD"]
-    return f"PG:host={host} port={port} dbname={dbname} user={user} password={password}"
+    parts = {
+        "host":   os.environ["PG_HOST"],
+        "port":   os.environ.get("PG_PORT", "5432"),
+        "dbname": os.environ["PG_DB"],
+        "user":   os.environ["PG_USER"],
+    }
+    # The password travels via PGPASSWORD (read by libpq) so it never appears in
+    # ogrinfo/ogr2ogr argv — GDAL echoes the datasource string in its error messages.
+    os.environ["PGPASSWORD"] = os.environ["PG_PASSWORD"]
+    return "PG:" + " ".join(f"{k}={_conninfo_quote(v)}" for k, v in parts.items())
 
 def build_pg_uri() -> str:
     host     = os.environ["PG_HOST"]
@@ -484,7 +492,6 @@ def main() -> None:
     target_crs = os.environ.get("TARGET_CRS", "").strip() or "EPSG:4326"
     print(f"[worker] Enforcing {target_crs} normalization for Parquet files", flush=True)
     pg_conn    = build_pg_connection_string()
-    pg_uri     = build_pg_uri()
 
     tables_raw = os.environ.get("TABLES", "").strip()
     tables_to_process = []

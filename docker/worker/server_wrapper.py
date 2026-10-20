@@ -14,6 +14,19 @@ _TIPPECANOE_PROGRESS = re.compile(r'^\d+\.\d+%\s+\d+/\d+/\d+')
 _PG_DSN = re.compile(r'(postgresql|postgres)://([^:]+):([^@]+)@')
 # S3 / generic secret key patterns
 _SECRET_KEY = re.compile(r'(secret[_\-]?(?:access[_\-]?)?key\s*[=:]\s*)\S+', re.IGNORECASE)
+# libpq/GDAL conninfo passwords: password=x, password='x y', PGPASSWORD=x
+_PASSWORD = re.compile(r"(password\s*[=:]\s*)('(?:[^'\\]|\\.)*'|\S+)", re.IGNORECASE)
+# HTTP auth headers echoed in errors
+_AUTH_TOKEN = re.compile(r'\b(Bearer|ApiKey)\s+[A-Za-z0-9._~+/=-]+')
+
+
+# Payload keys that carry DB connection strings or R2 credentials
+_SECRET_PAYLOAD_KEYS = {"inputUri", "s3Env", "dataModelB64", "pgConnectionString"}
+
+
+def redact_payload(payload: dict) -> dict:
+    """Copy of a task payload that is safe to log."""
+    return {k: ("[redacted]" if k in _SECRET_PAYLOAD_KEYS and v else v) for k, v in payload.items()}
 
 
 def sanitize(line: str) -> str | None:
@@ -22,6 +35,8 @@ def sanitize(line: str) -> str | None:
         return None
     line = _PG_DSN.sub(r'\1://***:***@', line)
     line = _SECRET_KEY.sub(r'\1***', line)
+    line = _PASSWORD.sub(r'\1***', line)
+    line = _AUTH_TOKEN.sub(r'\1 ***', line)
     return line
 
 # Configure logging to stdout so it shows up in platform logs
@@ -117,10 +132,10 @@ def run_task_subprocess(env_vars: dict):
 
         if process.stdout:
             for line in process.stdout:
-                stripped = line.strip()
-                print(f"[worker] {stripped}", flush=True)
-                clean = sanitize(stripped)
+                clean = sanitize(line.strip())
                 if clean is not None:
+                    # Container stdout gets the same redacted line as the cloud log
+                    print(f"[worker] {clean}", flush=True)
                     ts = time.strftime("%H:%M:%S") + " "
                     buffer.append(ts + clean)
                     if len(buffer) >= FLUSH_SIZE or time.time() - last_flush >= FLUSH_INTERVAL:
@@ -165,7 +180,7 @@ async def handle_internal_task(request: Request, background_tasks: BackgroundTas
         logger.error(f"Failed to parse JSON body: {e}")
         return {"status": "error", "message": "Invalid JSON body"}, 400
 
-    logger.info(f"Received internal task request: {json.dumps(payload)}")
+    logger.info(f"Received internal task request: {json.dumps(redact_payload(payload))}")
 
     # Map payload to environment variables expected by main.py
     # We prioritize the explicit outputUri if provided by the worker proxy
@@ -205,6 +220,11 @@ async def handle_internal_task(request: Request, background_tasks: BackgroundTas
         "EXCLUDE_LAYERS": ",".join(payload.get("excludeLayerNames") or [])
             if isinstance(payload.get("excludeLayerNames"), list)
             else (payload.get("excludeLayerNames") or ""),
+        # [{source, name}] — explicit layer list + MVT layer names for tiling. Passed as
+        # JSON in the subprocess env (not the CF container env, which is capped at 5 KB).
+        "TILE_LAYERS_JSON": json.dumps(payload["tileLayers"])
+            if isinstance(payload.get("tileLayers"), list) and payload["tileLayers"]
+            else None,
     }
 
     # Inject S3 credentials if passed (proxy worker often passes these)

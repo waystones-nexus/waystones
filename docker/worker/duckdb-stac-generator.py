@@ -1039,7 +1039,7 @@ def main():
 
     # ── Write Metrics for main.py callback ───────────────────────────────
     try:
-        with open("/tmp/.peon-metrics.json", "w") as f:
+        with open(os.environ.get("PEON_METRICS_PATH", "/tmp/.peon-metrics.json"), "w") as f:
             json.dump({"totalBytes": total_output_bytes}, f)
     except Exception as e:
         logging.warning(f"Failed to write metrics file: {e}")
