@@ -25,6 +25,7 @@ import json
 import os
 import re
 import shutil
+import errno
 import socket
 import subprocess
 import sys
@@ -56,6 +57,10 @@ def force_ipv4_for_endpoint(endpoint_url: str):
         with open("/etc/hosts", "a") as f:
             f.write(f"\n{ipv4_addr} {domain}\n")
         print(f"[snapshot] Fixed IPv6 timeout: Forced {domain} to {ipv4_addr} in /etc/hosts", flush=True)
+    except OSError as e:
+        if e.errno == errno.EROFS:
+            return  # read-only /etc/hosts; boto3 is already forced to IPv4 by _ensure_ipv4()
+        print(f"[snapshot] Warning: Could not override DNS for IPv4: {e}", flush=True)
     except Exception as e:
         print(f"[snapshot] Warning: Could not override DNS for IPv4: {e}", flush=True)
 
