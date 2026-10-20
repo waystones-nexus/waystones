@@ -21,7 +21,7 @@ def pg_env(monkeypatch):
 class TestBuildPgConnectionString:
     def test_produces_gdal_format(self):
         result = snapshot.build_pg_connection_string()
-        assert result == "PG:host=db.example.com port=5432 dbname=testdb user=alice password=s3cret"
+        assert result == "PG:host='db.example.com' port='5432' dbname='testdb' user='alice'"
 
     def test_starts_with_pg_prefix(self):
         assert snapshot.build_pg_connection_string().startswith("PG:")
@@ -29,12 +29,22 @@ class TestBuildPgConnectionString:
     def test_default_port_when_env_missing(self, monkeypatch):
         monkeypatch.delenv("PG_PORT", raising=False)
         result = snapshot.build_pg_connection_string()
-        assert "port=5432" in result
+        assert "port='5432'" in result
 
-    def test_special_chars_in_password_preserved(self, monkeypatch):
+    def test_password_kept_out_of_conn_string(self, monkeypatch):
+        # GDAL echoes the datasource string in errors, so the password goes via PGPASSWORD
         monkeypatch.setenv("PG_PASSWORD", "p@ss!w0rd")
+        monkeypatch.delenv("PGPASSWORD", raising=False)
         result = snapshot.build_pg_connection_string()
-        assert "password=p@ss!w0rd" in result
+        assert "p@ss!w0rd" not in result
+        assert snapshot.os.environ["PGPASSWORD"] == "p@ss!w0rd"
+
+    def test_values_with_spaces_and_quotes_are_quoted(self, monkeypatch):
+        monkeypatch.setenv("PG_DB", "my db")
+        monkeypatch.setenv("PG_USER", "o'neil")
+        result = snapshot.build_pg_connection_string()
+        assert "dbname='my db'" in result
+        assert "user='o\\'neil'" in result
 
     def test_missing_required_host_raises(self, monkeypatch):
         monkeypatch.delenv("PG_HOST")

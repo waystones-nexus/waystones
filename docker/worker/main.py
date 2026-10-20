@@ -18,25 +18,39 @@ injected so postgis-snapshot.py's build_pg_connection_string() works unchanged.
 """
 
 import os
+import re
 import sys
 import time
 import subprocess
-from urllib.parse import urlparse
+from urllib.parse import urlparse, unquote
 
 SCRIPTS_DIR = os.path.dirname(os.path.abspath(__file__))
 
+_DSN_CREDENTIALS = re.compile(r'((?:postgresql|postgres)://)[^@/\s]*@')
+
+
+def redact(value: str) -> str:
+    """Mask DSN credentials and the base64 data model before printing."""
+    if value.startswith("--model="):
+        return "--model=<redacted>"
+    return _DSN_CREDENTIALS.sub(r'\1***@', value)
+
 
 def parse_pg_uri(uri: str) -> dict:
-    """Parse postgresql://user:pass@host:port/dbname → PG_* env vars."""
+    """Parse postgresql://user:pass@host:port/dbname → PG_* env vars.
+
+    User, password and dbname are percent-decoded: the cloud app builds the URI with
+    encodeURIComponent so passwords containing @ : / # ? survive the round trip.
+    """
     parsed = urlparse(uri)
     if parsed.scheme not in ("postgresql", "postgres"):
         raise ValueError(f"Expected a postgresql:// URI, got scheme {parsed.scheme!r}")
     return {
         "PG_HOST":     parsed.hostname or "localhost",
         "PG_PORT":     str(parsed.port or 5432),
-        "PG_DB":       (parsed.path or "").lstrip("/"),
-        "PG_USER":     parsed.username or "",
-        "PG_PASSWORD": parsed.password or "",
+        "PG_DB":       unquote((parsed.path or "").lstrip("/")),
+        "PG_USER":     unquote(parsed.username or ""),
+        "PG_PASSWORD": unquote(parsed.password or ""),
     }
 
 
@@ -53,8 +67,9 @@ def report_done(status, error_msg=None):
         
         payload = {}
         if status == "success":
-            # Try to read metrics from sub-scripts - use absolute path in /tmp for reliability
-            metrics_path = "/tmp/.peon-metrics.json"
+            # Sub-scripts write metrics to a per-task path (see main()) so concurrent
+            # tasks in one container don't read each other's numbers.
+            metrics_path = os.environ.get("PEON_METRICS_PATH", "/tmp/.peon-metrics.json")
             if os.path.exists(metrics_path):
                 try:
                     with open(metrics_path, "r") as f:
@@ -157,11 +172,12 @@ def main() -> None:
     target_crs = os.environ.get("TARGET_CRS", "").strip() or "EPSG:4326"
     print(f"[main] Target CRS for reprojection: {target_crs}", flush=True)
 
-    print(f"[main] INPUT_TYPE={input_type}   INPUT_URI={input_uri}",  flush=True)
+    print(f"[main] INPUT_TYPE={input_type}   INPUT_URI={redact(input_uri)}",  flush=True)
     print(f"[main] OUTPUT_TYPE={output_type}  OUTPUT_URI={output_uri}", flush=True)
     if model_path:
         print(f"[main] MODEL_PATH={model_path}", flush=True)
 
+    os.environ["PEON_METRICS_PATH"] = f"/tmp/.peon-metrics-{os.getpid()}.json"
     env = os.environ.copy()
     env["TARGET_CRS"] = target_crs
 
@@ -183,9 +199,6 @@ def main() -> None:
             except Exception as exc:
                 print(f"[main] ERROR: {exc}", file=sys.stderr, flush=True)
                 sys.exit(1)
-        
-        if model_path:
-            cmd.append(f"--model={model_path}")
         
         # Pass zoom levels if provided
         min_z = os.environ.get("MIN_ZOOM")
@@ -270,7 +283,7 @@ def main() -> None:
         if model_path:
             cmd.append(f"--model={model_path}")
 
-    print(f"[main] Executing: {' '.join(cmd)}", flush=True)
+    print(f"[main] Executing: {' '.join(redact(c) for c in cmd)}", flush=True)
 
     result = subprocess.run(cmd, env=env)
 

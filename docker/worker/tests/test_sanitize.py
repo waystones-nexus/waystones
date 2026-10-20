@@ -93,3 +93,32 @@ class TestSanitizeTippecanoeProgress:
         line = "49.0% done"
         result = wrapper.sanitize(line)
         assert result is not None
+
+
+class TestSanitizeConninfoPassword:
+    def test_gdal_datasource_password(self):
+        line = "FAILURE: Unable to open datasource `PG:host=db port=5432 dbname=x user=u password=hunter2' with the following drivers."
+        result = wrapper.sanitize(line)
+        assert "hunter2" not in result
+        assert "password=***" in result
+        assert "host=db" in result
+
+    def test_quoted_password_with_spaces(self):
+        result = wrapper.sanitize("PG:host='db' password='two words'")
+        assert "two words" not in result
+        assert "words" not in result
+
+    def test_pgpassword_env(self):
+        result = wrapper.sanitize("PGPASSWORD=s3cret ogr2ogr ...")
+        assert "s3cret" not in result
+
+
+class TestSanitizeAuthTokens:
+    def test_bearer_token(self):
+        result = wrapper.sanitize("Authorization: Bearer abc.def-123")
+        assert "abc.def-123" not in result
+        assert "Bearer ***" in result
+
+    def test_apikey_scheme(self):
+        result = wrapper.sanitize("Authorization: ApiKey wsk_live_123")
+        assert "wsk_live_123" not in result
