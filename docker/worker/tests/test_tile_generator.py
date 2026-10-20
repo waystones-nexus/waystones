@@ -164,6 +164,16 @@ class TestTippecanoeCommand:
         cmd = tile_gen.tippecanoe_command(_args(auto_zoom=True), "/o", self.EXTRACTED, "p")
         assert "-zg" in cmd and "-z" not in cmd
 
+    def test_auto_zoom_has_floor_and_base_zoom_guess(self):
+        cmd = tile_gen.tippecanoe_command(_args(auto_zoom=True), "/o", self.EXTRACTED, "p")
+        assert "--smallest-maximum-zoom-guess=12" in cmd
+        assert "-Bg" in cmd
+
+    def test_fixed_zoom_has_no_guess_flags(self):
+        cmd = tile_gen.tippecanoe_command(_args(), "/o", self.EXTRACTED, "p")
+        assert not any(c.startswith("--smallest-maximum-zoom-guess") for c in cmd)
+        assert "-Bg" not in cmd
+
     def test_tuning_flags(self):
         cmd = tile_gen.tippecanoe_command(_args(), "/o", self.EXTRACTED, "proj")
         for flag in ("--drop-densest-as-needed", "--generate-ids", "--read-parallel"):
@@ -236,3 +246,19 @@ class TestMainRedact:
 
     def test_plain_values_untouched(self):
         assert main_mod.redact("s3://bucket/key.gpkg") == "s3://bucket/key.gpkg"
+
+
+class TestForceIpv4ForEndpoint:
+    def _patch(self, mocker, error):
+        mocker.patch.object(tile_gen.socket, "gethostbyname", return_value="1.2.3.4")
+        mocker.patch("builtins.open", side_effect=error)
+
+    def test_read_only_hosts_is_silent(self, mocker, capsys):
+        self._patch(mocker, OSError(tile_gen.errno.EROFS, "Read-only file system"))
+        tile_gen.force_ipv4_for_endpoint("https://acct.r2.cloudflarestorage.com")
+        assert capsys.readouterr().out == ""
+
+    def test_other_errors_still_warn(self, mocker, capsys):
+        self._patch(mocker, OSError(tile_gen.errno.EACCES, "Permission denied"))
+        tile_gen.force_ipv4_for_endpoint("https://acct.r2.cloudflarestorage.com")
+        assert "DNS override failed" in capsys.readouterr().out

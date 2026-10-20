@@ -7,6 +7,7 @@ Uses ogr2ogr for extraction and tippecanoe for tiling.
 """
 
 import argparse
+import errno
 import json
 import os
 import re
@@ -45,6 +46,10 @@ def force_ipv4_for_endpoint(endpoint_url: str):
         with open("/etc/hosts", "a") as f:
             f.write(f"\n{ipv4_addr} {domain}\n")
         print(f"[tiles] Forced {domain} to {ipv4_addr} in /etc/hosts", flush=True)
+    except OSError as e:
+        if e.errno == errno.EROFS:
+            return  # read-only /etc/hosts; boto3 is already forced to IPv4 by _ensure_ipv4()
+        print(f"[tiles] Warning: DNS override failed: {e}", flush=True)
     except Exception as e:
         print(f"[tiles] Warning: DNS override failed: {e}", flush=True)
 
@@ -227,6 +232,8 @@ def delete_stale_archives(output_prefix: str, keep_filename: str) -> None:
 # Tiling logic — all layers extracted to GeoJSONSeq first, then one tippecanoe pass
 # ---------------------------------------------------------------------------
 
+AUTO_ZOOM_FLOOR = 12
+
 def tippecanoe_command(args, output_path: str, extracted: list, project_name: str) -> list:
     cmd = [
         "tippecanoe",
@@ -242,7 +249,10 @@ def tippecanoe_command(args, output_path: str, extracted: list, project_name: st
         "-A", "Waystones",
     ]
     if args.auto_zoom:
-        cmd.append("-zg")
+        # -zg alone picks very low zooms for sparse data (65 castles → z3), and
+        # overzoomed z3 tiles place points ~1 km off. Floor the guess at z12; -Bg sets
+        # the base zoom to the real guess so sparse points aren't thinned out below z12.
+        cmd.extend(["-zg", f"--smallest-maximum-zoom-guess={AUTO_ZOOM_FLOOR}", "-Bg"])
     else:
         cmd.extend(["-z", str(args.max_zoom)])
     if args.simplification is not None:
