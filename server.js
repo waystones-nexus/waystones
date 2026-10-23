@@ -258,7 +258,8 @@ async function handleAiTrial(req, res) {
   }
 
   const MAX_TRIAL = 10;
-  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
+  // Railway's edge appends the connecting client IP last; earlier entries are caller-controlled.
+  const ip = (req.headers['x-forwarded-for'] || '').split(',').pop().trim() || req.socket.remoteAddress || 'unknown';
   const rateKey = `${ip}-${getTrialWeekKey()}`;
   const used = trialRateMap.get(rateKey) || 0;
   if (used >= MAX_TRIAL) {
