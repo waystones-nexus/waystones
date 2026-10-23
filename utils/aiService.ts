@@ -6,8 +6,8 @@ const PROVIDER_KEY = 'waystones-ai-provider';
 const API_KEY_PREFIX = 'waystones-ai-key-';
 const TRIAL_USES_KEY = 'waystones-ai-trial-uses';
 export const MAX_TRIAL_USES = 10;
-const CLAUDE_MODEL = 'claude-haiku-4-5-20251001';
-const GEMINI_MODEL = 'gemini-2.5-flash';
+const CLAUDE_MODEL = 'claude-haiku-5-5';
+const GEMINI_MODEL = 'gemini-3.8-flash';
 const CLAUDE_ENDPOINT = 'https://api.anthropic.com/v1/messages';
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
@@ -238,7 +238,9 @@ async function callAI(system: string, user: string): Promise<string> {
         },
         body: JSON.stringify({
           model: CLAUDE_MODEL,
-          max_tokens: 512,
+          // Haiku 5.5 thinks by default and thinking counts toward max_tokens
+          max_tokens: 2048,
+          output_config: { effort: 'low' },
           system,
           messages: [{ role: 'user', content: user }],
         }),
@@ -255,14 +257,19 @@ async function callAI(system: string, user: string): Promise<string> {
       }
 
       const data = await res.json();
-      const result = data.content?.[0]?.text?.trim() ?? '';
+      // Response may start with thinking blocks — take the text blocks only
+      const result = (data.content ?? [])
+        .filter((b: { type: string }) => b.type === 'text')
+        .map((b: { text: string }) => b.text)
+        .join('')
+        .trim();
       if (!result) throw new Error('AI returned empty response');
       return result;
 
     } else {
-      const res = await fetch(`${GEMINI_BASE}/${GEMINI_MODEL}:generateContent?key=${key}`, {
+      const res = await fetch(`${GEMINI_BASE}/${GEMINI_MODEL}:generateContent`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
         body: JSON.stringify({
           system_instruction: { parts: [{ text: system }] },
           contents: [{ role: 'user', parts: [{ text: user }] }],
@@ -280,7 +287,11 @@ async function callAI(system: string, user: string): Promise<string> {
       }
 
       const data = await res.json();
-      const result = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? '';
+      const result = (data.candidates?.[0]?.content?.parts ?? [])
+        .filter((p: { text?: string; thought?: boolean }) => p.text && !p.thought)
+        .map((p: { text: string }) => p.text)
+        .join('')
+        .trim();
       if (!result) throw new Error('AI returned empty response');
       return result;
     }
