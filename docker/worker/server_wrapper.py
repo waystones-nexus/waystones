@@ -55,6 +55,25 @@ import threading
 active_tasks_lock = threading.Lock()
 active_tasks_count = 0
 
+# Grace period before an idle container exits — flushes logs and gives a
+# follow-up request a chance to arrive.
+SHUTDOWN_GRACE_SECONDS = 20
+
+
+def delayed_exit(grace_seconds: float = SHUTDOWN_GRACE_SECONDS):
+    """Exit after the grace period, unless a task was accepted in the meantime.
+
+    That task's own completion schedules a fresh delayed_exit, so the container
+    still shuts down once it is truly idle.
+    """
+    time.sleep(grace_seconds)
+    with active_tasks_lock:
+        if active_tasks_count > 0:
+            logger.info(f"Task arrived during shutdown grace period ({active_tasks_count} active) — staying up.")
+            return
+        logger.info("Goodbye!")
+        os._exit(0)
+
 class _PostRedirectHandler(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         if code in (307, 308):
@@ -157,15 +176,7 @@ def run_task_subprocess(env_vars: dict):
             logger.info(f"Task finished. Remaining active tasks: {active_tasks_count}")
             
             if active_tasks_count == 0:
-                logger.info("No more active tasks. Shutting down container now...")
-                # We use a short delay to ensure the log is flushed before the process dies
-                # and to allow a tiny window for another request to hit before we die.
-                def delayed_exit():
-                    import time
-                    time.sleep(20)
-                    logger.info("Goodbye!")
-                    os._exit(0)
-                
+                logger.info(f"No more active tasks. Shutting down in {SHUTDOWN_GRACE_SECONDS}s unless a new task arrives...")
                 threading.Thread(target=delayed_exit, daemon=True).start()
 
 @app.post("/internal-task")

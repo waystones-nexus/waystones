@@ -9,5 +9,6 @@
   {"input": "layer/name",   "expected": "layer_name",  "note": "slash → underscore"},
   {"input": "public.roads", "expected": "public_roads","note": "dot → underscore"},
   {"input": "123start",     "expected": "123start",    "note": "leading digit preserved"},
-  {"input": "  spaces  ",   "expected": "spaces",      "note": "surrounding spaces stripped"}
+  {"input": "  spaces  ",   "expected": "spaces",      "note": "surrounding spaces stripped"},
+  {"input": "Roads - Main", "expected": "roads_main",  "note": "space-dash-space squeezed to one underscore"}
 ]
