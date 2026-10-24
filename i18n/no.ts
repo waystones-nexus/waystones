@@ -29,6 +29,8 @@ export const no = {
     parsing: "Leser fil…",
     heroTagline: "Fra geodata til live-API.",
     heroSubtitle: "Design, publiser og skaler din geografiske datainfrastruktur.\nDin stack, dine regler",
+    cloudHint: "Ingen Docker eller servere?",
+    cloudHintLink: "Publiser gratis på Waystones Cloud",
     heroOutputLabel: "Du får",
     whatCanIDoTitle: "Hva kan jeg bruke dette til?",
     whatCanIDo1: "Dataene dine blir tilgjengelige i kartapper — QGIS, ArcGIS, webkart og mer.",
@@ -659,6 +661,7 @@ export const no = {
   },
   guide: {
     title: "Velkommen til Waystones",
+    fullDocs: "Full dokumentasjon",
     subtitle: "Den enkleste måten å transformere geodata til standardiserte webtjenester.",
     close: "Kom i gang",
     next: "Neste",

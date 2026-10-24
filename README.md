@@ -8,7 +8,7 @@
 [![Vite](https://img.shields.io/badge/Vite-6-646cff?logo=vite)](https://vitejs.dev)
 [![Supabase](https://img.shields.io/badge/Supabase-3ecf8e?logo=supabase&logoColor=white)](https://supabase.com)
 
-[**⚡ Live Demos (Public & Private Endpoints)**](#-live-demos)
+[**📖 Documentation**](https://waystones.cloud/docs/designer/overview) · [**⚡ Live Demos**](#-live-demos) · [**☁️ Deploy free on Waystones Cloud**](https://waystones.cloud/?utm_source=github&utm_medium=readme)
 </div>
 
 ---

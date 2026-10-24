@@ -282,7 +282,7 @@ const PublishStep: React.FC<PublishStepProps> = ({ model, summary, selectedLayer
       <div className="space-y-3">
         <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">{d.targetTitle}</label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {(['docker-compose', 'codespaces', 'railway', 'waystones-cloud'] as DeployTarget[]).map(tgt => {
+          {(['waystones-cloud', 'docker-compose', 'codespaces', 'railway'] as DeployTarget[]).map(tgt => {
             const icons: Record<string, React.ReactNode> = {
               'docker-compose': <Server size={20} />,
               'railway': <Cloud size={20} />,
@@ -317,7 +317,7 @@ const PublishStep: React.FC<PublishStepProps> = ({ model, summary, selectedLayer
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-black text-slate-900">{d.targets?.[tgt]}</p>
                     {isManaged && (
-                      <span className="px-1.5 py-0.5 rounded-md bg-indigo-100 text-indigo-700 text-[9px] font-black uppercase tracking-widest">Managed</span>
+                      <span className="px-1.5 py-0.5 rounded-md bg-indigo-100 text-indigo-700 text-[9px] font-black uppercase tracking-widest">Free tier</span>
                     )}
                   </div>
                   <p className="text-[10px] text-slate-400 font-medium mt-0.5 leading-relaxed">{d.targets?.[tgt + 'Desc']}</p>

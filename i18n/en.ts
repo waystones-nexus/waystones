@@ -30,6 +30,8 @@ export const en = {
     heroTagline: "From geodata to live API.",
     heroSubtitle: "Design, publish, and scale your spatial data infrastructure.\nYour stack, your rules",
     heroOutputLabel: "What you get",
+    cloudHint: "No Docker or servers?",
+    cloudHintLink: "Deploy free on Waystones Cloud",
     whatCanIDoTitle: "What can I do with this?",
     whatCanIDo1: "Your data becomes accessible to mapping apps — QGIS, ArcGIS, web maps, and more.",
     whatCanIDo2: "Render your data on interactive maps viewable in browsers and geospatial tools.",
@@ -659,6 +661,7 @@ export const en = {
   },
   guide: {
     title: "Welcome to Waystones",
+    fullDocs: "Full documentation",
     subtitle: "The easiest way to transform geodata into standards-compliant web services.",
     close: "Get started",
     next: "Next",

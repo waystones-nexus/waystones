@@ -68,6 +68,17 @@ const LandingScreen: React.FC<LandingScreenProps> = ({
             <p className="text-lg md:text-xl text-slate-500 font-medium max-w-2xl mx-auto leading-relaxed whitespace-pre-line">
               {l.heroSubtitle}
             </p>
+            <p className="text-sm text-slate-500">
+              {l.cloudHint}{' '}
+              <a
+                href="https://waystones.cloud/?utm_source=waystones-app&utm_medium=landing"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 font-bold text-indigo-600 hover:text-indigo-500"
+              >
+                {l.cloudHintLink} <ArrowRight size={14} />
+              </a>
+            </p>
           </div>
 
           {/* Output showcase - Matching Cloud's Tag system */}

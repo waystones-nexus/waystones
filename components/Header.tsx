@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { HelpCircle, Sparkles, X, Activity, Check, AlertTriangle, Github, ChevronDown } from 'lucide-react';
+import { HelpCircle, Sparkles, X, Activity, Check, AlertTriangle, Github, ChevronDown, BookOpen, Cloud } from 'lucide-react';
 import { Language } from '../types';
 import { AiProvider, getProvider, setProvider, getApiKey, saveApiKey, clearApiKey, getTrialUsesLeft, SUPPORTED_LANGUAGES } from '../utils/aiService';
 import { useAiStatus } from '../hooks/useAiStatus';
@@ -280,6 +280,25 @@ const Header: React.FC<{
         </div>
 
         <div className="flex items-center gap-1 md:gap-2">
+          <a
+            href="https://waystones.cloud/?utm_source=waystones-app&utm_medium=header"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Waystones Cloud - managed hosting, free to start"
+            className="hidden lg:flex items-center gap-2 px-4 py-2.5 md:py-3 rounded-2xl text-[11px] font-black uppercase tracking-[0.15em] text-indigo-600 hover:bg-indigo-50/50 border border-indigo-100 hover:border-indigo-200 transition-all shrink-0"
+          >
+            <Cloud size={16} />
+            Deploy on Cloud
+          </a>
+          <a
+            href="https://waystones.cloud/docs/designer/overview"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Documentation"
+            className="hidden md:flex p-2.5 md:p-3.5 rounded-2xl text-slate-400 hover:text-indigo-600 hover:bg-indigo-50/50 border border-transparent hover:border-indigo-100 transition-all shrink-0"
+          >
+            <BookOpen size={20} className="md:w-[24px] md:h-[24px]" />
+          </a>
           <a
             href="https://github.com/waystones-nexus/waystones"
             target="_blank"
