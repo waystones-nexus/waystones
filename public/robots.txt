@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /oauth-callback.html
+
+Sitemap: https://waystones.app/sitemap.xml

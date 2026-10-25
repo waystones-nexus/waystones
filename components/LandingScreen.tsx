@@ -9,6 +9,7 @@ interface LandingScreenProps {
   t: Translations;
   models: DataModel[];
   onDropGpkg: (file: File) => void;
+  onTrySample: () => void;
   onNewModel: () => void;
   onImportFile: () => void;
   onImportUrl: () => void;
@@ -26,7 +27,7 @@ const Tag: React.FC<{ label: string, color: string, icon: any }> = ({ label, col
 );
 
 const LandingScreen: React.FC<LandingScreenProps> = ({
-  t, models, onDropGpkg, onNewModel, onImportFile, onImportUrl, onImportGithub, onImportDatabase, onSelectModel, isParsing
+  t, models, onDropGpkg, onTrySample, onNewModel, onImportFile, onImportUrl, onImportGithub, onImportDatabase, onSelectModel, isParsing
 }) => {
   const { triggerQuestWhisper, stats } = useAmbient();
   const l = t.landing || {};
@@ -153,6 +154,18 @@ const LandingScreen: React.FC<LandingScreenProps> = ({
                 </div>
               )}
             </div>
+
+            <button
+              type="button"
+              onClick={onTrySample}
+              disabled={isParsing}
+              className="-mt-2 flex flex-col items-center gap-0.5 text-center disabled:opacity-50"
+            >
+              <span className="inline-flex items-center gap-1 text-sm font-bold text-emerald-600 hover:text-emerald-500">
+                {l.trySample} <ArrowRight size={14} />
+              </span>
+              <span className="text-[11px] text-slate-400 font-medium">{l.trySampleNote}</span>
+            </button>
 
             <input
               ref={fileInputRef}

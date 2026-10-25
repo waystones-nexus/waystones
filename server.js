@@ -18,6 +18,10 @@ const MIME = {
   '.ico': 'image/x-icon',
   '.wasm': 'application/wasm',
   '.woff2': 'font/woff2',
+  '.txt': 'text/plain; charset=utf-8',
+  '.xml': 'application/xml; charset=utf-8',
+  '.map': 'application/json',
+  '.gpkg': 'application/geopackage+sqlite3',
 };
 
 
@@ -357,19 +361,28 @@ const server = createServer(async (req, res) => {
       return await handleAiTrial(req, res);
     }
 
-    // Serve static files, fall back to index.html for SPA routing
+    // Serve static files. The app is a single page at /, so any other path that isn't a file
+    // gets a real 404 — still rendering the app (a custom VITE_GITHUB_REDIRECT_URI path relies
+    // on that), but without telling crawlers it's a page of its own.
     const pathname = url.pathname === '/' ? '/index.html' : url.pathname;
+    let status = 200;
     let content;
     let filePath = join(DIST, pathname);
     try {
       content = await readFile(filePath);
     } catch {
+      if (extname(pathname)) {
+        res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+        res.end('Not found');
+        return;
+      }
+      status = 404;
       content = await readFile(join(DIST, 'index.html'));
       filePath = join(DIST, 'index.html');
     }
 
     const isAsset = filePath.includes(join(DIST, 'assets'));
-    res.writeHead(200, {
+    res.writeHead(status, {
       'Content-Type': MIME[extname(filePath)] || 'application/octet-stream',
       'Cache-Control': isAsset ? 'public, max-age=31536000, immutable' : 'no-cache, no-store, must-revalidate'
     });

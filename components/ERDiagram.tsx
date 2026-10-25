@@ -109,7 +109,8 @@ const ERDiagram: React.FC<ERDiagramProps> = ({ model, t }) => {
             const w = codelistBoxWidth(values, prop.name);
             visuals.codelists.push({ prop, values, sourceY, h: clH, w, targetY: currentY + clH/2 });
         } else if (prop.fieldType.kind === 'codelist' && prop.fieldType.mode === 'shared') {
-            const sharedEnum = model.sharedEnums?.find(e => e.id === prop.fieldType.enumRef);
+            const { enumRef } = prop.fieldType;
+            const sharedEnum = model.sharedEnums?.find(e => e.id === enumRef);
             if (sharedEnum && sharedEnum.values.length > 0) {
                 const values = sharedEnum.values;
                 const clH = 40 + values.length * 26 + 10;
