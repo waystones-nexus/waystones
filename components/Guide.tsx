@@ -3,7 +3,7 @@ import type { Translations } from '../i18n/index';
 import { 
   X, Database, Layers, GitBranch, ArrowRight, ArrowLeft,
   Link2, Github, Rocket, Sparkles, Zap, Paintbrush, Check, Package,
-  CloudUpload, PenTool, Globe, Server, Cloud
+  CloudUpload, PenTool, Globe, Server, Cloud, BookOpen
 } from 'lucide-react';
 
 interface GuideProps {
@@ -115,6 +115,15 @@ const Guide: React.FC<GuideProps> = ({ onClose, t }) => {
           <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 bg-white/50 backdrop-blur-md px-3 py-1 rounded-full border border-white/50 shadow-sm">
             {t.guide.step} {currentStep + 1} {t.guide.of} {sections.length}
           </div>
+          <a
+            href="https://waystones.cloud/docs/designer/overview"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-auto mr-3 inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 hover:text-indigo-600 bg-white/50 backdrop-blur-md px-3 py-1 rounded-full border border-white/50 shadow-sm"
+          >
+            <BookOpen size={12} />
+            {t.guide.fullDocs}
+          </a>
           <button 
             onClick={onClose} 
             aria-label="Close guide"
