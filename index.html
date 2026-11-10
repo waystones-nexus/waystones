@@ -75,7 +75,40 @@
 <link rel="stylesheet" href="/index.css">
 </head>
 <body class="bg-slate-50 text-slate-900">
-    <div id="root"></div>
+    <!-- Static summary for crawlers and link previews; React replaces it on mount. -->
+    <div id="root">
+      <main class="max-w-3xl mx-auto px-6 pt-32 pb-20 space-y-6">
+        <h1 class="text-4xl font-black tracking-tight text-slate-800">Waystones — publish GeoPackage and PostGIS data as OGC API services</h1>
+        <p class="text-lg text-slate-500">Waystones is an open-source, in-browser tool for geospatial data models. Drop in a GeoPackage or connect PostGIS or Supabase, refine the data model, and get a ready-to-run service stack: OGC API Features, WMS, vector tiles (PMTiles) and a STAC catalog.</p>
+        <ul class="list-disc pl-6 text-slate-600 space-y-1">
+          <li>Infer a data model from a GeoPackage, PostGIS, Supabase, GeoJSON or an OGC API</li>
+          <li>Edit layers, fields, code lists, relations, styling and metadata</li>
+          <li>Export deploy kits for Docker Compose, Railway and GitHub Codespaces, or deploy to Waystones Cloud</li>
+          <li>Free and open source under the AGPL-3.0 licence</li>
+        </ul>
+        <p class="text-slate-600">
+          <a class="font-bold text-indigo-600" href="https://waystones.cloud/docs/designer/overview">Documentation</a> ·
+          <a class="font-bold text-indigo-600" href="https://github.com/waystones-nexus/waystones">Source on GitHub</a> ·
+          <a class="font-bold text-indigo-600" href="https://waystones.cloud/?utm_source=waystones-app&amp;utm_medium=static">Waystones Cloud</a>
+        </p>
+        <noscript><p class="text-slate-500">Waystones runs in your browser and needs JavaScript enabled.</p></noscript>
+      </main>
+    </div>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Waystones",
+      "url": "https://waystones.app/",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Web browser",
+      "description": "Open-source tool to design geospatial data models and publish GeoPackage and PostGIS data as OGC API Features, WMS, vector tiles and STAC.",
+      "license": "https://www.gnu.org/licenses/agpl-3.0.html",
+      "sameAs": ["https://github.com/waystones-nexus/waystones"],
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "EUR" },
+      "publisher": { "@type": "Organization", "name": "Waystones AS", "url": "https://waystones.cloud/" }
+    }
+    </script>
 <script type="module" src="/index.tsx"></script>
 </body>
 </html>

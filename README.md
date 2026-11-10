@@ -31,7 +31,12 @@ Waystones converts geospatial data models into production-ready OGC API and WMS 
 - **STAC Generation**: Automated **STAC** (SpatioTemporal Asset Catalog) generation for searchable metadata catalogs.
 - **High-Performance Tiles**: Built-in **tippecanoe** integration for generating optimized **PMTiles** (vector tiles).
 - **Self-Contained Kits**: Deployment kits include all necessary Dockerfiles and boot scripts.
-- **Multiple Targets**: Deploy to Docker Compose, Railway, Render, Fly.io, or Waystones Cloud.
+- **Multiple Targets**: Deploy to Docker Compose, Railway, GitHub Codespaces, or Waystones Cloud.
+
+### 🔗 Open From a Link
+**Share a model or dataset as a URL.**
+- **Deep links**: `https://waystones.app/?model=<url>` opens a model (`.json`, `.yaml`) or a dataset (`.gpkg`, GeoJSON, an OGC API `/collections` response) straight in the designer, which makes it easy to link examples from docs and tutorials. The file must be publicly reachable and allow cross-origin requests (CORS).
+- **Sample data**: No data at hand? **Try the sample** on the landing page loads Natural Earth countries and populated places (public domain), bundled at [`public/samples/natural-earth.gpkg`](public/samples/natural-earth.gpkg).
 
 ### 🔍 GitHub Integration
 **Version control and collaborative workflows.**

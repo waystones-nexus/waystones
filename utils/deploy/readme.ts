@@ -37,6 +37,7 @@ const renderHeader = (ctx: RenderContext): string => {
   md += `[![Docker](https://img.shields.io/badge/Container-Docker-2496ed?logo=docker)](https://www.docker.com)\n`;
   md += `</div>\n\n---\n\n`;
   md += `${s.generatedByTarget} **${target}**\n\n`;
+  md += `> ${s.cloudAlternative}\n\n`;
   return md;
 };
 

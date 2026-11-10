@@ -40,6 +40,9 @@ import {
 import { validateModel } from './utils/validationUtils';
 import { ImportValidationResult as FullValidationResult } from './types';
 
+// Natural Earth countries and populated places (public domain), served from public/samples
+const SAMPLE_GPKG_URL = '/samples/natural-earth.gpkg';
+
 const App: React.FC = () => {
   const { triggerQuestWhisper, triggerWhisper, triggerActionWhisper, updateQuests, addLog } = useAmbient();
   const lang: Language = 'en';
@@ -460,6 +463,57 @@ const App: React.FC = () => {
     }
   };
 
+  // Open a model or dataset from a link (?model=<url>, or the bundled sample) like a dropped file
+  const handleImportFromLink = async (url: string) => {
+    setIsParsingGpkg(true);
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const name = decodeURIComponent(new URL(url, window.location.href).pathname.split('/').pop() || 'model');
+      const ext = name.split('.').pop()?.toLowerCase();
+
+      if (ext === 'gpkg' || ext === 'sqlite') {
+        await handleGpkgDrop(new File([await res.blob()], name));
+        return;
+      }
+      if (ext === 'yaml' || ext === 'yml') {
+        handleImportModel(await processModelYamlFile(new File([await res.text()], name)));
+        return;
+      }
+      const json = await res.json();
+      if (isDataModel(json)) {
+        // Opening the same link twice shows the existing copy instead of duplicating it
+        if (models.some(m => m.id === json.id)) {
+          setSelectedId(json.id);
+          setActiveTab('editor');
+        } else {
+          // A shared link shouldn't preset where the user's GitHub token pushes to
+          handleImportModel({ ...json, githubMeta: undefined });
+        }
+      } else {
+        await handleUrlImportSuccess(json, name, url);
+      }
+    } catch (err) {
+      alert(t.linkImportError);
+      console.error(err);
+    } finally {
+      setIsParsingGpkg(false);
+    }
+  };
+
+  const linkImportStarted = useRef(false);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const modelUrl = params.get('model');
+    if (!modelUrl || linkImportStarted.current) return;
+    linkImportStarted.current = true;
+    // Drop the parameter so a reload doesn't import again
+    params.delete('model');
+    const query = params.toString();
+    window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`);
+    handleImportFromLink(modelUrl);
+  }, []);
+
   // Validate current model for deploy tab
   const validateForDeploy = async (model: DataModel) => {
     try {
@@ -533,6 +587,7 @@ const App: React.FC = () => {
             t={t}
             models={models}
             onDropGpkg={handleGpkgDrop}
+            onTrySample={() => handleImportFromLink(SAMPLE_GPKG_URL)}
             onNewModel={handleNewModel}
             onImportFile={() => fileInputRef.current?.click()}
             onImportUrl={() => setShowUrlImport(true)}
